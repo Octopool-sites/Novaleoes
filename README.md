@@ -37,6 +37,8 @@ O cron de produção executa a recuperação de estoque a cada cinco minutos. A 
 
 ## Situação em 12/09/2026
 
+Staging publicado em https://octopool-commerce-nova-leoes-staging.nova-leoes-storefront.workers.dev/ — Worker versão `27d907b1-d923-48eb-adf6-08bcd6757830`, fonte `e8cc875`. As três migrações D1 foram aplicadas somente em staging. Verificação hospedada: vitrine e seis fotos HTTP 200; catálogo com sete peças; pedidos desligados; gestão anônima e JWT forjado HTTP 401; envio público bloqueado HTTP 503. D1 confirmou zero pedidos e zero tarefas de estoque após os testes. O navegador mostrou o carrinho bloqueado e nenhum erro ou aviso de console foi registrado nessa navegação.
+
 O login da equipe ainda aguarda configuração e a identificação dos responsáveis. A ativação do Zero Trust Free apresentou exigência de cartão e autorização de excedentes; essa etapa não foi aceita. Nenhum plano pago foi contratado. `PUBLIC_ORDERS_ENABLED=0` em ambos os ambientes.
 
 Foi feita auditoria **somente leitura** no ERP em produção, sem alterar saldos. O catálogo de teste contém sete peças com preço e disponibilidade dessa fotografia. O óleo de unidade LT ficou fora do piloto de peças inteiras. A foto da lâmpada foi omitida porque o cadastro referencia outro SKU. Catálogo em produção deve ser atualizado no momento da ativação.
@@ -45,7 +47,7 @@ O conector Nexus está na branch local `codex/commerce-stock-20260912`, com `ori
 
 ## Validação e limites
 
-- Testes Node exercitam o Worker, SQL transacional em SQLite, JWT assinado, isolamento, aprovação, cancelamento e falhas de comunicação. O ERP desses testes do Worker é simulado; não confundir com validação da conexão em produção.
+- 37 testes Node aprovados: exercitam o Worker, SQL transacional em SQLite, JWT assinado, isolamento, aprovação, cancelamento e falhas de comunicação. O ERP desses testes do Worker é simulado; não confundir com validação da conexão em produção.
 - A suíte Nexus usa PostgreSQL real, isolado em localhost: 20 testes aprovados em 12/09/2026, incluindo balcão x site, última peça, cancelamento simultâneo e 20 solicitações sobre sete peças.
 - Build TypeScript/Vite e empacotamento Worker verificados. A auditoria npm retornou zero vulnerabilidades após atualização das ferramentas de build.
 - Falta autenticação real da equipe e teste operacional completo no ambiente hospedado. Aprovação protege o fluxo, mas não representa garantia de ausência de falhas. Falhas devem permanecer visíveis e recuperáveis.
