@@ -1,0 +1,2 @@
+import {route,owner,findOrder} from "@/lib/commerce-server";
+export async function GET(_request:Request,{params}:{params:Promise<{id:string}>}){return route(async()=>{const {id}=await params;const order=await findOrder(await owner(),id);return Response.json({schemaVersion:"octopool.commerce.order.v1",eventId:`${order.id}:${order.revision}`,eventType:"order.snapshot",source:{product:"commerce",store:"nova-leoes"},order},{headers:{"Content-Disposition":`attachment; filename="${order.number}.json"`}});});}

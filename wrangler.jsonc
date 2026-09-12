@@ -1,0 +1,28 @@
+{
+ "$schema":"node_modules/wrangler/config-schema.json",
+ "name":"octopool-commerce-unconfigured",
+ "main":"worker/index.ts",
+ "account_id":"472249d0e533f9d5c2084f4168cb71ed",
+ "compatibility_date":"2026-09-12",
+ "compatibility_flags":["nodejs_compat"],
+ "workers_dev":false,
+ "assets":{"directory":"./dist/client","binding":"ASSETS","run_worker_first":["/api/*","/gestao","/gestao/*"],"not_found_handling":"none"},
+ "observability":{"enabled":true,"head_sampling_rate":0.1},
+ "env":{
+  "staging":{
+   "name":"octopool-commerce-nova-leoes-staging",
+   "workers_dev":true,
+   "d1_databases":[{"binding":"DB","database_name":"octopool-commerce-nova-leoes-staging","database_id":"16e1e304-661d-4e6b-b21b-fb594920de58","migrations_dir":"drizzle"}],
+   "vars":{"STORE_OWNER":"nova-leoes-staging","PUBLIC_ORDERS_ENABLED":"0","CATALOG_MODE":"staging"},
+   "ratelimits":[{"name":"ORDER_RATE_LIMITER","namespace_id":"2026091201","simple":{"limit":10,"period":60}}]
+  },
+  "production":{
+   "name":"nova-leoes-storefront",
+   "workers_dev":true,
+   "d1_databases":[{"binding":"DB","database_name":"octopool-commerce-nova-leoes-production","database_id":"0e2356ac-b611-4180-b5e2-be042a5090d0","migrations_dir":"drizzle"}],
+   "vars":{"STORE_OWNER":"cmr9m6jgi001lx34fzpaeyrzn","PUBLIC_ORDERS_ENABLED":"0","CATALOG_MODE":"production","REQUIRE_SHARED_STOCK":"1"},
+   "ratelimits":[{"name":"ORDER_RATE_LIMITER","namespace_id":"2026091202","simple":{"limit":10,"period":60}}],
+   "triggers":{"crons":["*/5 * * * *"]}
+  }
+ }
+}
