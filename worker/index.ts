@@ -31,7 +31,7 @@ export default {
    }
    if(pathname.startsWith("/api/")||pathname==="/gestao"||pathname.startsWith("/gestao/")){
     await owner();
-    if(pathname==="/api/session"&&method==="GET"){const user=(await operator())!;return Response.json({name:user.displayName,email:user.email,role:"APPROVER"});}
+    if(pathname==="/api/session"&&method==="GET"){const user=(await operator())!;return Response.json({name:user.displayName,email:user.email,role:"APPROVER",environment:env.CATALOG_MODE === "production" ? "production" : "staging"});}
     if(pathname==="/api/orders"&&method==="GET")return orders.GET();
     const approval=pathname.match(/^\/api\/orders\/([a-zA-Z0-9-]+)\/approve$/);
     if(approval&&method==="POST")return approveOrder(request,approval[1]);

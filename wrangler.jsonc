@@ -74,12 +74,14 @@
       ],
       "vars": {
         "STORE_OWNER": "cmr9m6jgi001lx34fzpaeyrzn",
-        "PUBLIC_ORDERS_ENABLED": "0",
-        "COMMERCE_APPROVERS": "",
+        "PUBLIC_ORDERS_ENABLED": "1",
+        "COMMERCE_APPROVERS": "arthur@octopool.com.br",
         "CATALOG_MODE": "production",
         "REQUIRE_SHARED_STOCK": "1",
         "SUPABASE_URL": "https://vcmpehcvtywumwhathsr.supabase.co",
-        "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_pziPXwVlM_L9jl6RTdQ77Q_NVLrFhhT"
+        "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_pziPXwVlM_L9jl6RTdQ77Q_NVLrFhhT",
+        "COMMERCE_ERP_ORIGIN": "https://api.octopool.com.br",
+        "COMMERCE_ERP_OWNER": "cmr9m6jgi001lx34fzpaeyrzn"
       },
       "ratelimits": [
         {

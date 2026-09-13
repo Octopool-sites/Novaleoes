@@ -146,7 +146,7 @@ const blankProduct: Product = {
   description: "",
   published: false,
 };
-export default function CommerceAdmin({ name }: { name: string }) {
+export default function CommerceAdmin({ name, environment = "staging" }: { name: string; environment?: "staging" | "production" }) {
   const [approval, setApproval] = useState(false);
   const approvalAttempt=useRef<Record<string,string>>({});
   const [view, setView] = useState<View>("overview"),
@@ -551,7 +551,7 @@ export default function CommerceAdmin({ name }: { name: string }) {
             <ChevronRight size={14} />
             <b>{navigation.find((n) => n.id === view)?.label}</b>
           </div>
-          <span className="pilot-badge">PILOTO · SEM COBRANÇA</span>
+          <span className="pilot-badge">{environment === "production" ? "OPERAÇÃO DA LOJA" : "AMBIENTE DE TESTE"}</span>
         </header>
         <main className="admin-main">
           <div className="admin-heading">
@@ -645,12 +645,12 @@ export default function CommerceAdmin({ name }: { name: string }) {
                     </article>
                     <article>
                       <span>
-                        Valor em pedidos <span>R$</span>
+                        Valor em pedidos
                       </span>
                       <strong>
                         {money(active.reduce((s, o) => s + o.totalCents, 0))}
                       </strong>
-                      <small>Demonstrativo · exclui cancelados</small>
+                      <small>Exclui pedidos cancelados</small>
                     </article>
                     <article>
                       <span>
@@ -1034,7 +1034,7 @@ export default function CommerceAdmin({ name }: { name: string }) {
                         )}
                         <ul>
                           <li>
-                            Reserva ao receber o pedido; baixa na retirada.
+                            Reserva após aprovar o pedido; baixa na retirada.
                           </li>
                           <li>Cancelamento libera a reserva uma única vez.</li>
                           <li>Sem resposta do ERP, a confirmação aguarda.</li>
