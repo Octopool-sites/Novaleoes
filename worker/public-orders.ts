@@ -2,9 +2,10 @@ import {context} from "./context";
 import {database,readJson,listProducts,mapOrder,HttpError} from "../lib/commerce-server";
 import {inventoryConfigured,inventoryEnabled} from "../lib/commerce-inventory";
 import {orderInput,STORE} from "../lib/commerce-contracts";
+import {authConfigured,approverEmails} from "./auth";
 export async function intakeEnabled(){
  const {env}=context();
- if(env.PUBLIC_ORDERS_ENABLED!=="1"||!env.STORE_OWNER||!env.ACCESS_ISSUER||!env.ACCESS_AUDIENCE||!env.COMMERCE_APPROVERS)return false;
+ if(env.PUBLIC_ORDERS_ENABLED!=="1"||!env.STORE_OWNER||!authConfigured(env)||!approverEmails().length)return false;
  if(env.REQUIRE_SHARED_STOCK==="1"&&(!inventoryConfigured(env.STORE_OWNER)||!await inventoryEnabled(env.STORE_OWNER)))return false;
  return true;
 }

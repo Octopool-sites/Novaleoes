@@ -1,5 +1,6 @@
 import {requestContext,type RuntimeEnv} from "./context";
-import {operator} from "./auth";
+import {operator,withAuthCookies} from "./auth";
+import {authStatus,login,logout} from "./auth-routes";
 import {route,owner,listProducts,HttpError} from "../lib/commerce-server";
 import {submitOrder,intakeEnabled} from "./public-orders";
 import {approveOrder} from "./approve-order";
@@ -13,8 +14,12 @@ import * as integration from "../app/api/integration/route";
 import * as reconcile from "../app/api/integration/reconcile/route";
 export default {
  async fetch(request:Request,env:RuntimeEnv):Promise<Response>{
-  return requestContext.run({request,env},()=>route(async()=>{
+  return requestContext.run({request,env},async()=>withAuthCookies(await route(async()=>{
    const {pathname}=new URL(request.url),method=request.method;
+   if(pathname==="/api/auth/status"&&method==="GET")return authStatus();
+   if(pathname==="/api/auth/login"&&method==="POST")return login(request);
+   if(pathname==="/api/auth/logout"&&method==="POST")return logout(request);
+   if((pathname==="/gestao"||pathname.startsWith("/gestao/"))&&method==="GET")return env.ASSETS.fetch(new Request(new URL("/",request.url),request));
    if(pathname==="/api/public/catalog"&&method==="GET")return Response.json({products:(await listProducts(env.STORE_OWNER)).filter(p=>p.published),requiresApproval:true,ordersEnabled:await intakeEnabled()});
    if(pathname==="/api/public/orders"&&method==="POST"){
     if(!env.ORDER_RATE_LIMITER)throw new HttpError(503,"O atendimento online está sendo preparado.");
@@ -26,7 +31,6 @@ export default {
    if(pathname.startsWith("/api/")||pathname==="/gestao"||pathname.startsWith("/gestao/")){
     await owner();
     if(pathname==="/api/session"&&method==="GET"){const user=(await operator())!;return Response.json({name:user.displayName,email:user.email,role:"APPROVER"});}
-    if(pathname==="/gestao"||pathname.startsWith("/gestao/"))return env.ASSETS.fetch(new Request(new URL("/",request.url),request));
     if(pathname==="/api/orders"&&method==="GET")return orders.GET();
     const approval=pathname.match(/^\/api\/orders\/([a-zA-Z0-9-]+)\/approve$/);
     if(approval&&method==="POST")return approveOrder(request,approval[1]);
@@ -42,7 +46,7 @@ export default {
     throw new HttpError(404,"Endereço não encontrado.");
    }
    return env.ASSETS.fetch(request);
-  }));
+  })));
  },
  async scheduled(_controller:ScheduledController,env:RuntimeEnv,ctx:ExecutionContext){
   ctx.waitUntil(requestContext.run({request:new Request("https://internal.invalid/maintenance"),env},async()=>{try{await reconcileInventory(env.STORE_OWNER);}catch(error){console.error("inventory-reconcile-failed",error instanceof Error?error.name:"unknown");}}));
