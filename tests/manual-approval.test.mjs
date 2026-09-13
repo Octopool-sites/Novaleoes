@@ -7,6 +7,9 @@ import {generateKeyPair,jwtVerify,SignJWT} from 'jose';
 import worker from '../outputs/test-worker.mjs';
 const supabaseUrl='https://abcdefghijklmnopqrst.supabase.co',issuer=supabaseUrl+'/auth/v1',aud='authenticated';
 let privateKey,publicKey,token,erpMock,authRedirect=false;const originalFetch=globalThis.fetch;let erpCalls=[];
+let activationUsed=false,activationUserOverride={},activationUpdateFails=false,passwordWrites=0,verificationCalls=0;
+const activationInput=()=>({email:'approver@example.invalid',type:'invite',tokenHash:'a'.repeat(64),password:'A valid testing passphrase 918!'});
+function resetActivation(){activationUsed=false;activationUserOverride={};activationUpdateFails=false;passwordWrites=0;verificationCalls=0;}
 before(async()=>{
  const pair=await generateKeyPair('RS256');privateKey=pair.privateKey;publicKey=pair.publicKey;token=await sign('approver@example.invalid');
  globalThis.fetch=async(input,init)=>{
@@ -15,6 +18,16 @@ before(async()=>{
    assert.equal(init.redirect,'manual','Workers-compatible transport must refuse automatic redirects');
    if(authRedirect)return new Response(null,{status:302,headers:{location:'https://attacker.invalid/collect'}});
    const headers=new Headers(init?.headers);
+   if(url.endsWith('/verify')){
+    verificationCalls++;const body=JSON.parse(init.body);
+    if(activationUsed||body.token_hash!=='a'.repeat(64))return Response.json({msg:'Token expired'},{status:403});
+    activationUsed=true;const value=session(token);value.user={...value.user,...activationUserOverride};return Response.json(value);
+   }
+   if(url.endsWith('/user')&&init.method==='PUT'){
+    await jwtVerify(headers.get('authorization').replace(/^Bearer /,''),publicKey,{issuer,audience:aud});
+    if(activationUpdateFails)return Response.json({msg:'Password rejected'},{status:422});
+    passwordWrites++;return Response.json(session(token).user);
+   }
    if(url.includes('/token?grant_type=password')){const body=JSON.parse(init.body);if(body.email!=='approver@example.invalid'||body.password!=='correct-test-password')return Response.json({msg:'Invalid login credentials'},{status:400});return Response.json(session(token));}
    if(url.includes('/logout'))return new Response(null,{status:204});
    try {const {payload}=await jwtVerify(headers.get('authorization').replace(/^Bearer /,''),publicKey,{issuer,audience:aud});return Response.json({id:payload.sub,email:payload.email,role:payload.role||'authenticated',email_confirmed_at:payload.unconfirmed?null:'2026-01-01T00:00:00Z',is_anonymous:payload.anonymous||false});}
@@ -159,4 +172,40 @@ test('provider redirects cannot forward credentials or authorize an operator',as
   assert.equal((await f.call('/api/orders','GET',undefined,true)).status,401);
   assert.deepEqual(erpCalls,[]);assert.equal(f.stockOf(),3);
  } finally {authRedirect=false;}
+});
+test('individual invite sets a password and session once, without order or inventory changes',async()=>{
+ resetActivation();const f=fixture();erpCalls=[];
+ const result=await f.call('/api/auth/activate','POST',activationInput());
+ assert.equal(result.status,200,JSON.stringify(result));assert.deepEqual(result.body,{ok:true});assert.equal(passwordWrites,1);
+ assert.ok(result.cookies.some(cookie=>!cookie.includes('Max-Age=0')&&cookie.includes('HttpOnly')&&cookie.includes('Secure')));
+ const again=await f.call('/api/auth/activate','POST',activationInput());assert.equal(again.status,401);assert.equal(passwordWrites,1);
+ assert.ok(again.cookies.every(cookie=>cookie.includes('Max-Age=0')));assert.deepEqual(erpCalls,[]);assert.equal(f.stockOf(),3);
+ assert.equal(f.db.prepare('SELECT COUNT(*) n FROM commerce_orders').get().n,0);
+});
+test('activation rejects missing token, weak password, client privilege fields and CSRF before consumption',async()=>{
+ resetActivation();const f=fixture();
+ for(const body of [{...activationInput(),tokenHash:''},{...activationInput(),password:'short'},{...activationInput(),role:'ADMIN'},{...activationInput(),type:'signup'}])assert.equal((await f.call('/api/auth/activate','POST',body)).status,400);
+ assert.equal((await f.call('/api/auth/activate','POST',activationInput(),false,{origin:'https://attacker.invalid'})).status,403);
+ assert.equal(verificationCalls,0);assert.equal(passwordWrites,0);
+});
+test('activation binds provider identity to the explicitly authorized email',async()=>{
+ for(const changes of [{email:'other@example.invalid'},{role:'service_role'},{is_anonymous:true},{email_confirmed_at:null}]){
+  resetActivation();activationUserOverride=changes;const f=fixture();const result=await f.call('/api/auth/activate','POST',activationInput());
+  assert.equal(result.status,401);assert.equal(passwordWrites,0);assert.ok(result.cookies.every(cookie=>cookie.includes('Max-Age=0')));
+ }
+ resetActivation();const f=fixture();f.env.COMMERCE_APPROVERS='other@example.invalid';assert.equal((await f.call('/api/auth/activate','POST',activationInput())).status,401);assert.equal(verificationCalls,0);
+});
+test('password provider failure removes the exchanged session instead of granting access',async()=>{
+ resetActivation();activationUpdateFails=true;const f=fixture();const result=await f.call('/api/auth/activate','POST',activationInput());
+ assert.equal(result.status,400);assert.equal(passwordWrites,0);assert.ok(result.cookies.length>0);assert.ok(result.cookies.every(cookie=>cookie.includes('Max-Age=0')));
+ resetActivation();
+});
+test('activation is rate limited before contacting the provider',async()=>{
+ resetActivation();const f=fixture();f.env.AUTH_RATE_LIMITER={limit:async()=>({success:false})};
+ assert.equal((await f.call('/api/auth/activate','POST',activationInput())).status,429);assert.equal(verificationCalls,0);
+});
+test('logout clears local cookies even when the provider is unavailable',async()=>{
+ const f=fixture();authRedirect=true;
+ try {const result=await f.call('/api/auth/logout','POST',{},true);assert.equal(result.status,200);assert.ok(result.cookies.length>0);assert.ok(result.cookies.every(cookie=>cookie.includes('Max-Age=0')));}
+ finally{authRedirect=false;}
 });

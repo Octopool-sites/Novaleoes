@@ -81,3 +81,13 @@ export function withAuthCookies(response: Response) {
   result.headers.set("Cache-Control", "private, no-store, max-age=0");
   return result;
 }
+
+export function clearAuthCookies() {
+  const current = context();
+  const names = new Set([SESSION_COOKIE]);
+  for (const cookie of parseCookieHeader(current.request.headers.get("cookie") || "")) names.add(cookie.name);
+  for (const cookie of current.authCookies || []) names.add(cookie.split("=", 1)[0]);
+  current.authCookies = [...names].filter(name => name === SESSION_COOKIE || name.startsWith(SESSION_COOKIE + ".") || name.startsWith(SESSION_COOKIE + "-")).map(name =>
+    serializeCookieHeader(name, "", { path: "/", secure: true, httpOnly: true, sameSite: "lax", maxAge: 0, expires: new Date(0) })
+  );
+}

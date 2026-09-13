@@ -37,7 +37,7 @@
       "vars": {
         "STORE_OWNER": "nova-leoes-staging",
         "PUBLIC_ORDERS_ENABLED": "0",
-        "COMMERCE_APPROVERS": "",
+        "COMMERCE_APPROVERS": "arthur@octopool.com.br",
         "CATALOG_MODE": "staging",
         "SUPABASE_URL": "https://vcmpehcvtywumwhathsr.supabase.co",
         "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_pziPXwVlM_L9jl6RTdQ77Q_NVLrFhhT"

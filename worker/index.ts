@@ -1,6 +1,6 @@
 import {requestContext,type RuntimeEnv} from "./context";
 import {operator,withAuthCookies} from "./auth";
-import {authStatus,login,logout} from "./auth-routes";
+import {authStatus,login,logout,activate} from "./auth-routes";
 import {route,owner,listProducts,HttpError} from "../lib/commerce-server";
 import {submitOrder,intakeEnabled} from "./public-orders";
 import {approveOrder} from "./approve-order";
@@ -19,6 +19,7 @@ export default {
    if(pathname==="/api/auth/status"&&method==="GET")return authStatus();
    if(pathname==="/api/auth/login"&&method==="POST")return login(request);
    if(pathname==="/api/auth/logout"&&method==="POST")return logout(request);
+   if(pathname==="/api/auth/activate"&&method==="POST")return activate(request);
    if((pathname==="/gestao"||pathname.startsWith("/gestao/"))&&method==="GET")return env.ASSETS.fetch(new Request(new URL("/",request.url),request));
    if(pathname==="/api/public/catalog"&&method==="GET")return Response.json({products:(await listProducts(env.STORE_OWNER)).filter(p=>p.published),requiresApproval:true,ordersEnabled:await intakeEnabled()});
    if(pathname==="/api/public/orders"&&method==="POST"){

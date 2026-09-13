@@ -46,7 +46,7 @@ export default function CommerceLogin({ onSignedIn }: { onSignedIn: () => void }
         {error && <p role="alert" className="login-error">{error}</p>}
         <button className="login-submit" type="submit" disabled={checking || pending || !ready}>{pending || checking ? <><LoaderCircle size={18} className="animate-spin" /> {pending ? "Entrando…" : "Conferindo acesso…"}</> : "Entrar na gestão"}</button>
       </form>
-      <p className="login-help">O acesso é liberado pelo administrador. Se precisar criar ou recuperar sua senha, fale com o responsável da loja.</p>
+      <p className="login-help">Primeiro acesso? Abra seu link individual para definir a senha. Digitar um e-mail aqui não cria uma conta. Para receber um novo link, fale com o administrador.</p>
     </section>
     <p className="login-footer">Um ambiente da <strong>octopool</strong></p>
   </main>;

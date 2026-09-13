@@ -2,6 +2,7 @@ import React, { lazy, Suspense, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import Storefront from "./components/storefront";
 import CommerceLogin from "./components/commerce-login";
+import CommerceActivation from "./components/commerce-activation";
 const CommerceAdmin=lazy(()=>import("./components/commerce-admin"));
 import "./app/globals.css";
 import "./app/commerce.css";
@@ -15,4 +16,4 @@ function Management() {
   if(!name)return <CommerceLogin onSignedIn={()=>location.assign("/gestao")}/>;
   return <><Suspense fallback={<p>Carregando gestão…</p>}><CommerceAdmin name={name}/></Suspense><button className="management-signout" onClick={signOut}>Sair da gestão</button>{error&&<p role="alert">{error}</p>}</>;
 }
-createRoot(document.getElementById("root")!).render(<React.StrictMode>{location.pathname.startsWith("/gestao")?<Management/>:<Storefront/>}</React.StrictMode>);
+createRoot(document.getElementById("root")!).render(<React.StrictMode>{location.pathname === "/gestao/primeiro-acesso" ? <CommerceActivation/> : location.pathname.startsWith("/gestao")?<Management/>:<Storefront/>}</React.StrictMode>);
