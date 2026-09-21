@@ -5,3 +5,17 @@ dist/
 .dev.vars*
 outputs/
 *.tsbuildinfo
+*.log
+coverage/
+backups/
+secrets/
+*.dpapi
+*.pem
+*.key
+*.pfx
+*.p12
+*.sqlite
+*.sqlite3
+*.db
+.DS_Store
+Thumbs.db

@@ -2,6 +2,17 @@
 
 Aplicação independente do Nexus, hospedada na conta Cloudflare da Octopool. A vitrine e a gestão usam Vite/React; uma API Worker e D1 guardam pedidos e auditoria. O Supabase Auth identifica a equipe. O conector de estoque se comunica com o Nexus por contrato `octopool.stock.v1`, credencial exclusiva da loja e chamadas de servidor.
 
+## Repositório e organização
+
+- GitHub: [ArthurTrottaCosta/Novaleoes](https://github.com/ArthurTrottaCosta/Novaleoes).
+- Remoto SSH: `git@github.com:ArthurTrottaCosta/Novaleoes.git`.
+- Pasta de trabalho padrão: `%USERPROFILE%\Documents\Octopool\clientes\nova-leoes\site`.
+- Este repositório contém a vitrine, a gestão do Commerce, a API Worker e as migrations D1. O Nexus ERP permanece em outro repositório.
+- O histórico original foi preservado. A organização de pastas e o envio ao GitHub em 21/09/2026 não publicam uma nova versão na Cloudflare nem alteram o banco ou o estoque.
+- Previews antigos são históricos; não usar suas configurações para publicar a operação atual.
+
+Para outros clientes, seguir [o padrão de organização](docs/organizacao-clientes.md). Este projeto contém vínculos reais da Nova Leões e **não é um template pronto para duplicar e publicar**.
+
 ## Escolha de hospedagem gratuita
 
 - Cloudflare Workers Free: arquivos estáticos da vitrine e gestão; Worker para a API e D1 para pedidos, catálogo e auditoria. Não exige Docker para publicar esse frontend/Worker.
@@ -62,7 +73,7 @@ O módulo privado `commerce-estoque-nova-leoes` e a proteção de saldo estão a
 
 Verificação hospedada: envio e repetição de solicitação não criaram reserva no ERP; cancelamento antes de aprovar não movimentou estoque; aprovação autenticada reservou uma peça uma única vez; repetição não duplicou reserva; cancelamento liberou a peça. Os dois pedidos técnicos ficaram cancelados, explicitamente identificados como testes. A conta técnica temporária foi excluída e removida da lista de responsáveis. Auditoria PostgreSQL posterior confirmou todos os saldos físicos iguais aos iniciais e reservas zeradas. O cron recebeu os eventos restantes; às 22:26:33 não havia eventos sem reconhecimento nem tarefas D1 pendentes.
 
-As publicações antigas do Sites e do Vercel são previews, preservados separadamente; o endereço operacional é o Cloudflare acima. O repositório Commerce permanece independente do Nexus, com commits locais; não há remoto Git configurado neste checkout.
+As publicações antigas do Sites e do Vercel são previews, preservados separadamente; o endereço operacional é o Cloudflare acima. O repositório Commerce permanece independente do Nexus e foi conectado ao remoto `ArthurTrottaCosta/Novaleoes` em 21/09/2026.
 
 ## Validação e limites
 
