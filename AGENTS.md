@@ -5,7 +5,7 @@ Escopo deste repositório: Nova Leões. Inclui vitrine, gestão, Cloudflare Work
 ## Antes de trabalhar
 
 - Ler README.md, conferir `git status`, branch e remoto. Preservar alterações existentes.
-- Remoto autorizado: `git@github.com:ArthurTrottaCosta/Novaleoes.git`.
+- Remoto autorizado: `git@github.com:Octopool-sites/Novaleoes.git`.
 - Usar Node 22.13+ e dependências deste projeto. Não ligar node_modules de outro cliente por junction.
 - O README contém evidências históricas datadas. Conferir o estado atual antes de afirmar como está a produção.
 

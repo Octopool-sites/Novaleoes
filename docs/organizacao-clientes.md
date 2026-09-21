@@ -18,10 +18,14 @@ Documents/Octopool/
 
 A raiz Octopool é um organizador local, não um repositório que reúne todos os clientes. O ERP Nexus mantém seu repositório próprio. Material pessoal e o vault Estudos ficam fora desta estrutura.
 
+Os repositórios de sites de clientes ficam na organização GitHub [Octopool-sites](https://github.com/Octopool-sites). A pasta local não precisa mudar quando o proprietário GitHub muda. Nova Leões: `git@github.com:Octopool-sites/Novaleoes.git`.
+
+A organização dos produtos centrais (ERPs, Conteúdo e componentes compartilhados) é uma decisão separada. Não transferir esses repositórios nem separar módulos existentes apenas para seguir a organização dos sites.
+
 ## Repetir para um novo cliente
 
 1. Escolher nome e slug estável, em letras minúsculas sem acentos, separados por hífen.
-2. Criar um repositório próprio no GitHub, preferencialmente privado, e conferir seu proprietário e conteúdo antes de enviar arquivos.
+2. Criar um repositório próprio na organização GitHub `Octopool-sites`, preferencialmente privado, e conferir seu proprietário e conteúdo antes de enviar arquivos. Se o repositório já existir em uma conta pessoal, transferi-lo preservando a identidade/histórico e atualizar o remoto local; não criar uma cópia concorrente.
 3. Criar `clientes/<slug>/README.md` a partir do modelo local e preencher repositório, responsável, ambientes e situação do projeto.
 4. Clonar o repositório em `clientes/<slug>/site`. Se já existe trabalho local, conferir seu Git, arquivos ignorados e dependências, mover a pasta inteira e preservar os commits. Não sobrescrever histórico remoto existente nem usar force-push para conciliar projetos.
 5. Separar configuração e dados do cliente: marca, catálogo, domínio, Worker, bancos de teste/produção, autenticação, responsáveis e integração opcional com o ERP. Criar recursos somente quando forem necessários e dentro do orçamento combinado.
