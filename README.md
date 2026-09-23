@@ -63,7 +63,8 @@ Aplicação independente do Nexus, hospedada na conta Cloudflare da Octopool. A 
 - Remoto SSH: `git@github.com:Octopool-sites/Novaleoes.git`.
 - Organização dos sites de clientes: `Octopool-sites`. O repositório foi transferido da conta pessoal em 21/09/2026, mantendo sua identidade e histórico.
 - Pasta de trabalho padrão: `%USERPROFILE%\Documents\Octopool\clientes\nova-leoes\site`.
-- Este repositório contém a vitrine, a gestão do Commerce, a API Worker e as migrations D1. O Nexus ERP permanece em outro repositório.
+- Este repositório contém as versões A/B da vitrine, a gestão do Commerce, a API Vercel/Firestore e o histórico Worker/D1. O Nexus ERP permanece em outro repositório.
+- A versão consolidada fica em `main`; branches preservam o trabalho em andamento. Em 23/09/2026, o projeto Vercel `nova-leoes-preview` usa deploy via CLI e não possui integração Git automática. Enviar código à organização não publica outra versão por si só.
 - O histórico original foi preservado. A organização de pastas e o envio ao GitHub em 21/09/2026 não publicam uma nova versão na Cloudflare nem alteram o banco ou o estoque.
 - Previews antigos são históricos; não usar suas configurações para publicar a operação atual.
 
@@ -92,19 +93,18 @@ O banco impede a criação de tarefa de reserva sem uma aprovação registrada. 
 
 ## Ambientes e comandos
 
-Use Node 22.13+ e `npm ci`. Cada ambiente tem D1 próprio; nunca apontar testes para o banco de produção.
+Use Node 22.13+ e `npm ci`. Os testes Firestore exigem emulador local; nunca apontar testes para o banco de produção. Para configuração, publicação na Vercel e recuperação, seguir [migração Vercel/Firestore](docs/migracao-vercel-firestore.md).
 
 ```text
 npm test
 npm run build
-npm run cf:check
-npx wrangler d1 migrations apply DB --env staging --remote
-npm run cf:deploy:staging
 ```
 
-Produção substitui o Worker existente `nova-leoes-storefront`. Staging usa `octopool-commerce-nova-leoes-staging`. O ERP AWS, o site privado do Sites e o preview antigo Vercel têm publicações separadas.
+O projeto ativo é `nova-leoes-preview` na Vercel. Os comandos `cf:deploy:*` estão bloqueados; os Workers antigos mantêm somente redirecionamentos e não executam a API nem rotinas de estoque. O ERP AWS mantém publicação independente.
 
-## Configuração obrigatória antes de aceitar pedidos
+## Histórico da configuração Cloudflare antes de aceitar pedidos
+
+As instruções abaixo registram o ambiente anterior ao corte de 23/09/2026. Para a operação atual, usar exclusivamente o [procedimento Vercel/Firestore](docs/migracao-vercel-firestore.md), inclusive os secrets e a rotina de reconciliação diária. O registro de cron de cinco minutos abaixo pertence ao Worker desativado.
 
 - Login Firebase: `COMMERCE_AUTH_PROVIDER=firebase`, `FIREBASE_PROJECT_ID`, `FIREBASE_API_KEY` e `COMMERCE_APPROVERS`. Para os três logins internos confirmados em 23/09, configurar também `COMMERCE_LOGIN_ALIASES` com os UIDs exatos observados no console. Seguir [configuração e homologação](docs/firebase-auth.md) em cada ambiente; os primeiros logins reais ainda precisam de validação após a publicação. Sem o mapa, volta a ser obrigatória a confirmação do e-mail. Mapa inválido bloqueia autenticação e novas solicitações.
 - Login Supabase legado, selecionado em produção no diagnóstico de 22/09: `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `COMMERCE_APPROVERS`. A configuração mantida não restaura um projeto indisponível. A lista histórica tinha somente Arthur; isso não define a lista atual de três usuários Firebase. Nunca usar `service_role` ou chave privada na aplicação ou no Git.
