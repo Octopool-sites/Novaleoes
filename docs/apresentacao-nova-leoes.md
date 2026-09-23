@@ -15,7 +15,7 @@ Preparado em 23/09/2026 para a equipe da Octopool. Duração sugerida: 7 minutos
 
 O login real ainda precisa ser confirmado antes de declarar os acessos da equipe homologados. Consulte o [estado do projeto](../README.md) e o [procedimento Firebase](firebase-auth.md); os registros anteriores são datados e devem ser confrontados com a versão efetivamente acessível.
 
-Em 23/09, o usuário confirmou os três logins internos sem caixa de e-mail. O vínculo por UID foi implementado, 66 testes passaram e staging foi publicado na versão `fa2b0568-dc5b-4bee-b944-61ac49cdf340`. A mesma build foi publicada em produção na versão `ae8b0502-963f-4bb2-a7be-7d48a04becdb`.
+Em 23/09, o usuário confirmou os três logins internos sem caixa de e-mail. O vínculo por UID foi implementado, 66 testes passaram e staging foi publicado na versão `fa2b0568-dc5b-4bee-b944-61ac49cdf340`. A mesma build foi publicada em produção na versão `fb5aa351-7ea7-43d5-949d-2c5f580ce44c`.
 
 A verificação pública confirmou página disponível, HTML correspondente à build, sete produtos, pedidos habilitados com aprovação obrigatória e sessão anônima recusada. A autenticação respondeu configurada, com acesso preparado e recuperação por e-mail desligada. Esses resultados não comprovam o login pessoal: a primeira entrada real de Arthur e a homologação individual de Carlos e Luca continuam pendentes.
 
