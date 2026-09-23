@@ -11,6 +11,8 @@ Escopo deste repositório: Nova Leões. Inclui vitrine, gestão, API Vercel/Fire
 
 ## Contratos que devem ser preservados
 
+- Direção visual aprovada em 23/09/2026: versão A, padrão em `/`. Próximas melhorias e apresentações usam A como base. Preservar B como alternativa histórica, sem mesclar seus elementos à A sem orientação do usuário.
+
 - Envio público cria pedido aguardando aprovação, sem reserva, baixa ou chamada de movimentação ao ERP.
 - Aprovação autenticada revalida preço e disponibilidade; reserva e comandos devem ser idempotentes.
 - Retirada baixa estoque físico. Cancelamento antes da aprovação não repõe estoque.

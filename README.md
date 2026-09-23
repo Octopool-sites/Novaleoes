@@ -1,5 +1,9 @@
 # Octopool Commerce — Nova Leões
 
+## Versão visual escolhida — 23/09/2026
+
+O usuário escolheu a **versão A** como apresentação oficial da Nova Leões. Ela já é o padrão em https://nova-leoes-preview.vercel.app/. Usar A como base das próximas melhorias e nas apresentações ao cliente. A versão B permanece preservada como alternativa histórica; não incorporar seus elementos à A sem nova orientação.
+
 ## Vercel e Firestore publicados — 23/09/2026
 
 O destino aprovado foi corrigido para **Vercel (site A/B, gestão e API), Firebase Authentication (login) e Cloud Firestore (dados do Commerce)**. A integração de estoque mantém o Nexus/AWS como autoridade, sem alterar seu código ou sua publicação. O projeto Firebase existente foi preservado; os três logins internos mantêm seus UIDs.
