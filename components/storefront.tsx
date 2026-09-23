@@ -35,8 +35,10 @@ import {
 } from "@/lib/catalog";
 import { normalizeSearch, type Order } from "@/lib/commerce-contracts";
 import ScrollHero from "./scroll-hero";
+import StoreProductCard from "./store-product-card";
 import StorefrontEditorial, { productTitles, productBenefits } from "./storefront-editorial";
 import "./storefront-redesign.css";
+import "./storefront-polish.css";
 type Cart = Record<string, number>;
 export default function Storefront() {
   const [products, setProducts] = useState<Product[]>([]),
@@ -275,14 +277,14 @@ export default function Storefront() {
         </button>
       </header>
       <ScrollHero products={products} onProduct={setDetail} />
-      <div className="nl-value-strip"><div className="wrap"><span><CarFront size={19} />Aplicação conferida com você</span><span><ShieldCheck size={19} />Aprovação pela equipe da loja</span><span><PackageCheck size={19} />Retirada no balcão</span></div></div>
+      <div className="nl-value-strip"><div className="wrap"><span><CarFront size={21} /><span><b>A peça certa para o seu carro</b><small>Aplicação conferida pela equipe</small></span></span><span><ShieldCheck size={21} /><span><b>Compra com acompanhamento</b><small>Pedido sujeito à aprovação da loja</small></span></span><span><PackageCheck size={21} /><span><b>Da nossa loja para o seu caminho</b><small>Retirada combinada no balcão</small></span></span></div></div>
       <main className="wrap">
         <section id="catalogo" className="catalog-section" tabIndex={-1}>
           <div className="section-heading">
-            <div><p className="nl-kicker">ESCOLHAS QUE FAZEM A DIFERENÇA</p><h2>O próximo cuidado<br /><em>começa aqui.</em></h2></div>
-            <p className="nl-catalog-intro">Peças para o que importa: seu carro bem cuidado.<br />Escolha a sua. A gente confere a aplicação com você.</p>
+            <div><p className="nl-kicker"><span /> NOSSA SELEÇÃO</p><h2>O próximo cuidado<br /><em>começa aqui.</em></h2></div>
+            <p className="nl-catalog-intro">Encontre o que seu carro precisa.<br />A gente cuida dos detalhes com você.</p>
           </div>
-          <div className="nl-catalog-tools"><form className="searchbox" onSubmit={e => e.preventDefault()}><Search size={20}/><input aria-label="Buscar por peça, marca ou código" placeholder="Busque por peça, marca ou código" maxLength={120} value={query} onChange={e=>setQuery(e.target.value)}/>{query && <button type="button" aria-label="Limpar busca" onClick={()=>setQuery("")}>×</button>}</form><span className="subtle" aria-live="polite">{catalogLoading ? "Carregando peças…" : `${filtered.length} ${filtered.length === 1 ? "peça selecionada" : "peças selecionadas"}`}</span></div>
+          <div className="nl-catalog-tools"><form className="searchbox" onSubmit={e => e.preventDefault()}><Search size={20}/><input aria-label="Buscar por peça, marca ou código" placeholder="Qual peça você procura?" maxLength={120} value={query} onChange={e=>setQuery(e.target.value)}/>{query && <button type="button" aria-label="Limpar busca" onClick={()=>setQuery("")}>×</button>}</form><span className="subtle" aria-live="polite">{catalogLoading ? "Carregando peças…" : `${filtered.length} ${filtered.length === 1 ? "peça selecionada" : "peças selecionadas"}`}</span></div>
       <nav className="category-nav" aria-label="Categorias de peças">
         <div className="wrap">
           {[
@@ -308,53 +310,9 @@ export default function Storefront() {
             <button onClick={refresh}>Tentar novamente</button>
           </div>
         )}
-          {!ordersEnabled && !catalogLoading && !catalogError && <p className="inline-notice">Estamos preparando o atendimento online. Você já pode explorar as peças; o envio de pedidos está temporariamente indisponível.</p>}
+          {!ordersEnabled && !catalogLoading && !catalogError && <div className="inline-notice nl-catalog-notice"><AlertCircle size={18} /><p><b>Nosso catálogo já está aqui.</b> Estamos preparando o envio de pedidos online. Por enquanto, explore as peças e suas informações.</p></div>}
           <div className="product-grid">
-            {filtered.map((p) => (
-              <article className="product-card" key={p.id}>
-                <button
-                  className="product-photo photo-button"
-                  onClick={() => setDetail(p)}
-                  aria-label={`Ver ${p.name}`}
-                >
-                  {p.image ? (
-                    <img src={p.image} alt={p.name} loading="lazy" />
-                  ) : (
-                    <Package size={54} />
-                  )}
-                  <span>{p.category}</span>
-                </button>
-                <div className="product-info">
-                  <p className="product-brand">
-                    {p.brand} <span>· {p.sku}</span>
-                  </p>
-                  <h3>
-                    <button onClick={() => setDetail(p)}>{productTitles[p.id] || p.name}</button>
-                  </h3>
-                  <p className="application">
-                    {productBenefits[p.id] || "Confira a aplicação para seu veículo."}
-                  </p>
-                  <div className="product-bottom">
-                    <div>
-                      <strong>{money(p.priceCents)}</strong>
-                      <small>
-                        {p.stock > 0
-                          ? "Aplicação sob consulta"
-                          : "indisponível"}
-                      </small>
-                    </div>
-                    <button
-                      disabled={!p.stock || catalogError}
-                      onClick={() => add(p)}
-                      aria-label={`Adicionar ${p.name}`}
-                      className="add-button"
-                    >
-                      <Plus size={22} />
-                    </button>
-                  </div>
-                </div>
-              </article>
-            ))}
+            {filtered.map(p => <StoreProductCard key={p.id} product={p} onSelect={setDetail} onAdd={add} unavailable={catalogError} />)}
           </div>
           {catalogLoading && <div className="nl-skeletons" role="status" aria-label="Carregando catálogo">{[1,2,3,4].map(i=><div key={i}/>)}</div>}
           {!filtered.length && !catalogLoading && !catalogError && (
@@ -375,27 +333,32 @@ export default function Storefront() {
         </section>
         <StorefrontEditorial />
       </main>
-      <footer className="wrap store-footer">
-        <span className="nl-footer-brand">NOVA LEÕES<small>Seu carro. Nosso cuidado.</small></span>
-        <span>
-          Uma loja conectada por <b>octopool</b>
-        </span>
-        <a href="/gestao">
-          Área de gestão <ArrowUpRight size={15} />
-        </a>
+      <footer className="nl-footer">
+        <div className="wrap">
+          <div className="nl-footer-top">
+            <div><p className="nl-kicker">NOVA LEÕES AUTOPEÇAS</p><h2>Seu próximo caminho<br />merece <em>cuidado.</em></h2></div>
+            <a className="nl-button" href="#catalogo">Encontrar minha peça <ArrowUpRight size={19} /></a>
+          </div>
+          <div className="nl-footer-bottom">
+            <a className="store-brand" href="/" aria-label="Nova Leões, início"><img src="/assets/logo.png" alt="" loading="lazy" /><span>NOVA LEÕES<small>AUTOPEÇAS</small></span></a>
+            <nav aria-label="Navegação do rodapé"><a href="#catalogo">Peças</a><a href="#como-funciona">Como comprar</a><a href="#duvidas">Dúvidas</a></nav>
+            <span>Um ambiente da <b>octopool</b></span>
+          </div>
+          <div className="nl-footer-meta"><span>Seu carro. Nosso cuidado.</span><a href="/gestao">Acesso da equipe <ArrowUpRight size={13} /></a></div>
+        </div>
       </footer>
       <Dialog open={!!detail} onOpenChange={(open) => !open && setDetail(null)}>
-        <DialogContent className="product-dialog sm:max-w-[760px]">
+        <DialogContent className="product-dialog nl-product-dialog sm:max-w-[860px]">
           {detail && (
             <>
-              <div className="detail-photo">
+              <div className="detail-photo"><span className="nl-detail-category">{detail.category}</span>
                 {detail.image ? (
                   <img src={detail.image} alt={detail.name} />
                 ) : (
                   <Package size={64} />
                 )}
               </div>
-              <div>
+              <div className="nl-detail-content">
                 <p className="eyebrow">
                   {detail.brand} · {detail.sku}
                 </p>
@@ -407,10 +370,7 @@ export default function Storefront() {
                 </DialogDescription>
                 <div className="compatibility-note">
                   <CarFront size={21} />
-                  <span>
-                    Informe seu veículo no pedido. A aplicação precisa ser
-                    confirmada pela loja.
-                  </span>
+                  <span><b>Serve no seu carro?</b>Informe modelo, ano e motor. A equipe confere a aplicação antes de aprovar.</span>
                 </div>
                 <strong className="detail-price">
                   {money(detail.priceCents)}
@@ -432,8 +392,9 @@ export default function Storefront() {
         </DialogContent>
       </Dialog>
       <Sheet open={cartOpen} onOpenChange={setCartOpen}>
-        <SheetContent className="cart-sheet sm:max-w-[530px] w-full">
+        <SheetContent className="cart-sheet nl-cart-sheet sm:max-w-[530px] w-full">
           <SheetHeader>
+            <p className="nl-cart-eyebrow">SEU PRÓXIMO CUIDADO</p>
             <SheetTitle>
               {step === "success"
                 ? "Pedido aguardando aprovação"
@@ -623,9 +584,7 @@ export default function Storefront() {
                     <ShoppingBag size={40} />
                     <h3>Seu carrinho está vazio.</h3>
                     <p>Escolha uma peça para começar.</p>
-                    <button onClick={() => setCartOpen(false)}>
-                      Explorar peças
-                    </button>
+                    <a className="nl-empty-link" href="#catalogo" onClick={() => setCartOpen(false)}>Explorar peças <ArrowRight size={16} /></a>
                   </div>
                 )}
               </div>

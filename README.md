@@ -1,20 +1,41 @@
 # Octopool Commerce — Nova Leões
 
+## Estado atual — 22/09/2026
+
+**Firebase foi escolhido para o login da equipe. Cloudflare continua hospedando o site, a API e o banco.** São funções distintas; escolher Firebase Authentication não migra a hospedagem para o Google.
+
+| Camada | Staging | Produção |
+| --- | --- | --- |
+| Site e API | Cloudflare Workers | Cloudflare Workers |
+| Pedidos, catálogo e auditoria | Cloudflare D1, ambiente de teste | Cloudflare D1, banco de produção |
+| Login da equipe | Firebase Authentication, projeto `nova-leoes-commerce`, configurado e publicado | Supabase legado; troca para Firebase ainda pendente |
+| Estoque integrado | Testes isolados, sem movimentação de produção | Nexus/AWS, vínculo exclusivo da Nova Leões |
+
+O Firebase ainda precisa da validação real da conta: definição da senha pelo responsável, confirmação do e-mail, recebimento da recuperação e entrada/saída da gestão. A publicação em staging não comprova esse acesso e não conclui a troca em produção. [Procedimento da migração](docs/firebase-auth.md).
+
+Na consulta pública de 22/09, staging respondeu `configured:true`, `accessReady:true`, `passwordRecovery:true`; produção respondeu `configured:true`, `accessReady:true`, no formato anterior. Esses campos verificam configuração e lista de responsáveis: **não são uma consulta de saúde ao provedor nem evidência de login bem-sucedido**.
+
+Reautenticar a **Cloudflare** autoriza a ferramenta de deploy a publicar o projeto. Essa credencial de infraestrutura é separada do login **Firebase** utilizado pela equipe da loja. A publicação do redesign continua pendente de autenticação Cloudflare e confirmação do deploy.
+
+## Refinamento visual validado localmente — 22/09/2026
+
+Catálogo, cartões de produto, modal, carrinho, rodapé e conteúdo editorial receberam melhorias visuais. A animação Higgsfield aprovada foi preservada e a mídia existente foi reaproveitada, sem nova geração ou gasto de mídia nesta etapa. Build e 59 testes passaram; catálogo, detalhes, carrinho, navegação e dúvidas foram revisados no navegador em larguras de computador e celular. Publicação pendente. [Registro desta revisão](docs/visual-polish-2026-09-22.md).
+
 ## Revisão Higgsfield em 22/09/2026
 
 Nova abertura fotorealista produzida com imagens e vídeo da API Higgsfield, controlada pela rolagem, integrada e validada localmente. Substitui o carregamento do modelo Three.js anterior. Filme otimizado de 2,4 MB, três destaques ligados ao catálogo e imagem estática para movimento reduzido/falhas. [Registro técnico e validação](docs/higgsfield-car-20260922.md).
 
 O deploy desta revisão aguarda reautenticação Cloudflare. A prévia hospedada abaixo ainda apresenta a versão anterior. Produção não foi modificada nesta revisão.
 
-## Prévia em 22/09/2026
+## Prévia publicada em 22/09/2026 — versão anterior
 
 Nova vitrine com carro 3D que se separa durante a rolagem, três destaques ligados ao catálogo real, busca, carrinho e explicação de aprovação/retirada publicada **somente em staging**. [Abrir prévia](https://octopool-commerce-nova-leoes-staging.nova-leoes-storefront.workers.dev/).
 
-Staging usa Firebase Authentication no projeto dedicado `nova-leoes-commerce` (Spark, sem Analytics), com recuperação por e-mail implementada. A definição da senha, confirmação do e-mail e primeiro login real de Arthur ainda precisam ser concluídos pelo usuário. Produção conserva a versão anterior e seu Supabase inativo: esta prévia não significa recuperação do login de produção. Consulte [migração Firebase](docs/firebase-auth.md) e [registro da vitrine](docs/storefront-scroll-20260922.md).
+Staging usa Firebase Authentication no projeto dedicado `nova-leoes-commerce` (Spark, sem Analytics), com recuperação por e-mail implementada. A definição da senha, confirmação do e-mail e primeiro login real de Arthur ainda precisam ser validados pelo usuário. Produção conserva a versão anterior e a configuração Supabase legada; o último diagnóstico registrou o projeto Supabase indisponível. Esta prévia não significa recuperação do login de produção. Consulte [migração Firebase](docs/firebase-auth.md) e [registro da vitrine](docs/storefront-scroll-20260922.md).
 
 As seções de publicação de 12/09 abaixo são histórico, não o estado atual de staging.
 
-Aplicação independente do Nexus, hospedada na conta Cloudflare da Octopool. A vitrine e a gestão usam Vite/React; uma API Worker e D1 guardam pedidos e auditoria. O Supabase Auth identifica a equipe. O conector de estoque se comunica com o Nexus por contrato `octopool.stock.v1`, credencial exclusiva da loja e chamadas de servidor.
+Aplicação independente do Nexus, hospedada na conta Cloudflare da Octopool. A vitrine e a gestão usam Vite/React; uma API Worker e D1 guardam pedidos e auditoria. A identificação da equipe segue o provedor selecionado em cada ambiente, conforme o quadro acima. O conector de estoque se comunica com o Nexus por contrato `octopool.stock.v1`, credencial exclusiva da loja e chamadas de servidor.
 
 ## Repositório e organização
 
@@ -28,7 +49,9 @@ Aplicação independente do Nexus, hospedada na conta Cloudflare da Octopool. A 
 
 Para outros clientes, seguir [o padrão de organização](docs/organizacao-clientes.md). Este projeto contém vínculos reais da Nova Leões e **não é um template pronto para duplicar e publicar**.
 
-## Escolha de hospedagem gratuita
+## Histórico da escolha de hospedagem — 12/09/2026
+
+Este registro descreve a implantação original com Supabase. Para a autenticação atual de staging e a troca planejada em produção, seguir [Firebase Authentication](docs/firebase-auth.md).
 
 - Cloudflare Workers Free: arquivos estáticos da vitrine e gestão; Worker para a API e D1 para pedidos, catálogo e auditoria. Não exige Docker para publicar esse frontend/Worker.
 - Supabase Free: projeto exclusivo `octopool-commerce-auth`, referência `vcmpehcvtywumwhathsr`, região São Paulo, somente autenticação. Os projetos existentes foram preservados. Cadastro público e usuários anônimos desativados.
@@ -45,7 +68,7 @@ Fontes oficiais: [Workers](https://developers.cloudflare.com/workers/platform/pr
 3. O responsável e o horário ficam registrados. No modo integrado, uma tarefa durável solicita a reserva e sua confirmação no ERP. Respostas perdidas são recuperadas com a mesma identidade da operação. O pedido fica pendente enquanto a resposta não estiver confirmada.
 4. Separação e pronto para retirada não baixam estoque físico. **Concluir retirada** solicita a baixa; cancelamento libera somente uma reserva existente. Cancelar uma solicitação não aprovada nunca soma peças ao estoque.
 
-O banco impede a criação de tarefa de reserva sem uma aprovação registrada. As consultas e comandos privados exigem identidade confirmada pelo servidor Supabase com `getUser()`, usuário autenticado não anônimo, e-mail confirmado e presença na lista explícita de responsáveis. Sessões ficam em cookies `__Host-`, Secure, HttpOnly e SameSite=Lax; respostas de autenticação não são armazenáveis em cache. Tokens não são devolvidos em JSON. Cabeçalhos antigos do Sites, cabeçalhos Cloudflare Access e metadados editáveis pelo cliente não dão acesso. Login tem limitação por IP/e-mail e exige origem válida.
+O banco impede a criação de tarefa de reserva sem uma aprovação registrada. As consultas e comandos privados exigem identidade verificada pelo servidor no provedor selecionado: Firebase valida o token e consulta a conta; o fluxo legado Supabase usa `getUser()`. Em ambos, são obrigatórios usuário autenticado não anônimo, e-mail confirmado e presença na lista explícita de responsáveis. Sessões ficam em cookies `__Host-`, Secure, HttpOnly e SameSite=Lax; respostas de autenticação não são armazenáveis em cache. Tokens não são devolvidos em JSON. Cabeçalhos antigos do Sites, cabeçalhos Cloudflare Access e metadados editáveis pelo cliente não dão acesso. Login tem limitação por IP/e-mail e exige origem válida.
 
 ## Ambientes e comandos
 
@@ -63,9 +86,10 @@ Produção substitui o Worker existente `nova-leoes-storefront`. Staging usa `oc
 
 ## Configuração obrigatória antes de aceitar pedidos
 
-- Login da equipe: `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `COMMERCE_APPROVERS`. Staging e produção permitem exclusivamente `arthur@octopool.com.br`, com e-mail confirmado e senha definida pelo próprio responsável. A chave publicável não é secreta; nunca usar `service_role` ou chave secreta na aplicação ou no Git.
-- Convite/recuperação por e-mail: ainda não configurados. O [SMTP padrão Supabase](https://supabase.com/docs/guides/auth/auth-smtp) é limitado a membros da organização e não serve para e-mail de produção. Configurar um provedor SMTP antes de prometer convites e recuperação automática; não adicionar operadores à organização Supabase para contornar essa restrição. A interface orienta contato com o administrador enquanto isso.
-- Primeiro acesso sem envio de e-mail: o administrador pode gerar um link individual com `auth.admin.generateLink`, tipo `invite` para nova conta ou `recovery` para conta existente. Entregar de forma privada `/gestao/primeiro-acesso#type=invite&email=...&token_hash=...`. O token fica no fragmento, é removido da barra de endereço após carregar e só é enviado no POST quando a pessoa salva a senha. Nunca guardar o link no Git ou em logs. A configuração atual expira o link após uma hora. O formulário exige 12 a 128 caracteres; o servidor confere token de uso único, origem, limite de tentativas e identidade autorizada antes de salvar. O usuário define a própria senha, sem compartilhá-la no chat. Abrir a página não consome o token; atualizar a página exige reabrir o link original.
+- Login Firebase, selecionado em staging: `COMMERCE_AUTH_PROVIDER=firebase`, `FIREBASE_PROJECT_ID`, `FIREBASE_API_KEY` e `COMMERCE_APPROVERS`. Seguir [configuração e homologação](docs/firebase-auth.md) antes de promover a troca para produção. A recuperação por e-mail está implementada; recebimento real e login ainda precisam de validação pelo responsável.
+- Login Supabase legado, ainda selecionado em produção: `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `COMMERCE_APPROVERS`. A configuração mantida não restaura um projeto indisponível. Em ambos os ambientes, a lista de responsáveis contém exclusivamente `arthur@octopool.com.br`; e-mail confirmado e senha definida pelo responsável são requisitos de acesso. Nunca usar `service_role` ou chave privada na aplicação ou no Git.
+- Convite/recuperação por e-mail no legado Supabase: não configurados. O [SMTP padrão Supabase](https://supabase.com/docs/guides/auth/auth-smtp) é limitado a membros da organização e não serve para e-mail de produção. Essa limitação histórica não se refere à recuperação implementada no Firebase; não adicionar operadores à organização Supabase para contorná-la.
+- Primeiro acesso sem envio de e-mail, **somente no legado Supabase**: o administrador pode gerar um link individual com `auth.admin.generateLink`, tipo `invite` para nova conta ou `recovery` para conta existente. Entregar de forma privada `/gestao/primeiro-acesso#type=invite&email=...&token_hash=...`. O token fica no fragmento, é removido da barra de endereço após carregar e só é enviado no POST quando a pessoa salva a senha. Nunca guardar o link no Git ou em logs. O fluxo legado configura expiração de uma hora e senha de 12 a 128 caracteres; o servidor confere token de uso único, origem, limite de tentativas e identidade autorizada antes de salvar. O usuário define a própria senha, sem compartilhá-la no chat. Abrir a página não consome o token; atualizar a página exige reabrir o link original. **Não usar essa rota para Firebase**: suas ações de e-mail usam o handler hospedado pelo próprio Firebase.
 - Estoque: publicar e verificar o conector Nexus, provisionar o vínculo exclusivo da Nova Leões e os SKUs conferidos. Guardar `COMMERCE_ERP_TOKEN` exclusivamente como secret Worker, com `COMMERCE_ERP_ORIGIN=https://api.octopool.com.br` e `COMMERCE_ERP_OWNER` igual ao `STORE_OWNER`. Nenhuma credencial no frontend, Git ou logs.
 - Importar catálogo real e ativar a integração pela API privada. O script de provisionamento Nexus deve reler e conferir os saldos no momento da ativação; o plano local é apenas uma fotografia da auditoria.
 - Testar login real, aprovação, recusa, retomada e isolamento no ambiente de teste. Só depois configurar `PUBLIC_ORDERS_ENABLED=1`. Produção exige `REQUIRE_SHARED_STOCK=1`; sem configuração compartilhada e responsáveis, a entrada de pedidos continua fechada.
@@ -90,7 +114,7 @@ Verificação hospedada: envio e repetição de solicitação não criaram reser
 
 As publicações antigas do Sites e do Vercel são previews, preservados separadamente; o endereço operacional é o Cloudflare acima. O repositório Commerce permanece independente do Nexus e foi conectado ao remoto `Octopool-sites/Novaleoes` em 21/09/2026.
 
-## Validação e limites
+## Histórico de validação e limites — 12/09/2026
 
 - 48 testes Node aprovados: exercitam o Worker, SQL transacional em SQLite, identidade assinada, login/logout, primeiro acesso, falha na definição de senha, recusa de reutilização e de identidade diferente, proteção contra redirecionamento, isolamento, aprovação, cancelamento e falhas de comunicação. Supabase e ERP são simulados nessa suíte; os testes hospedados de autenticação e ativação usam o Supabase real separadamente.
 - A suíte Nexus usa PostgreSQL real, isolado em localhost: 20 testes aprovados em 12/09/2026, incluindo balcão x site, última peça, cancelamento simultâneo, retirada, devolução e 20 solicitações sobre sete peças. Também passaram 243 testes de regressão ERP e oito testes de presença/ausência do botão por empresa, módulo e papel.
