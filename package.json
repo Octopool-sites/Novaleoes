@@ -12,8 +12,8 @@
     "test:firestore": "node scripts/build-firestore-tests.mjs && npx --yes firebase-tools@15.30.2 emulators:exec --only firestore --project demo-octopool-commerce \"node --experimental-strip-types --test tests/firestore-*.test.mjs\"",
     "cf:dev": "wrangler dev --local --env staging --port 0",
     "cf:check": "npm run build && wrangler deploy --dry-run --env staging",
-    "cf:deploy:staging": "npm run build && wrangler deploy --env staging",
-    "cf:deploy:production": "npm run build && wrangler deploy --env production"
+    "cf:deploy:staging": "node scripts/legacy-deploy-disabled.mjs",
+    "cf:deploy:production": "node scripts/legacy-deploy-disabled.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",

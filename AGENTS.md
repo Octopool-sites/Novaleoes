@@ -23,6 +23,7 @@ Escopo deste repositório: Nova Leões. Inclui vitrine, gestão, API Vercel/Fire
 - Testes usam fixtures e banco local/isolado; não apontar testes automáticos ao D1 de produção.
 - Testes Firestore usam somente emulador local e namespaces sintéticos; não usar o projeto remoto como fixture. Produção Vercel não compartilha credenciais com previews.
 - Staging e produção têm D1 distintos; declarar o ambiente nos comandos Wrangler.
+- Após o corte, os comandos `cf:deploy:*` ficam bloqueados para evitar reativar o banco antigo. Só usar `wrangler.retired.jsonc` para manter redirecionamentos. Qualquer rollback de dados exige o procedimento de migração; não publicar o Worker legado por rotina.
 - Commit/push não equivale a deploy. Reorganização local não exige publicação ou migrations.
 - Credenciais, .env, .dev.vars, dumps e evidências privadas não entram no Git. A chave Supabase publicável é configuração pública; service_role e token ERP são secretos.
 
