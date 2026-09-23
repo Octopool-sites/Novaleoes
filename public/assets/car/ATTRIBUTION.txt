@@ -1,0 +1,22 @@
+Nova Leoes illustrative concept car
+
+Based on "Car Concept", copyright 2024 Darmstadt Graphics Group GmbH.
+Model and textures by Eric Chadwick.
+Licensed under Creative Commons Attribution 4.0 International (CC BY 4.0).
+https://creativecommons.org/licenses/by/4.0/
+
+Source:
+https://github.com/KhronosGroup/glTF-Sample-Assets/tree/main/Models/CarConcept
+Original model asset:
+https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/CarConcept/GLB/CarConcept.glb
+
+Modifications by Octopool, September 2026:
+- Removed all source texture maps, logos, material variants and UV/tangent attributes.
+- Removed steering emblem and license plate geometry.
+- Quantized normal vectors to signed normalized 16-bit values.
+- Repacked geometry as a texture-free GLB preserving separate component nodes.
+- Applied new neutral graphite studio materials, lighting and scroll-driven transforms.
+
+This is an illustrative concept vehicle. It does not identify a make/model or
+guarantee compatibility between any listed auto part and a vehicle.
+No endorsement by the original authors or Khronos is implied.

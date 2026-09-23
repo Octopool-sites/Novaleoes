@@ -39,6 +39,8 @@
         "PUBLIC_ORDERS_ENABLED": "0",
         "COMMERCE_APPROVERS": "arthur@octopool.com.br",
         "CATALOG_MODE": "staging",
+        "COMMERCE_AUTH_PROVIDER": "firebase",
+        "FIREBASE_PROJECT_ID": "nova-leoes-commerce",
         "SUPABASE_URL": "https://vcmpehcvtywumwhathsr.supabase.co",
         "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_pziPXwVlM_L9jl6RTdQ77Q_NVLrFhhT"
       },
@@ -78,6 +80,7 @@
         "COMMERCE_APPROVERS": "arthur@octopool.com.br",
         "CATALOG_MODE": "production",
         "REQUIRE_SHARED_STOCK": "1",
+        "COMMERCE_AUTH_PROVIDER": "supabase",
         "SUPABASE_URL": "https://vcmpehcvtywumwhathsr.supabase.co",
         "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_pziPXwVlM_L9jl6RTdQ77Q_NVLrFhhT",
         "COMMERCE_ERP_ORIGIN": "https://api.octopool.com.br",

@@ -1,10 +1,12 @@
 import { z } from "zod";
-import { authClient, authConfigured, approverEmails, clearAuthCookies } from "./auth";
+import { authClient, authConfigured, authProvider, approverEmails, clearAuthCookies } from "./auth";
 import { context } from "./context";
 import { HttpError, readJson } from "../lib/commerce-server";
+import { firebaseLogin, firebasePasswordReset, FirebaseAuthError } from "./firebase-auth";
 
 export function authStatus() {
-  return Response.json({ configured: authConfigured(context().env), accessReady: approverEmails().length > 0 });
+  const configured = authConfigured(context().env);
+  return Response.json({ configured, accessReady: approverEmails().length > 0, passwordRecovery: configured && authProvider(context().env) === "firebase" });
 }
 
 export async function login(request: Request) {
@@ -21,6 +23,19 @@ export async function login(request: Request) {
   if (!byIp.success || !byEmail.success) throw new HttpError(429, "Muitas tentativas. Aguarde um minuto e tente novamente.");
   const denied = () => new HttpError(401, "Não foi possível entrar. Confira seus dados e a liberação do seu acesso.");
   if (!approverEmails().includes(email)) throw denied();
+  if (authProvider(env) === "firebase") {
+    try { await firebaseLogin(email, body.password, approverEmails()); }
+    catch (error) {
+      if (error instanceof FirebaseAuthError && error.code === "VERIFICATION_SENT") {
+        throw new HttpError(403, "Enviamos um link para confirmar seu e-mail. Abra sua caixa de entrada e confirme antes de entrar.");
+      }
+      if (error instanceof FirebaseAuthError && ["PROVIDER_UNAVAILABLE", "TOO_MANY_ATTEMPTS_TRY_LATER", "QUOTA_EXCEEDED"].includes(error.code)) {
+        throw new HttpError(503, "O acesso está temporariamente indisponível. Aguarde um pouco e tente novamente.");
+      }
+      throw denied();
+    }
+    return Response.json({ ok: true });
+  }
   const client = authClient();
   const { data, error } = await client.auth.signInWithPassword({ email, password: body.password });
   if (error || !data.user?.email_confirmed_at || data.user.role !== "authenticated" || data.user.is_anonymous || data.user.email?.toLowerCase() !== email) {
@@ -33,7 +48,7 @@ export async function login(request: Request) {
 
 export async function logout(request: Request) {
   z.object({}).strict().parse(await readJson(request));
-  try { if (authConfigured(context().env)) await authClient().auth.signOut({ scope: "local" }); }
+  try { if (authProvider(context().env) === "supabase" && authConfigured(context().env)) await authClient().auth.signOut({ scope: "local" }); }
   finally { clearAuthCookies(); }
   return Response.json({ ok: true });
 }
@@ -46,6 +61,7 @@ export async function activate(request: Request) {
     password: z.string().min(12).max(128),
   }).strict().parse(await readJson(request));
   const { env } = context();
+  if (authProvider(env) === "firebase") throw new HttpError(410, "Use Esqueci minha senha na tela de acesso para receber um novo link por e-mail.");
   if (!authConfigured(env) || !env.AUTH_RATE_LIMITER) throw new HttpError(503, "O acesso está temporariamente indisponível.");
   const limited = await env.AUTH_RATE_LIMITER.limit({ key: `activation:${request.headers.get("cf-connecting-ip") || "unknown"}` });
   if (!limited.success) throw new HttpError(429, "Muitas tentativas. Aguarde um minuto e tente novamente.");
@@ -72,4 +88,28 @@ export async function activate(request: Request) {
       finally { clearAuthCookies(); }
     }
   }
+}
+
+export async function recoverPassword(request: Request) {
+  const body = z.object({ email: z.string().trim().email().max(200) }).strict().parse(await readJson(request));
+  const { env } = context();
+  if (authProvider(env) !== "firebase" || !authConfigured(env) || !env.AUTH_RATE_LIMITER) {
+    throw new HttpError(503, "A recuperação de senha ainda não está disponível. Fale com o administrador.");
+  }
+  const email = body.email.toLowerCase();
+  const [byIp, byEmail] = await Promise.all([
+    env.AUTH_RATE_LIMITER.limit({ key: `recovery-ip:${request.headers.get("cf-connecting-ip") || "unknown"}` }),
+    env.AUTH_RATE_LIMITER.limit({ key: `recovery-email:${email}` }),
+  ]);
+  if (!byIp.success || !byEmail.success) throw new HttpError(429, "Muitas tentativas. Aguarde um minuto e tente novamente.");
+  if (approverEmails().includes(email)) {
+    try { await firebasePasswordReset(email); }
+    catch (error) {
+      if (!(error instanceof FirebaseAuthError) || !["EMAIL_NOT_FOUND", "USER_NOT_FOUND", "USER_DISABLED"].includes(error.code)) {
+        throw new HttpError(503, "Não foi possível solicitar o e-mail agora. Aguarde um pouco e tente novamente.");
+      }
+    }
+  }
+  // Same response for unauthorized, missing and permitted accounts.
+  return Response.json({ ok: true, message: "Se este e-mail tiver acesso liberado, você receberá um link para definir uma nova senha. Confira também o spam." });
 }

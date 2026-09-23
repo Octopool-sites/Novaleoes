@@ -1,12 +1,22 @@
 import { createServerClient, parseCookieHeader, serializeCookieHeader } from "@supabase/ssr";
 import { context, type RuntimeEnv } from "./context";
+import { firebaseConfigured, firebaseOperator } from "./firebase-auth";
 
 export const SESSION_COOKIE = "__Host-commerce-session";
 export type Operator = { userId: string; email: string; displayName: string; fullName: string | null };
 const identities = new WeakMap<Request, Promise<Operator | null>>();
 const clients = new WeakMap<Request, ReturnType<typeof createServerClient>>();
 
+export function authProvider(env: RuntimeEnv): "firebase" | "supabase" | null {
+  // Existing deployments keep their provider until the explicit cutover. Never
+  // fall back to a second provider after a failed login or a provider outage.
+  const provider = env.COMMERCE_AUTH_PROVIDER || "supabase";
+  return provider === "firebase" || provider === "supabase" ? provider : null;
+}
+
 export function authConfigured(env: RuntimeEnv) {
+  if (authProvider(env) === "firebase") return firebaseConfigured(env);
+  if (authProvider(env) !== "supabase") return false;
   try {
     if (!env.SUPABASE_URL || !env.SUPABASE_PUBLISHABLE_KEY?.startsWith("sb_publishable_")) return false;
     const url = new URL(env.SUPABASE_URL);
@@ -21,7 +31,7 @@ export function approverEmails() {
 export function authClient() {
   const current = context();
   const { request, env } = current;
-  if (!authConfigured(env)) throw Error("AUTH_NOT_CONFIGURED");
+  if (authProvider(env) !== "supabase" || !authConfigured(env)) throw Error("AUTH_NOT_CONFIGURED");
   let client = clients.get(request);
   if (client) return client;
   const cookies = new Map(parseCookieHeader(request.headers.get("cookie") || "").map(cookie => [cookie.name, cookie.value]));
@@ -59,6 +69,7 @@ export function operator(): Promise<Operator | null> {
 async function verifyOperator(): Promise<Operator | null> {
   const { env, request } = context();
   if (!authConfigured(env) || !approverEmails().length) return null;
+  if (authProvider(env) === "firebase") return firebaseOperator(approverEmails());
   const cookie = request.headers.get("cookie") || "";
   if (!cookie.includes(SESSION_COOKIE) || cookie.length > 24000) return null;
   try {

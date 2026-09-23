@@ -3,6 +3,8 @@ export type RuntimeEnv = {
   DB:D1Database; ASSETS:Fetcher;
   STORE_OWNER:string; COMMERCE_APPROVERS?:string;
   SUPABASE_URL?:string; SUPABASE_PUBLISHABLE_KEY?:string;
+  COMMERCE_AUTH_PROVIDER?:string;
+  FIREBASE_PROJECT_ID?:string; FIREBASE_API_KEY?:string;
   PUBLIC_ORDERS_ENABLED?:string; CATALOG_MODE?:string;
   REQUIRE_SHARED_STOCK?:string;
   ORDER_RATE_LIMITER?:{limit(input:{key:string}):Promise<{success:boolean}>};

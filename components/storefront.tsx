@@ -30,11 +30,13 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import {
-  categories,
   money,
   type Product,
 } from "@/lib/catalog";
 import { normalizeSearch, type Order } from "@/lib/commerce-contracts";
+import ScrollHero from "./scroll-hero";
+import StorefrontEditorial, { productTitles, productBenefits } from "./storefront-editorial";
+import "./storefront-redesign.css";
 type Cart = Record<string, number>;
 export default function Storefront() {
   const [products, setProducts] = useState<Product[]>([]),
@@ -49,7 +51,8 @@ export default function Storefront() {
     [catalogError, setCatalogError] = useState(false),
     [ordersEnabled, setOrdersEnabled] = useState(false),
     [order, setOrder] = useState<Order | null>(null),
-    [hydrated, setHydrated] = useState(false);
+    [hydrated, setHydrated] = useState(false),
+    [catalogLoading, setCatalogLoading] = useState(true);
   const [form, setForm] = useState({
     customerName: "",
     email: "",
@@ -69,7 +72,7 @@ export default function Storefront() {
     } catch {
       setCatalogError(true);
       setOrdersEnabled(false);
-    }
+    } finally { setCatalogLoading(false); }
   }
   useEffect(() => {
     try {
@@ -104,7 +107,7 @@ export default function Storefront() {
     (p) =>
       p.published &&
       (category === "Todas as peças" || p.category === category) &&
-      normalizeSearch(`${p.name} ${p.brand} ${p.sku}`).includes(
+      normalizeSearch(`${p.name} ${productTitles[p.id] || ""} ${p.brand} ${p.sku}`).includes(
         normalizeSearch(query),
       ),
   );
@@ -228,7 +231,7 @@ export default function Storefront() {
                 query: input.query,
                 results: products
                   .filter((p) =>
-                    normalizeSearch(`${p.name} ${p.brand} ${p.sku}`).includes(
+                    normalizeSearch(`${p.name} ${productTitles[p.id] || ""} ${p.brand} ${p.sku}`).includes(
                       normalizeSearch(input.query as string),
                     ),
                   )
@@ -247,43 +250,19 @@ export default function Storefront() {
     return () => lifecycle.abort();
   }, [products]);
   return (
-    <>
-      <div className="preview-note">
-        Pedidos sujeitos à aprovação da loja · retirada no balcão{" "}
-        <a href="/gestao">
-          Acesso da equipe <ArrowUpRight size={13} />
-        </a>
-      </div>
+    <div className="nl-store">
+      <a className="nl-skip-link" href="#catalogo">Pular apresentação e ir ao catálogo</a>
       <header className="store-header wrap">
         <a href="/" className="store-brand">
           <img src="/assets/logo.png" alt="" />
           <span>
-            NOVA LEÕES<small>AUTOPEÇAS · DESDE 1993</small>
+            NOVA LEÕES<small>AUTOPEÇAS</small>
           </span>
         </a>
-        <form
-          className="searchbox"
-          onSubmit={(e) => {
-            e.preventDefault();
-            document
-              .getElementById("catalogo")
-              ?.scrollIntoView({ behavior: "smooth" });
-          }}
-        >
-          <Search size={21} />
-          <input
-            aria-label="Buscar por peça, marca ou código"
-            placeholder="Qual peça você procura?"
-            maxLength={120}
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
-          <button aria-label="Buscar peças">
-            <ArrowRight size={20} />
-          </button>
-        </form>
+        <nav className="nl-header-nav" aria-label="Navegação principal"><a href="#catalogo">Nossas peças</a><a href="#como-funciona">Como funciona</a><a href="#duvidas">Dúvidas</a></nav>
         <button
           className="cart-trigger"
+          aria-label={`Meu pedido, ${count} ${count === 1 ? "peça" : "peças"}`}
           onClick={() => {
             setStep("cart");
             setError("");
@@ -291,14 +270,23 @@ export default function Storefront() {
           }}
         >
           <ShoppingBag size={23} />
-          <span>Meu carrinho</span>
+          <span>Meu pedido</span>
           <b>{count}</b>
         </button>
       </header>
+      <ScrollHero products={products} onProduct={setDetail} />
+      <div className="nl-value-strip"><div className="wrap"><span><CarFront size={19} />Aplicação conferida com você</span><span><ShieldCheck size={19} />Aprovação pela equipe da loja</span><span><PackageCheck size={19} />Retirada no balcão</span></div></div>
+      <main className="wrap">
+        <section id="catalogo" className="catalog-section" tabIndex={-1}>
+          <div className="section-heading">
+            <div><p className="nl-kicker">ESCOLHAS QUE FAZEM A DIFERENÇA</p><h2>O próximo cuidado<br /><em>começa aqui.</em></h2></div>
+            <p className="nl-catalog-intro">Peças para o que importa: seu carro bem cuidado.<br />Escolha a sua. A gente confere a aplicação com você.</p>
+          </div>
+          <div className="nl-catalog-tools"><form className="searchbox" onSubmit={e => e.preventDefault()}><Search size={20}/><input aria-label="Buscar por peça, marca ou código" placeholder="Busque por peça, marca ou código" maxLength={120} value={query} onChange={e=>setQuery(e.target.value)}/>{query && <button type="button" aria-label="Limpar busca" onClick={()=>setQuery("")}>×</button>}</form><span className="subtle" aria-live="polite">{catalogLoading ? "Carregando peças…" : `${filtered.length} peças selecionadas`}</span></div>
       <nav className="category-nav" aria-label="Categorias de peças">
         <div className="wrap">
           {[
-            ...new Set([...categories, ...products.map((p) => p.category)]),
+            ...new Set(["Todas as peças", ...products.filter(p => p.published).map((p) => p.category)]),
           ].map((c) => (
             <button
               key={c}
@@ -306,10 +294,6 @@ export default function Storefront() {
               aria-pressed={category === c}
               onClick={() => {
                 setCategory(c);
-                if (c !== "Todas as peças")
-                  document
-                    .getElementById("catalogo")
-                    ?.scrollIntoView({ behavior: "smooth" });
               }}
             >
               {c}
@@ -317,7 +301,6 @@ export default function Storefront() {
           ))}
         </div>
       </nav>
-      <main className="wrap">
         {catalogError && (
           <div className="inline-error">
             <AlertCircle size={18} />
@@ -325,65 +308,7 @@ export default function Storefront() {
             <button onClick={refresh}>Tentar novamente</button>
           </div>
         )}
-        {!query && category === "Todas as peças" && (
-          <>
-            <section className="store-hero">
-              <div className="hero-copy">
-                <p className="eyebrow">QUEM CONHECE, CUIDA.</p>
-                <h1>
-                  A peça certa.
-                  <br />
-                  <span>Sem complicar.</span>
-                </h1>
-                <p>
-                  Encontre o que seu carro precisa, com a atenção de quem
-                  entende de autopeças.
-                </p>
-                <a className="primary-button" href="#catalogo">
-                  Encontrar minha peça <ArrowRight size={19} />
-                </a>
-              </div>
-              <div className="hero-product">
-                <span className="hero-label">CUIDADO EM CADA DETALHE</span>
-                <img src="/assets/9025.849.jpg" alt="Amortecedor Cofap" />
-                <div className="hero-caption">
-                  <span>Da manutenção ao próximo caminho.</span>
-                  <span>Nova Leões Autopeças</span>
-                </div>
-              </div>
-            </section>
-            <div className="trust-strip">
-              <span>
-                <Search />
-                Busca por peça, marca ou código
-              </span>
-              <span>
-                <CarFront />
-                Confira a aplicação antes de comprar
-              </span>
-              <span>
-                <PackageCheck />
-                Pedido direto com a loja
-              </span>
-            </div>
-          </>
-        )}
-        <section id="catalogo" className="catalog-section">
-          <div className="section-heading">
-            <div>
-              <p className="eyebrow">ENCONTRE SUA PRÓXIMA PEÇA</p>
-              <h2>
-                {query
-                  ? `Resultados para “${query}”`
-                  : category === "Todas as peças"
-                    ? "Seu carro bem cuidado."
-                    : category}
-              </h2>
-            </div>
-            <span className="subtle" aria-live="polite">
-              {filtered.length} peças no catálogo
-            </span>
-          </div>
+          {!ordersEnabled && !catalogLoading && !catalogError && <p className="inline-notice">Estamos preparando o atendimento online. Você já pode explorar as peças; o envio de pedidos está temporariamente indisponível.</p>}
           <div className="product-grid">
             {filtered.map((p) => (
               <article className="product-card" key={p.id}>
@@ -404,17 +329,17 @@ export default function Storefront() {
                     {p.brand} <span>· {p.sku}</span>
                   </p>
                   <h3>
-                    <button onClick={() => setDetail(p)}>{p.name}</button>
+                    <button onClick={() => setDetail(p)}>{productTitles[p.id] || p.name}</button>
                   </h3>
                   <p className="application">
-                    Confirme a aplicação no seu veículo
+                    {productBenefits[p.id] || "Confira a aplicação para seu veículo."}
                   </p>
                   <div className="product-bottom">
                     <div>
                       <strong>{money(p.priceCents)}</strong>
                       <small>
                         {p.stock > 0
-                          ? "consulte a aplicação"
+                          ? "Aplicação sob consulta"
                           : "indisponível"}
                       </small>
                     </div>
@@ -431,7 +356,8 @@ export default function Storefront() {
               </article>
             ))}
           </div>
-          {!filtered.length && (
+          {catalogLoading && <div className="nl-skeletons" role="status" aria-label="Carregando catálogo">{[1,2,3,4].map(i=><div key={i}/>)}</div>}
+          {!filtered.length && !catalogLoading && !catalogError && (
             <div className="empty-state">
               <Search />
               <h3>Nenhuma peça encontrada</h3>
@@ -447,26 +373,17 @@ export default function Storefront() {
             </div>
           )}
         </section>
-        <section className="help-strip">
-          <ShieldCheck size={32} />
-          <div>
-            <h2>Peça parecida nem sempre é a peça certa.</h2>
-            <p>
-              Confira código, modelo, motor e ano do veículo antes de concluir o
-              pedido.
-            </p>
-          </div>
-        </section>
+        <StorefrontEditorial />
       </main>
       <footer className="wrap store-footer">
-        <span>Nova Leões Autopeças</span>
+        <span className="nl-footer-brand">NOVA LEÕES<small>Seu carro. Nosso cuidado.</small></span>
         <span>
           Uma loja conectada por <b>octopool</b>
         </span>
         <a href="/gestao">
           Área de gestão <ArrowUpRight size={15} />
         </a>
-      </footer>
+      <a className="nl-credits" href="/assets/car/ATTRIBUTION.txt" target="_blank" rel="noopener noreferrer">Créditos do modelo 3D</a></footer>
       <Dialog open={!!detail} onOpenChange={(open) => !open && setDetail(null)}>
         <DialogContent className="product-dialog sm:max-w-[760px]">
           {detail && (
@@ -483,10 +400,10 @@ export default function Storefront() {
                   {detail.brand} · {detail.sku}
                 </p>
                 <DialogTitle className="detail-title">
-                  {detail.name}
+                  {productTitles[detail.id] || detail.name}
                 </DialogTitle>
                 <DialogDescription className="detail-description">
-                  {detail.description}
+                  {productBenefits[detail.id]} {detail.description}
                 </DialogDescription>
                 <div className="compatibility-note">
                   <CarFront size={21} />
@@ -577,7 +494,7 @@ export default function Storefront() {
                           <Package />
                         )}
                         <div className="cart-line-main">
-                          <h3>{l.product?.name || "Peça indisponível"}</h3>
+                          <h3>{productTitles[l.id] || l.product?.name || "Peça indisponível"}</h3>
                           <p>
                             {l.product?.brand} · {l.product?.sku}
                           </p>
@@ -778,6 +695,6 @@ export default function Storefront() {
           )}
         </SheetContent>
       </Sheet>
-    </>
+    </div>
   );
 }

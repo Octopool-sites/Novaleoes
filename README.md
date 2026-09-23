@@ -1,5 +1,13 @@
 # Octopool Commerce — Nova Leões
 
+## Prévia em 22/09/2026
+
+Nova vitrine com carro 3D que se separa durante a rolagem, três destaques ligados ao catálogo real, busca, carrinho e explicação de aprovação/retirada publicada **somente em staging**. [Abrir prévia](https://octopool-commerce-nova-leoes-staging.nova-leoes-storefront.workers.dev/).
+
+Staging usa Firebase Authentication no projeto dedicado `nova-leoes-commerce` (Spark, sem Analytics), com recuperação por e-mail implementada. A definição da senha, confirmação do e-mail e primeiro login real de Arthur ainda precisam ser concluídos pelo usuário. Produção conserva a versão anterior e seu Supabase inativo: esta prévia não significa recuperação do login de produção. Consulte [migração Firebase](docs/firebase-auth.md) e [registro da vitrine](docs/storefront-scroll-20260922.md).
+
+As seções de publicação de 12/09 abaixo são histórico, não o estado atual de staging.
+
 Aplicação independente do Nexus, hospedada na conta Cloudflare da Octopool. A vitrine e a gestão usam Vite/React; uma API Worker e D1 guardam pedidos e auditoria. O Supabase Auth identifica a equipe. O conector de estoque se comunica com o Nexus por contrato `octopool.stock.v1`, credencial exclusiva da loja e chamadas de servidor.
 
 ## Repositório e organização
