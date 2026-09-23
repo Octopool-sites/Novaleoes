@@ -3,10 +3,18 @@ import { authClient, authConfigured, authProvider, approverEmails, clearAuthCook
 import { context } from "./context";
 import { HttpError, readJson } from "../lib/commerce-server";
 import { firebaseLogin, firebasePasswordReset, FirebaseAuthError } from "./firebase-auth";
+import { firebaseLoginAliases } from "./auth-aliases";
+
+function passwordRecoveryAvailable() {
+  const { env } = context();
+  const aliases = firebaseLoginAliases(env);
+  return authConfigured(env) && authProvider(env) === "firebase" &&
+    approverEmails().some(email => !aliases?.has(email));
+}
 
 export function authStatus() {
   const configured = authConfigured(context().env);
-  return Response.json({ configured, accessReady: approverEmails().length > 0, passwordRecovery: configured && authProvider(context().env) === "firebase" });
+  return Response.json({ configured, accessReady: approverEmails().length > 0, passwordRecovery: passwordRecoveryAvailable() });
 }
 
 export async function login(request: Request) {
@@ -61,7 +69,9 @@ export async function activate(request: Request) {
     password: z.string().min(12).max(128),
   }).strict().parse(await readJson(request));
   const { env } = context();
-  if (authProvider(env) === "firebase") throw new HttpError(410, "Use Esqueci minha senha na tela de acesso para receber um novo link por e-mail.");
+  if (authProvider(env) === "firebase") throw new HttpError(410, passwordRecoveryAvailable()
+    ? "Para acessos com e-mail, use Esqueci minha senha na tela de acesso. Para logins internos, fale com o administrador."
+    : "Para definir ou recuperar a senha do seu login interno, fale com o administrador.");
   if (!authConfigured(env) || !env.AUTH_RATE_LIMITER) throw new HttpError(503, "O acesso está temporariamente indisponível.");
   const limited = await env.AUTH_RATE_LIMITER.limit({ key: `activation:${request.headers.get("cf-connecting-ip") || "unknown"}` });
   if (!limited.success) throw new HttpError(429, "Muitas tentativas. Aguarde um minuto e tente novamente.");
@@ -110,6 +120,6 @@ export async function recoverPassword(request: Request) {
       }
     }
   }
-  // Same response for unauthorized, missing and permitted accounts.
-  return Response.json({ ok: true, message: "Se este e-mail tiver acesso liberado, você receberá um link para definir uma nova senha. Confira também o spam." });
+  // Same response for unauthorized, missing, internal and permitted accounts.
+  return Response.json({ ok: true, message: "Se este acesso permitir recuperação por e-mail, você receberá um link para definir uma nova senha. Confira também o spam. Para logins internos, fale com o administrador." });
 }

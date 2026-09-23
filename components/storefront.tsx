@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import {
   Search,
   ShoppingBag,
@@ -39,8 +39,11 @@ import StoreProductCard from "./store-product-card";
 import StorefrontEditorial, { productTitles, productBenefits } from "./storefront-editorial";
 import "./storefront-redesign.css";
 import "./storefront-polish.css";
+const StorefrontEditorialVariant = lazy(() => import("./storefront-editorial-variant"));
 type Cart = Record<string, number>;
 export default function Storefront() {
+  const [editorialVariant] = useState(() => new URLSearchParams(window.location.search).get("visual") === "editorial");
+  const storefrontHref = editorialVariant ? "/?visual=editorial" : "/";
   const [products, setProducts] = useState<Product[]>([]),
     [query, setQuery] = useState(""),
     [category, setCategory] = useState("Todas as peças"),
@@ -143,6 +146,15 @@ export default function Storefront() {
   function updateForm(key: keyof typeof form, value: string) {
     attempt.current = "";
     setForm((prev) => ({ ...prev, [key]: value }));
+  }
+  function exploreCategory(nextCategory: string) {
+    setQuery("");
+    setCategory(nextCategory);
+    requestAnimationFrame(() => {
+      const catalog = document.getElementById("catalogo");
+      catalog?.focus({ preventScroll: true });
+      catalog?.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth", block: "start" });
+    });
   }
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -252,10 +264,10 @@ export default function Storefront() {
     return () => lifecycle.abort();
   }, [products]);
   return (
-    <div className="nl-store">
+    <div className={`nl-store${editorialVariant ? " nl-store-editorial" : ""}`}>
       <a className="nl-skip-link" href="#catalogo">Pular apresentação e ir ao catálogo</a>
       <header className="store-header wrap">
-        <a href="/" className="store-brand">
+        <a href={storefrontHref} className="store-brand">
           <img src="/assets/logo.png" alt="" />
           <span>
             NOVA LEÕES<small>AUTOPEÇAS</small>
@@ -279,10 +291,11 @@ export default function Storefront() {
       <ScrollHero products={products} onProduct={setDetail} />
       <div className="nl-value-strip"><div className="wrap"><span><CarFront size={21} /><span><b>A peça certa para o seu carro</b><small>Aplicação conferida pela equipe</small></span></span><span><ShieldCheck size={21} /><span><b>Compra com acompanhamento</b><small>Pedido sujeito à aprovação da loja</small></span></span><span><PackageCheck size={21} /><span><b>Da nossa loja para o seu caminho</b><small>Retirada combinada no balcão</small></span></span></div></div>
       <main className="wrap">
+        {editorialVariant && <Suspense fallback={null}><StorefrontEditorialVariant products={products} onExplore={exploreCategory} /></Suspense>}
         <section id="catalogo" className="catalog-section" tabIndex={-1}>
           <div className="section-heading">
-            <div><p className="nl-kicker"><span /> NOSSA SELEÇÃO</p><h2>O próximo cuidado<br /><em>começa aqui.</em></h2></div>
-            <p className="nl-catalog-intro">Encontre o que seu carro precisa.<br />A gente cuida dos detalhes com você.</p>
+            <div><p className="nl-kicker"><span /> {editorialVariant ? "DO CUIDADO À PEÇA" : "NOSSA SELEÇÃO"}</p><h2>{editorialVariant ? <>Agora, encontre<br /><em>a sua peça.</em></> : <>O próximo cuidado<br /><em>começa aqui.</em></>}</h2></div>
+            <p className="nl-catalog-intro">{editorialVariant ? <>Nome, marca ou código: comece pelo que você sabe.<br />A aplicação é conferida com você antes da aprovação.</> : <>Encontre o que seu carro precisa.<br />A gente cuida dos detalhes com você.</>}</p>
           </div>
           <div className="nl-catalog-tools"><form className="searchbox" onSubmit={e => e.preventDefault()}><Search size={20}/><input aria-label="Buscar por peça, marca ou código" placeholder="Qual peça você procura?" maxLength={120} value={query} onChange={e=>setQuery(e.target.value)}/>{query && <button type="button" aria-label="Limpar busca" onClick={()=>setQuery("")}>×</button>}</form><span className="subtle" aria-live="polite">{catalogLoading ? "Carregando peças…" : `${filtered.length} ${filtered.length === 1 ? "peça selecionada" : "peças selecionadas"}`}</span></div>
       <nav className="category-nav" aria-label="Categorias de peças">
@@ -340,7 +353,7 @@ export default function Storefront() {
             <a className="nl-button" href="#catalogo">Encontrar minha peça <ArrowUpRight size={19} /></a>
           </div>
           <div className="nl-footer-bottom">
-            <a className="store-brand" href="/" aria-label="Nova Leões, início"><img src="/assets/logo.png" alt="" loading="lazy" /><span>NOVA LEÕES<small>AUTOPEÇAS</small></span></a>
+            <a className="store-brand" href={storefrontHref} aria-label="Nova Leões, início"><img src="/assets/logo.png" alt="" loading="lazy" /><span>NOVA LEÕES<small>AUTOPEÇAS</small></span></a>
             <nav aria-label="Navegação do rodapé"><a href="#catalogo">Peças</a><a href="#como-funciona">Como comprar</a><a href="#duvidas">Dúvidas</a></nav>
             <span>Um ambiente da <b>octopool</b></span>
           </div>

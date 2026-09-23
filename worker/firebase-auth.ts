@@ -2,6 +2,7 @@ import { parseCookieHeader, serializeCookieHeader } from "@supabase/ssr";
 import { createRemoteJWKSet, customFetch, errors, jwtVerify, type JWTPayload } from "jose";
 import { context, type RuntimeEnv } from "./context";
 import type { Operator } from "./auth";
+import { firebaseLoginAliases } from "./auth-aliases";
 
 const ID_COOKIE = "__Host-commerce-session-firebase-id";
 const REFRESH_COOKIE = "__Host-commerce-session-firebase-refresh";
@@ -28,7 +29,7 @@ async function safeFetch(url: string, options: RequestInit) {
 
 export function firebaseConfigured(env: RuntimeEnv) {
   return /^[a-z][a-z0-9-]{4,28}[a-z0-9]$/.test(env.FIREBASE_PROJECT_ID || "") &&
-    /^AIza[A-Za-z0-9_-]{35}$/.test(env.FIREBASE_API_KEY || "");
+    /^AIza[A-Za-z0-9_-]{35}$/.test(env.FIREBASE_API_KEY || "") && firebaseLoginAliases(env) !== null;
 }
 
 async function providerRequest<T>(action: string, body: Record<string, unknown>, refresh = false): Promise<T> {
@@ -55,10 +56,13 @@ async function providerRequest<T>(action: string, body: Record<string, unknown>,
 }
 
 type Account = { localId?: string; email?: string; emailVerified?: boolean; disabled?: boolean; validSince?: string };
-type VerifiedIdentity = { operator: Operator; payload: JWTPayload; verified: boolean };
+type VerifiedIdentity = { operator: Operator; payload: JWTPayload; verified: boolean; internalAlias: boolean };
 
 async function verifiedIdentity(idToken: string, allowed: string[], allowUnverified = false): Promise<VerifiedIdentity> {
-  const project = context().env.FIREBASE_PROJECT_ID!;
+  const { env } = context();
+  const aliases = firebaseLoginAliases(env);
+  if (!aliases) throw new FirebaseAuthError("NOT_CONFIGURED");
+  const project = env.FIREBASE_PROJECT_ID!;
   const { payload } = await jwtVerify(idToken, keySet, {
     algorithms: ["RS256"], issuer: `https://securetoken.google.com/${project}`, audience: project,
     requiredClaims: ["sub", "iat", "exp", "auth_time", "email", "firebase"], clockTolerance: 5,
@@ -70,6 +74,10 @@ async function verifiedIdentity(idToken: string, allowed: string[], allowUnverif
       firebase?.sign_in_provider !== "password" || typeof payload.auth_time !== "number" ||
       payload.auth_time > now + 5 || payload.auth_time < now - MAX_SESSION_SECONDS ||
       typeof payload.iat !== "number" || payload.iat > now + 5) throw new FirebaseAuthError("IDENTITY_DENIED");
+  const aliasUid = aliases.get(email);
+  // Enforce the binding even if the alias is later marked verified at Firebase.
+  // Deleting/recreating an account must never inherit an internal login's access.
+  if (aliasUid !== undefined && aliasUid !== payload.sub) throw new FirebaseAuthError("IDENTITY_DENIED");
   // The live lookup enforces disabled/deleted accounts and revocation after a
   // password reset. A signed JWT alone could remain valid until its expiry.
   const { users } = await providerRequest<{ users?: Account[] }>("lookup", { idToken });
@@ -78,8 +86,9 @@ async function verifiedIdentity(idToken: string, allowed: string[], allowUnverif
   if (!user || user.disabled || user.localId !== payload.sub || user.email?.toLowerCase() !== email ||
       !Number.isFinite(validSince) || payload.auth_time < validSince) throw new FirebaseAuthError("IDENTITY_DENIED");
   const verified = payload.email_verified === true && user.emailVerified === true;
-  if (!verified && !allowUnverified) throw new FirebaseAuthError("EMAIL_NOT_VERIFIED");
-  return { operator: { userId: payload.sub, email, displayName: email, fullName: null }, payload, verified };
+  const internalAlias = aliasUid !== undefined;
+  if (!verified && !internalAlias && !allowUnverified) throw new FirebaseAuthError("EMAIL_NOT_VERIFIED");
+  return { operator: { userId: payload.sub, email, displayName: email, fullName: null }, payload, verified, internalAlias };
 }
 
 function writeSession(idToken: string, refreshToken: string, payload: JWTPayload) {
@@ -99,7 +108,7 @@ export async function firebaseLogin(email: string, password: string, allowed: st
   if (!data.idToken || !data.refreshToken || data.email?.toLowerCase() !== email) throw new FirebaseAuthError("IDENTITY_DENIED");
   const identity = await verifiedIdentity(data.idToken, allowed, true);
   if (identity.operator.email !== email || identity.operator.userId !== data.localId) throw new FirebaseAuthError("IDENTITY_DENIED");
-  if (!identity.verified) {
+  if (!identity.verified && !identity.internalAlias) {
     await providerRequest("sendOobCode", { requestType: "VERIFY_EMAIL", idToken: data.idToken });
     throw new FirebaseAuthError("VERIFICATION_SENT");
   }
@@ -131,6 +140,11 @@ export async function firebaseOperator(allowed: string[]): Promise<Operator | nu
 }
 
 export async function firebasePasswordReset(email: string) {
+  const aliases = firebaseLoginAliases(context().env);
+  if (!aliases) throw new FirebaseAuthError("NOT_CONFIGURED");
+  // Internal logins have no mailbox. Recovery is performed by the administrator;
+  // never send a reset link to an address that may later belong to someone else.
+  if (aliases.has(email.toLowerCase())) return;
   // Firebase's hosted action handler consumes the one-use code and applies its
   // password policy. No recovery token is returned to this app or the browser.
   await providerRequest("sendOobCode", { requestType: "PASSWORD_RESET", email });

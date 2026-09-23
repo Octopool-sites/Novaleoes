@@ -37,10 +37,11 @@
       "vars": {
         "STORE_OWNER": "nova-leoes-staging",
         "PUBLIC_ORDERS_ENABLED": "0",
-        "COMMERCE_APPROVERS": "arthur@octopool.com.br",
+        "COMMERCE_APPROVERS": "arthur@octopool.com.br,carlos@octopool.com.br,luca@octopool.com.br",
         "CATALOG_MODE": "staging",
         "COMMERCE_AUTH_PROVIDER": "firebase",
         "FIREBASE_PROJECT_ID": "nova-leoes-commerce",
+        "COMMERCE_LOGIN_ALIASES": "{\"arthur@octopool.com.br\":\"BADidRAZ0XWmkxsQsoHTNqoP9Vw2\",\"carlos@octopool.com.br\":\"4zJ4jzwiRyNQhMS9Cs3k5WZooqX2\",\"luca@octopool.com.br\":\"Et2ZR9STEDWJP6e2iASTEunMwo72\"}",
         "SUPABASE_URL": "https://vcmpehcvtywumwhathsr.supabase.co",
         "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_pziPXwVlM_L9jl6RTdQ77Q_NVLrFhhT"
       },
@@ -77,10 +78,12 @@
       "vars": {
         "STORE_OWNER": "cmr9m6jgi001lx34fzpaeyrzn",
         "PUBLIC_ORDERS_ENABLED": "1",
-        "COMMERCE_APPROVERS": "arthur@octopool.com.br",
+        "COMMERCE_APPROVERS": "arthur@octopool.com.br,carlos@octopool.com.br,luca@octopool.com.br",
         "CATALOG_MODE": "production",
         "REQUIRE_SHARED_STOCK": "1",
-        "COMMERCE_AUTH_PROVIDER": "supabase",
+        "COMMERCE_AUTH_PROVIDER": "firebase",
+        "FIREBASE_PROJECT_ID": "nova-leoes-commerce",
+        "COMMERCE_LOGIN_ALIASES": "{\"arthur@octopool.com.br\":\"BADidRAZ0XWmkxsQsoHTNqoP9Vw2\",\"carlos@octopool.com.br\":\"4zJ4jzwiRyNQhMS9Cs3k5WZooqX2\",\"luca@octopool.com.br\":\"Et2ZR9STEDWJP6e2iASTEunMwo72\"}",
         "SUPABASE_URL": "https://vcmpehcvtywumwhathsr.supabase.co",
         "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_pziPXwVlM_L9jl6RTdQ77Q_NVLrFhhT",
         "COMMERCE_ERP_ORIGIN": "https://api.octopool.com.br",

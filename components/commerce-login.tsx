@@ -43,8 +43,8 @@ export default function CommerceLogin({ onSignedIn }: { onSignedIn: () => void }
       <p>{recovering ? "Receba um link por e-mail para definir uma nova senha." : "Confira pedidos e aprove as vendas da loja."}</p>
       {!checking && !ready && <p role="status" className="login-notice">Estamos finalizando a liberação do acesso da equipe. Tente novamente mais tarde.</p>}
       <form onSubmit={submit}>
-        <label htmlFor="commerce-email">E-mail</label>
-        <input id="commerce-email" type="email" autoComplete="username" required maxLength={200} value={email} onChange={event => setEmail(event.target.value)} placeholder="Seu e-mail de acesso" disabled={pending} />
+        <label htmlFor="commerce-email">{recovering ? "E-mail" : "Login"}</label>
+        <input id="commerce-email" type="email" autoComplete="username" required maxLength={200} value={email} onChange={event => setEmail(event.target.value)} placeholder={recovering ? "Seu e-mail de acesso" : "Seu login de acesso"} disabled={pending} />
         {!recovering && <><label htmlFor="commerce-password">Senha</label>
         <input id="commerce-password" type="password" autoComplete="current-password" required maxLength={256} value={password} onChange={event => setPassword(event.target.value)} disabled={pending} /></>}
         {error && <p role="alert" className="login-error">{error}</p>}
@@ -52,7 +52,7 @@ export default function CommerceLogin({ onSignedIn }: { onSignedIn: () => void }
         <button className="login-submit" type="submit" disabled={checking || pending || !ready}>{pending || checking ? <><LoaderCircle size={18} className="animate-spin" /> {pending ? (recovering ? "Solicitando link…" : "Entrando…") : "Conferindo acesso…"}</> : (recovering ? "Enviar link por e-mail" : "Entrar na gestão")}</button>
         {recoveryAvailable && <button className="login-back" type="button" disabled={pending} onClick={() => { setRecovering(!recovering); setError(""); setNotice(""); setPassword(""); }}>{recovering ? "Voltar para entrar" : "Esqueci minha senha"}</button>}
       </form>
-      <p className="login-help">{recoveryAvailable ? "Primeiro acesso? Após a liberação pelo administrador, use Esqueci minha senha para definir sua senha. Apenas a equipe autorizada pode entrar." : "Primeiro acesso? Abra seu link individual para definir a senha. Digitar um e-mail aqui não cria uma conta. Para receber um novo link, fale com o administrador."}</p>
+      <p className="login-help">{recoveryAvailable ? "Primeiro acesso? Após a liberação pelo administrador, use Esqueci minha senha para definir sua senha. Apenas a equipe autorizada pode entrar." : "Use o login e a senha definidos no cadastro da equipe. Para criar ou recuperar seu acesso, fale com o administrador da loja."}</p>
     </section>
     <p className="login-footer">Um ambiente da <strong>octopool</strong></p>
   </main>;
