@@ -1,0 +1,37 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "jobs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "state", "order": "ASCENDING" },
+        { "fieldPath": "created_at", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "jobs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "order_id", "order": "ASCENDING" },
+        { "fieldPath": "state", "order": "ASCENDING" },
+        { "fieldPath": "local_revision", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "events",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "order_id", "order": "ASCENDING" },
+        { "fieldPath": "created_at", "order": "ASCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": [
+    { "collectionGroup": "orders", "fieldPath": "items_json", "indexes": [] },
+    { "collectionGroup": "orders", "fieldPath": "note", "indexes": [] },
+    { "collectionGroup": "jobs", "fieldPath": "payload", "indexes": [] },
+    { "collectionGroup": "jobs", "fieldPath": "last_error", "indexes": [] },
+    { "collectionGroup": "events", "fieldPath": "detail", "indexes": [] },
+    { "collectionGroup": "products", "fieldPath": "description", "indexes": [] }
+  ]
+}

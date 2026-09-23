@@ -1,7 +1,7 @@
-import { context } from "../worker/context";
-import { operator } from "../worker/auth";
-import { type Product } from "./catalog";
-import { STORE, type Order } from "./commerce-contracts";
+import { context } from "../worker/context.js";
+import { operator } from "../worker/auth.js";
+import { type Product } from "./catalog.js";
+import { STORE, type Order } from "./commerce-contracts.js";
 import { ZodError } from "zod";
 export class HttpError extends Error {
   constructor(

@@ -1,0 +1,27 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "octopool-commerce-retired-unconfigured",
+  "main": "worker/retired.ts",
+  "account_id": "472249d0e533f9d5c2084f4168cb71ed",
+  "compatibility_date": "2026-09-12",
+  "workers_dev": false,
+  "preview_urls": false,
+  "triggers": { "crons": [] },
+  "vars": { "RETIRED_DESTINATION": "" },
+  "env": {
+    "staging": {
+      "name": "octopool-commerce-nova-leoes-staging",
+      "workers_dev": true,
+      "preview_urls": false,
+      "triggers": { "crons": [] },
+      "vars": { "RETIRED_DESTINATION": "" }
+    },
+    "production": {
+      "name": "nova-leoes-storefront",
+      "workers_dev": true,
+      "preview_urls": false,
+      "triggers": { "crons": [] },
+      "vars": { "RETIRED_DESTINATION": "" }
+    }
+  }
+}

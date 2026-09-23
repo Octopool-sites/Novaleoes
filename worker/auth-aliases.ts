@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { RuntimeEnv } from "./context";
+import type { RuntimeEnv } from "./context.js";
 
 const aliasEmail = z.string().email().max(200);
 const aliasUid = /^[A-Za-z0-9_-]{1,128}$/;

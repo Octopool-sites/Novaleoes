@@ -1,6 +1,6 @@
 # Nova Leões — site e Commerce
 
-Escopo deste repositório: Nova Leões. Inclui vitrine, gestão, Cloudflare Worker e D1. O Nexus ERP é outro projeto, com publicação independente.
+Escopo deste repositório: Nova Leões. Inclui vitrine, gestão, API Vercel/Firestore e o legado Cloudflare Worker/D1 preservado para a migração. O Nexus ERP é outro projeto, com publicação independente. Conferir o registro de corte antes de assumir qual ambiente está ativo.
 
 ## Antes de trabalhar
 
@@ -21,6 +21,7 @@ Escopo deste repositório: Nova Leões. Inclui vitrine, gestão, Cloudflare Work
 
 - `npm test` e `npm run build` para mudanças de comportamento. Alterações apenas documentais não exigem nova suíte.
 - Testes usam fixtures e banco local/isolado; não apontar testes automáticos ao D1 de produção.
+- Testes Firestore usam somente emulador local e namespaces sintéticos; não usar o projeto remoto como fixture. Produção Vercel não compartilha credenciais com previews.
 - Staging e produção têm D1 distintos; declarar o ambiente nos comandos Wrangler.
 - Commit/push não equivale a deploy. Reorganização local não exige publicação ou migrations.
 - Credenciais, .env, .dev.vars, dumps e evidências privadas não entram no Git. A chave Supabase publicável é configuração pública; service_role e token ERP são secretos.

@@ -1,9 +1,9 @@
 import { z } from "zod";
-import { authClient, authConfigured, authProvider, approverEmails, clearAuthCookies } from "./auth";
-import { context } from "./context";
-import { HttpError, readJson } from "../lib/commerce-server";
-import { firebaseLogin, firebasePasswordReset, FirebaseAuthError } from "./firebase-auth";
-import { firebaseLoginAliases } from "./auth-aliases";
+import { authClient, authConfigured, authProvider, approverEmails, clearAuthCookies } from "./auth.js";
+import { context } from "./context.js";
+import { HttpError, readJson } from "../lib/commerce-server.js";
+import { firebaseLogin, firebasePasswordReset, FirebaseAuthError } from "./firebase-auth.js";
+import { firebaseLoginAliases } from "./auth-aliases.js";
 
 function passwordRecoveryAvailable() {
   const { env } = context();

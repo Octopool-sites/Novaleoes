@@ -1,0 +1,11 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // The browser authenticates against Firebase Authentication, but business
+    // reads and writes always pass through the authorized server API. Server
+    // credentials are governed by IAM; these rules never authorize a client.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

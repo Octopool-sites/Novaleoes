@@ -1,6 +1,6 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 export type RuntimeEnv = {
-  DB:D1Database; ASSETS:Fetcher;
+  DB?:D1Database; ASSETS?:Fetcher;
   STORE_OWNER:string; COMMERCE_APPROVERS?:string;
   SUPABASE_URL?:string; SUPABASE_PUBLISHABLE_KEY?:string;
   COMMERCE_AUTH_PROVIDER?:string;

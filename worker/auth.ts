@@ -1,6 +1,6 @@
 import { createServerClient, parseCookieHeader, serializeCookieHeader } from "@supabase/ssr";
-import { context, type RuntimeEnv } from "./context";
-import { firebaseConfigured, firebaseOperator } from "./firebase-auth";
+import { context, type RuntimeEnv } from "./context.js";
+import { firebaseConfigured, firebaseOperator } from "./firebase-auth.js";
 
 export const SESSION_COOKIE = "__Host-commerce-session";
 export type Operator = { userId: string; email: string; displayName: string; fullName: string | null };

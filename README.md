@@ -1,6 +1,14 @@
 # Octopool Commerce — Nova Leões
 
-## Firebase e nova vitrine publicados — 23/09/2026
+## Vercel e Firestore publicados — 23/09/2026
+
+O destino aprovado foi corrigido para **Vercel (site A/B, gestão e API), Firebase Authentication (login) e Cloud Firestore (dados do Commerce)**. A integração de estoque mantém o Nexus/AWS como autoridade, sem alterar seu código ou sua publicação. O projeto Firebase existente foi preservado; os três logins internos mantêm seus UIDs.
+
+Firestore Standard `(default)` provisionado em São Paulo, com `freeTier:true`, regras que negam acesso direto de clientes e três índices `READY`. A cópia de produção preservou 7 produtos, 2 pedidos cancelados, 7 eventos e 2 tarefas aplicadas; comparação integral encontrou 31 documentos de negócio idênticos ao plano. Os Workers antigos agora somente redirecionam navegações; suas APIs retornam 410 e os D1 ficam congelados.
+
+[Versão A](https://nova-leoes-preview.vercel.app/), [versão B](https://nova-leoes-preview.vercel.app/?visual=editorial) e [gestão](https://nova-leoes-preview.vercel.app/gestao) estão na Vercel. Deploy inicial `dpl_48ZriGEnddpiYZdNkArHC1tvhXJk`, publicado em modo somente leitura e com pedidos desativados, aguardando validação real do login no novo endereço. API, animação e catálogo respondem corretamente; 141 testes passaram com emulador local. Procedimento, limites de reconciliação e recuperação: [migração Vercel/Firestore](docs/migracao-vercel-firestore.md).
+
+## Histórico: Firebase e vitrine na Cloudflare — 23/09/2026
 
 O usuário confirmou três **logins internos** no Firebase Authentication: `arthur@octopool.com.br`, `carlos@octopool.com.br` e `luca@octopool.com.br`. Esses identificadores não são tratados como caixas de e-mail. Cada um deve constar em `COMMERCE_APPROVERS` e no mapa `COMMERCE_LOGIN_ALIASES`, vinculado ao UID exato da conta previamente criada no Firebase.
 

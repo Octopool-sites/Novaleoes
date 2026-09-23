@@ -29,6 +29,8 @@
   "include": [
     "main.tsx",
     "worker/**/*.ts",
+    "server/**/*.ts",
+    "api/**/*.ts",
     "vite.config.ts"
   ],
   "exclude": [

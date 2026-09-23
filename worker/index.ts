@@ -21,7 +21,7 @@ export default {
    if(pathname==="/api/auth/logout"&&method==="POST")return logout(request);
    if(pathname==="/api/auth/activate"&&method==="POST")return activate(request);
    if(pathname==="/api/auth/recover"&&method==="POST")return recoverPassword(request);
-   if((pathname==="/gestao"||pathname.startsWith("/gestao/"))&&method==="GET")return env.ASSETS.fetch(new Request(new URL("/",request.url),request));
+   if((pathname==="/gestao"||pathname.startsWith("/gestao/"))&&method==="GET")return env.ASSETS!.fetch(new Request(new URL("/",request.url),request));
    if(pathname==="/api/public/catalog"&&method==="GET")return Response.json({products:(await listProducts(env.STORE_OWNER)).filter(p=>p.published),requiresApproval:true,ordersEnabled:await intakeEnabled()});
    if(pathname==="/api/public/orders"&&method==="POST"){
     if(!env.ORDER_RATE_LIMITER)throw new HttpError(503,"O atendimento online está sendo preparado.");
@@ -47,7 +47,7 @@ export default {
     if(pathname==="/api/integration/reconcile"&&method==="POST")return reconcile.POST(request);
     throw new HttpError(404,"Endereço não encontrado.");
    }
-   return env.ASSETS.fetch(request);
+   return env.ASSETS!.fetch(request);
   })));
  },
  async scheduled(_controller:ScheduledController,env:RuntimeEnv,ctx:ExecutionContext){

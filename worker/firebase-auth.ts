@@ -1,8 +1,8 @@
 import { parseCookieHeader, serializeCookieHeader } from "@supabase/ssr";
 import { createRemoteJWKSet, customFetch, errors, jwtVerify, type JWTPayload } from "jose";
-import { context, type RuntimeEnv } from "./context";
-import type { Operator } from "./auth";
-import { firebaseLoginAliases } from "./auth-aliases";
+import { context, type RuntimeEnv } from "./context.js";
+import type { Operator } from "./auth.js";
+import { firebaseLoginAliases } from "./auth-aliases.js";
 
 const ID_COOKIE = "__Host-commerce-session-firebase-id";
 const REFRESH_COOKIE = "__Host-commerce-session-firebase-refresh";

@@ -1,6 +1,9 @@
 node_modules/
 dist/
 .wrangler/
+.vercel/
+firebase-debug.log
+firestore-debug.log
 .env*
 .dev.vars*
 outputs/
@@ -19,3 +22,6 @@ secrets/
 *.db
 .DS_Store
 Thumbs.db
+
+.vercel
+.env*

@@ -8,7 +8,8 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1 --port 5190",
     "build": "tsc --noEmit && vite build",
-    "test": "node scripts/build-test-worker.mjs && node --experimental-strip-types --test tests/*.test.mjs",
+    "test": "node scripts/build-test-worker.mjs && node scripts/build-firestore-tests.mjs && node --experimental-strip-types --test tests/*.test.mjs",
+    "test:firestore": "node scripts/build-firestore-tests.mjs && npx --yes firebase-tools@15.30.2 emulators:exec --only firestore --project demo-octopool-commerce \"node --experimental-strip-types --test tests/firestore-*.test.mjs\"",
     "cf:dev": "wrangler dev --local --env staging --port 0",
     "cf:check": "npm run build && wrangler deploy --dry-run --env staging",
     "cf:deploy:staging": "npm run build && wrangler deploy --env staging",
@@ -16,6 +17,7 @@
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
+    "@google-cloud/firestore": "^9.2.0",
     "@hookform/resolvers": "^5.7.1",
     "@shadcn/react": "^0.3.0",
     "@supabase/ssr": "0.12.7",
@@ -26,6 +28,7 @@
     "date-fns": "^4.4.0",
     "drizzle-orm": "0.45.2",
     "embla-carousel-react": "^8.6.0",
+    "google-auth-library": "^11.1.0",
     "input-otp": "^1.4.2",
     "jose": "6.2.12",
     "lucide-react": "^1.31.0",
