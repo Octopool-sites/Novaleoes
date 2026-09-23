@@ -1,5 +1,7 @@
 # Nova Leões — vitrine e autenticação, 22/09/2026
 
+Registro histórico da primeira prévia 3D. A revisão posterior com mídia gerada na API Higgsfield está documentada em [higgsfield-car-20260922.md](higgsfield-car-20260922.md), incluindo o estado de sua publicação.
+
 ## Publicação
 
 - Prévia: https://octopool-commerce-nova-leoes-staging.nova-leoes-storefront.workers.dev/

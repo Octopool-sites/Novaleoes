@@ -1,5 +1,11 @@
 # Octopool Commerce — Nova Leões
 
+## Revisão Higgsfield em 22/09/2026
+
+Nova abertura fotorealista produzida com imagens e vídeo da API Higgsfield, controlada pela rolagem, integrada e validada localmente. Substitui o carregamento do modelo Three.js anterior. Filme otimizado de 2,4 MB, três destaques ligados ao catálogo e imagem estática para movimento reduzido/falhas. [Registro técnico e validação](docs/higgsfield-car-20260922.md).
+
+O deploy desta revisão aguarda reautenticação Cloudflare. A prévia hospedada abaixo ainda apresenta a versão anterior. Produção não foi modificada nesta revisão.
+
 ## Prévia em 22/09/2026
 
 Nova vitrine com carro 3D que se separa durante a rolagem, três destaques ligados ao catálogo real, busca, carrinho e explicação de aprovação/retirada publicada **somente em staging**. [Abrir prévia](https://octopool-commerce-nova-leoes-staging.nova-leoes-storefront.workers.dev/).

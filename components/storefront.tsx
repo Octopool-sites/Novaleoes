@@ -282,7 +282,7 @@ export default function Storefront() {
             <div><p className="nl-kicker">ESCOLHAS QUE FAZEM A DIFERENÇA</p><h2>O próximo cuidado<br /><em>começa aqui.</em></h2></div>
             <p className="nl-catalog-intro">Peças para o que importa: seu carro bem cuidado.<br />Escolha a sua. A gente confere a aplicação com você.</p>
           </div>
-          <div className="nl-catalog-tools"><form className="searchbox" onSubmit={e => e.preventDefault()}><Search size={20}/><input aria-label="Buscar por peça, marca ou código" placeholder="Busque por peça, marca ou código" maxLength={120} value={query} onChange={e=>setQuery(e.target.value)}/>{query && <button type="button" aria-label="Limpar busca" onClick={()=>setQuery("")}>×</button>}</form><span className="subtle" aria-live="polite">{catalogLoading ? "Carregando peças…" : `${filtered.length} peças selecionadas`}</span></div>
+          <div className="nl-catalog-tools"><form className="searchbox" onSubmit={e => e.preventDefault()}><Search size={20}/><input aria-label="Buscar por peça, marca ou código" placeholder="Busque por peça, marca ou código" maxLength={120} value={query} onChange={e=>setQuery(e.target.value)}/>{query && <button type="button" aria-label="Limpar busca" onClick={()=>setQuery("")}>×</button>}</form><span className="subtle" aria-live="polite">{catalogLoading ? "Carregando peças…" : `${filtered.length} ${filtered.length === 1 ? "peça selecionada" : "peças selecionadas"}`}</span></div>
       <nav className="category-nav" aria-label="Categorias de peças">
         <div className="wrap">
           {[
@@ -383,7 +383,7 @@ export default function Storefront() {
         <a href="/gestao">
           Área de gestão <ArrowUpRight size={15} />
         </a>
-      <a className="nl-credits" href="/assets/car/ATTRIBUTION.txt" target="_blank" rel="noopener noreferrer">Créditos do modelo 3D</a></footer>
+      </footer>
       <Dialog open={!!detail} onOpenChange={(open) => !open && setDetail(null)}>
         <DialogContent className="product-dialog sm:max-w-[760px]">
           {detail && (
