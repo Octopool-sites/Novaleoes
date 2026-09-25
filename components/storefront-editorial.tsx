@@ -81,7 +81,7 @@ export default function StorefrontEditorial() {
           </details>
           <details>
             <summary><span className="nl-question-number" aria-hidden="true">04</span><span>E se eu não encontrar a peça que procuro?</span><span className="nl-question-toggle" aria-hidden="true" /></summary>
-            <p>Tente buscar pelo nome, pela marca ou pelo código. O catálogo online apresenta uma seleção de produtos; a disponibilidade é conferida pela loja na aprovação.</p>
+            <p>Busque pelo nome, pela marca da peça ou pelo modelo do carro e use o filtro por veículo. O catálogo online reúne todos os itens cadastrados na loja; se ainda assim não encontrar, chame a equipe pelo WhatsApp e ela procura para você. A disponibilidade é conferida pela loja na aprovação.</p>
           </details>
         </div>
       </section>
