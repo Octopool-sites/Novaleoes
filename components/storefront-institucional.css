@@ -1,0 +1,86 @@
+/* Seções institucionais (quem somos, contato, trocas) e rodapé com colunas. Mesma paleta da versão A. */
+.nl-institucional { --inst-ink: #293126; --inst-muted: #62695c; --inst-line: #dedfd5; color: var(--inst-ink); }
+.nl-institucional h2 { margin: 21px 0 0; font-size: clamp(34px, 3.5vw, 52px); font-weight: 500; letter-spacing: -.045em; line-height: 1.1; }
+.nl-store .nl-institucional h2 em { color: #727c63; }
+.nl-institucional p { font-size: 15px; line-height: 1.8; }
+.nl-institucional .nl-editorial-eyebrow { margin: 0; color: #626b54; font-size: 10px; font-weight: 600; line-height: 1.5; letter-spacing: 1.7px; }
+.nl-institucional a:focus-visible { outline: 2px solid #7d632d; outline-offset: 5px; border-radius: 2px; }
+
+.nl-sobre { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, .8fr); gap: 70px; padding: 96px 0 60px; border-top: 1px solid var(--inst-line); scroll-margin-top: 110px; }
+.nl-sobre-copy > p:not(.nl-editorial-eyebrow) { margin: 22px 0 0; max-width: 560px; color: var(--inst-muted); }
+.nl-sobre-numeros { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 0; padding: 0; list-style: none; align-self: end; }
+.nl-sobre-numeros li { padding: 24px 22px; background: #f5f3ee; border-radius: 12px; }
+.nl-sobre-numeros b { display: block; font-size: 30px; font-weight: 500; letter-spacing: -1px; line-height: 1.1; }
+.nl-sobre-numeros span { display: block; margin-top: 8px; font-size: 12px; color: #6d7167; }
+
+.nl-servicos { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; padding: 0 0 90px; }
+.nl-servicos article { padding: 28px 26px 30px; border: 1px solid #e2e5d8; border-radius: 14px; background: #fff; }
+.nl-servicos svg { color: #9a8044; }
+.nl-servicos h3 { margin: 18px 0 8px; font-size: 19px; font-weight: 500; letter-spacing: -.3px; }
+.nl-servicos p { margin: 0; font-size: 14px; color: var(--inst-muted); }
+
+.nl-contato { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, .9fr); gap: 60px; padding: 84px 0; border-top: 1px solid var(--inst-line); scroll-margin-top: 110px; }
+.nl-contato dl { margin: 34px 0 0; }
+.nl-contato dl > div { display: grid; grid-template-columns: 190px 1fr; gap: 16px; padding: 18px 0; border-top: 1px solid var(--inst-line); }
+.nl-contato dt { display: flex; align-items: center; gap: 9px; font-size: 13px; font-weight: 500; }
+.nl-contato dt svg { color: #9a8044; }
+.nl-contato dd { margin: 0; font-size: 14px; line-height: 1.75; color: var(--inst-muted); }
+.nl-contato dd a { display: inline-flex; align-items: center; gap: 5px; color: #3d4b32; border-bottom: 1px solid #a5ae94; }
+.nl-contato dd a:hover { color: #816121; border-color: #816121; }
+.nl-contato-mapa a { display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-end; gap: 6px; min-height: 100%; padding: 34px; border-radius: 16px; background: linear-gradient(160deg, #eef1e6, #f5f3ee 70%); border: 1px solid #e0e6d2; color: var(--inst-ink); }
+.nl-contato-mapa a:hover { border-color: #aab394; }
+.nl-mapa-pin { display: grid; place-items: center; width: 60px; height: 60px; margin-bottom: auto; border-radius: 50%; background: #fff; color: #9a8044; box-shadow: 0 8px 22px #29312611; }
+.nl-contato-mapa strong { font-size: 24px; font-weight: 500; letter-spacing: -.6px; }
+.nl-contato-mapa > a > span:not(.nl-mapa-pin) { font-size: 13px; color: var(--inst-muted); }
+.nl-contato-mapa em { display: inline-flex; align-items: center; gap: 8px; margin-top: 16px; font-style: normal; font-size: 12px; color: #3d4b32; border-bottom: 1px solid #a5ae94; }
+
+.nl-politicas { display: grid; grid-template-columns: minmax(0, .75fr) minmax(0, 1.25fr); gap: 70px; padding: 84px 0 100px; border-top: 1px solid var(--inst-line); scroll-margin-top: 110px; }
+.nl-politicas-lista { display: grid; grid-template-columns: 1fr 1fr; gap: 0 40px; }
+.nl-politicas-lista article { padding: 22px 0; border-top: 1px solid var(--inst-line); }
+.nl-politicas-lista h3 { margin: 0 0 8px; font-size: 16px; font-weight: 500; }
+.nl-politicas-lista p { margin: 0; font-size: 14px; color: var(--inst-muted); }
+
+.nl-footer-colunas { display: grid; grid-template-columns: 1.4fr 1fr 1fr 1fr; gap: 40px; padding: 40px 0 34px; border-top: 1px solid #515945; }
+.nl-footer-coluna { display: flex; flex-direction: column; gap: 9px; font-size: 12px; color: #d4dac6; }
+.nl-footer-coluna h3 { margin: 0 0 6px; font-size: 11px; font-weight: 600; letter-spacing: 1.6px; text-transform: uppercase; color: #bdc4ad; }
+.nl-footer-coluna p { margin: 0; font-size: 12px; line-height: 1.7; color: #bfc6b0; }
+.nl-footer-coluna a { display: inline-flex; align-items: center; gap: 7px; }
+.nl-footer-coluna .store-brand { margin-bottom: 10px; }
+.nl-footer-meta { border-top: 1px solid #515945; padding-top: 22px; }
+.nl-footer-meta a { display: inline-flex; }
+
+@media (max-width: 1050px) {
+  .nl-sobre, .nl-contato, .nl-politicas { gap: 34px; }
+  .nl-servicos { grid-template-columns: 1fr; }
+  .nl-footer-colunas { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 700px) {
+  .nl-sobre { grid-template-columns: 1fr; padding: 56px 0 36px; scroll-margin-top: 92px; }
+  .nl-institucional h2 { font-size: 34px; }
+  .nl-institucional p { font-size: 14px; }
+  .nl-sobre-numeros li { padding: 18px 16px; }
+  .nl-sobre-numeros b { font-size: 24px; }
+  .nl-servicos { padding-bottom: 54px; gap: 12px; }
+  .nl-servicos article { padding: 22px 20px; }
+  .nl-contato { grid-template-columns: 1fr; padding: 56px 0; scroll-margin-top: 92px; }
+  .nl-contato dl > div { grid-template-columns: 1fr; gap: 8px; }
+  .nl-contato-mapa a { padding: 24px; min-height: 240px; }
+  .nl-politicas { grid-template-columns: 1fr; padding: 56px 0 60px; gap: 24px; scroll-margin-top: 92px; }
+  .nl-politicas-lista { grid-template-columns: 1fr; }
+  .nl-footer-colunas { grid-template-columns: 1fr; gap: 26px; padding: 30px 0 26px; }
+  .nl-footer-meta { flex-direction: column; gap: 10px; }
+}
+
+/* Entrega e frete */
+.nl-entrega { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr); gap: 60px; padding: 84px 0; border-top: 1px solid var(--inst-line); scroll-margin-top: 110px; }
+.nl-entrega > div > p:not(.nl-editorial-eyebrow) { margin: 20px 0 0; max-width: 520px; color: var(--inst-muted); }
+.nl-entrega-tabela { width: 100%; max-width: 460px; margin-top: 26px; border-collapse: collapse; font-size: 14px; }
+.nl-entrega-tabela th { text-align: left; padding: 8px 0; font-size: 10px; font-weight: 600; letter-spacing: 1.2px; text-transform: uppercase; color: #6c7362; border-bottom: 1px solid #cfd4c2; }
+.nl-entrega-tabela td { padding: 11px 0; border-bottom: 1px solid var(--inst-line); }
+.nl-entrega-tabela td:last-child, .nl-entrega-tabela th:last-child { text-align: right; font-weight: 500; }
+.nl-entrega-info { margin: 22px 0 0; padding: 0; list-style: none; display: grid; gap: 10px; font-size: 14px; color: var(--inst-muted); }
+.nl-entrega-info li { display: flex; gap: 10px; align-items: flex-start; }
+.nl-entrega-info svg { flex-shrink: 0; margin-top: 3px; color: #9a8044; }
+.nl-entrega-calc .nl-frete { margin: 0; padding: 22px; background: #f5f3ee; border-color: #e6e3d8; }
+@media (max-width: 1050px) { .nl-entrega { grid-template-columns: 1fr; gap: 30px; } }
+@media (max-width: 700px) { .nl-entrega { padding: 56px 0; scroll-margin-top: 92px; } }
