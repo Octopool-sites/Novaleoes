@@ -1,5 +1,9 @@
 # Octopool Commerce — Nova Leões
 
+## Loja pronta para vender — 25/09/2026 (tarde)
+
+Seletor "Meu carro" (montadora → modelo → ano) com selo "Serve no seu carro", departamentos com foto, frete por CEP (distância até a loja, faixas em `lib/loja.ts`), checkout completo que envia o pedido pronto pelo WhatsApp da loja, link e compartilhamento por peça, WhatsApp fixo e seção Entrega e frete. Fotos conferidas uma a uma (23.089, todas válidas). Fluxo de cliente testado ponta a ponta no computador e no celular. O que confirmar com a loja e como colocar no ar: [catálogo do ERP no site](docs/catalogo-erp.md#loja-pronta-para-vender--25092026-tarde).
+
 ## Catálogo completo na vitrine — 25/09/2026
 
 A versão A passou a mostrar **todo o catálogo do ERP** (39.369 peças ativas, 23.376 com foto) como arquivos estáticos em `public/catalogo/`, gerados por `scripts/catalogo/construir.mjs` a partir de uma exportação somente leitura do Nexus (`scripts/catalogo/exportar-erp.cjs`, rodado no container de produção). O site ganhou departamentos, grupos, filtro por montadora/modelo/ano, marca, "só em estoque", detalhe com descrição e tabela de aplicações, pedido pelo WhatsApp para qualquer peça e as seções institucionais (quem somos, onde estamos, trocas e garantia, rodapé completo). Código interno e código do fabricante não saem do ERP. A animação do carro, a gestão, a API e a integração de estoque das sete peças vinculadas não mudaram. Procedimento, regras de limpeza e pendências: [catálogo do ERP no site](docs/catalogo-erp.md). Dados da loja (WhatsApp, horário) a confirmar em `lib/loja.ts`.

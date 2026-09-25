@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { limparNome, limparGrupo, limparDescricao, unidadeLegivel } from "../scripts/catalogo/nomes.mjs";
 import { classificar, DEPARTAMENTOS, normalizarTexto } from "../scripts/catalogo/taxonomia.mjs";
-import { construir, grupoDerivado, limparMarca, idCurto, bucketDe, normalizarAno, BUCKETS } from "../scripts/catalogo/construir.mjs";
+import { construir, grupoDerivado, limparMarca, nomeModelo, chaveModelo, idCurto, bucketDe, normalizarAno, BUCKETS } from "../scripts/catalogo/construir.mjs";
 import { filtrar, montarCatalogo, filtroDaUrl, filtroParaUrl, FILTRO_VAZIO, resumoAplicacoes, faixaAnos } from "../lib/catalogo-site.ts";
 
 test("nomes: expande abreviações do balcão, restaura acentos e remove código de fabricante do fim", () => {
@@ -63,7 +63,7 @@ test("construir: gera índice compacto sem código interno, com aplicações, ma
   assert.equal(meta.total, 3);
   assert.equal(meta.comEstoque, 2);
   assert.deepEqual(meta.montadoras, ["Volkswagen"]);
-  assert.deepEqual(meta.modelos, [[0, "Gol"], [0, "Voyage"]]);
+  assert.deepEqual(meta.modelos, [[0, "Gol", 1], [0, "Voyage", 1]]);
   const serializado = JSON.stringify(indice) + JSON.stringify([...detalhes.values()]);
   assert.ok(!serializado.includes("1261") && !serializado.includes("4150") && !serializado.includes("ckprod"), "códigos e ids do ERP não vazam");
   const pastilha = indice.pecas.find((p) => p[1].startsWith("Pastilha"));
@@ -86,6 +86,14 @@ test("construir: gera índice compacto sem código interno, com aplicações, ma
   assert.equal(grupoDerivado("Kit de Juntas Motor"), "Kit Juntas");
   assert.equal(grupoDerivado("com Rolamento"), "Rolamento");
   assert.equal(limparMarca("COFAP AMORT"), "Cofap");
+  assert.equal(limparMarca("VIEMAR TERM"), "Viemar");
+  assert.equal(limparMarca("TECFIL F AR"), "Tecfil");
+  assert.equal(limparMarca("DIVERSOS"), "");
+  assert.equal(limparMarca("NOVO KIT"), "Novo Kit");
+  assert.equal(limparMarca("SKF ROL RODA"), "SKF");
+  assert.equal(nomeModelo("S-10"), nomeModelo("S10"));
+  assert.equal(nomeModelo("HRV"), "HR-V");
+  assert.equal(chaveModelo("Del Rey"), chaveModelo("DELREY"));
   assert.equal(limparMarca("MS"), "MS");
 
   const catalogo = montarCatalogo(meta, indice.pecas);

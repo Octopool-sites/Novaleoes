@@ -19,7 +19,7 @@ export default function StorefrontEditorial() {
           <li>
             <div className="nl-step-top"><span>01</span><ShoppingBag size={25} strokeWidth={1.4} aria-hidden="true" /></div>
             <h3>Escolha sua peça</h3>
-            <p>Busque pelo nome, marca ou código. Adicione ao carrinho e envie sua solicitação.</p>
+            <p>Selecione seu carro ou busque pelo nome e pela marca. Adicione ao pedido e calcule o frete pelo CEP.</p>
             <span className="nl-step-caption">Começa no catálogo</span>
           </li>
           <li>
@@ -30,13 +30,13 @@ export default function StorefrontEditorial() {
           </li>
           <li>
             <div className="nl-step-top"><span>03</span><PackageCheck size={27} strokeWidth={1.4} aria-hidden="true" /></div>
-            <h3>Combine a retirada</h3>
-            <p>Aguarde o contato da equipe para combinar o pagamento e a retirada no balcão.</p>
-            <span className="nl-step-caption">Retirada combinada com você</span>
+            <h3>Retire ou receba</h3>
+            <p>Retire no balcão ou receba pelo motoboy da loja. O pagamento é feito na retirada ou na entrega.</p>
+            <span className="nl-step-caption">Pix, cartão ou dinheiro</span>
           </li>
         </ol>
         <div className="nl-order-guide-bottom">
-          <p>Enviar a solicitação ainda não reserva a peça.</p>
+          <p>O pedido chega à loja pelo WhatsApp e só é separado depois da conferência.</p>
           <a className="nl-editorial-link" href="#catalogo">Escolher minhas peças <ArrowRight size={18} aria-hidden="true" /></a>
         </div>
       </section>
@@ -69,15 +69,15 @@ export default function StorefrontEditorial() {
         <div className="nl-questions-list">
           <details>
             <summary><span className="nl-question-number" aria-hidden="true">01</span><span>Como saber se a peça serve no meu carro?</span><span className="nl-question-toggle" aria-hidden="true" /></summary>
-            <p>Confira o código e informe modelo, ano e motor no pedido. A equipe precisa confirmar a aplicação antes de aprovar. O carro da apresentação é ilustrativo e não indica compatibilidade.</p>
+            <p>Selecione seu carro no topo do site: as peças com aplicação cadastrada para ele aparecem marcadas com "Serve no seu carro". Informe também o motor no pedido. A equipe confirma a aplicação antes de separar. O carro da apresentação é ilustrativo.</p>
           </details>
           <details>
             <summary><span className="nl-question-number" aria-hidden="true">02</span><span>Meu pedido está confirmado quando envio?</span><span className="nl-question-toggle" aria-hidden="true" /></summary>
-            <p>O envio é uma solicitação. A loja confere aplicação, preço e disponibilidade antes de aprovar. Aguarde o contato da equipe; o envio por si só não reserva a peça.</p>
+            <p>O pedido chega à loja pelo WhatsApp com as peças, o frete e seus dados. A equipe confere aplicação, valor e disponibilidade e responde confirmando. Só então a peça é separada.</p>
           </details>
           <details>
             <summary><span className="nl-question-number" aria-hidden="true">03</span><span>Como funcionam o pagamento e a retirada?</span><span className="nl-question-toggle" aria-hidden="true" /></summary>
-            <p>Neste momento, os pedidos são para retirada no balcão. O pagamento e o horário de retirada são combinados com a equipe após a conferência. Não há cobrança online.</p>
+            <p>Retire no balcão, sem custo, ou receba pelo motoboy da loja com frete calculado pelo CEP. O pagamento é feito na retirada ou na entrega, por Pix, cartão ou dinheiro. Não há cobrança no site.</p>
           </details>
           <details>
             <summary><span className="nl-question-number" aria-hidden="true">04</span><span>E se eu não encontrar a peça que procuro?</span><span className="nl-question-toggle" aria-hidden="true" /></summary>

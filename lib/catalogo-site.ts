@@ -5,14 +5,14 @@ export function normalizeSearch(s: string) {
   return s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
 }
 
-export type Departamento = { id: string; nome: string; resumo: string; n: number; grupos: number[] };
+export type Departamento = { id: string; nome: string; resumo: string; n: number; grupos: number[]; capa: string };
 export type Meta = {
   versao: number; exportadoEm: string | null; geradoEm: string; empresa: string; total: number; comEstoque: number; comFoto: number;
   fotoBase: string; buckets: number; departamentos: Departamento[];
   grupos: [nome: string, departamentoIdx: number, n: number][];
   marcas: [nome: string, n: number][];
   montadoras: string[];
-  modelos: [montadoraIdx: number, nome: string][];
+  modelos: [montadoraIdx: number, nome: string, n: number][];
   unidades: string[];
 };
 // [id, nome, marcaIdx, grupoIdx, precoCents, disponivel, foto, aplicacoes[modeloIdx, anoInicio, anoFim], externalId|0, unidadeIdx, qtdMinima]
@@ -20,6 +20,7 @@ export type LinhaIndice = [string, string, number, number, number, number, strin
 export type Detalhe = { d: string[]; h: string[]; a: [modeloIdx: number, versao: string, motor: string, anoInicio: number, anoFim: number, obs: string][] };
 
 export type Peca = {
+  depOrdem: number; grupoN: number;
   id: string; nome: string; marca: string; grupo: string; grupoIdx: number; departamento: Departamento;
   precoCents: number; disponivel: number; foto: string; aplicacoes: [number, number, number][];
   externalId: string | null; unidade: string; quantidadeMinima: number; busca: string;
@@ -50,6 +51,7 @@ export function montarCatalogo(meta: Meta, linhas: LinhaIndice[]): Catalogo {
       id: l[0], nome: l[1], marca, grupo, grupoIdx: l[3], departamento, precoCents: l[4], disponivel: l[5], foto: l[6], aplicacoes: l[7],
       externalId: l[8] || null, unidade: meta.unidades[l[9]] || "", quantidadeMinima: l[10] || 1,
       busca: normalizeSearch(`${l[1]} ${marca} ${grupo} ${departamento.nome} ${modelos}`),
+      depOrdem: meta.departamentos.indexOf(departamento), grupoN: meta.grupos[l[3]][2],
     };
   });
   const porId = new Map(pecas.map((p) => [p.id, p]));
@@ -141,7 +143,10 @@ function ordenar(pecas: Peca[], filtro: Filtro, termos: string[]) {
     }
     return s;
   };
-  return pecas.map((p) => [pontos(p), p] as const).sort((a, b) => b[0] - a[0] || nome(a[1], b[1])).map(([, p]) => p);
+  // Desempate: ordem dos departamentos (freios, suspensão, direção…), depois os grupos mais vendidos por volume de cadastro.
+  return pecas.map((p) => [pontos(p), p] as const)
+    .sort((a, b) => b[0] - a[0] || a[1].depOrdem - b[1].depOrdem || b[1].grupoN - a[1].grupoN || a[1].grupoIdx - b[1].grupoIdx || nome(a[1], b[1]))
+    .map(([, p]) => p);
 }
 
 // Resumo curto das aplicações para o cartão: "Fiat Uno, Palio · 2001–2010" / "+3 veículos".
@@ -167,7 +172,8 @@ export function faixaAnos(inicio: number, fim: number) {
 
 export function anosDisponiveis(catalogo: Catalogo, modelo: number, montadora: number) {
   const anos = new Set<number>();
-  const atual = new Date().getFullYear() + 1;
+  // Anos até o atual: aplicação "em diante" não pode oferecer ano que ainda não existe.
+  const atual = new Date().getFullYear();
   const minimo = 1960;
   for (const p of catalogo.pecas) for (const [m, ai, af] of p.aplicacoes) {
     if (modelo >= 0 ? m !== modelo : montadora >= 0 ? catalogo.meta.modelos[m][0] !== montadora : false) continue;

@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
-import { AlertCircle, ArrowUpRight, CarFront, ChevronDown, Package, Plus, Search, SlidersHorizontal, X } from "lucide-react";
+import { useDeferredValue, useEffect, useMemo, useState } from "react";
+import { AlertCircle, ArrowUpRight, CarFront, Check, ChevronDown, Package, Plus, Search, SlidersHorizontal, X } from "lucide-react";
 import type { Product } from "@/lib/catalog";
 import { productTitles } from "./storefront-editorial";
 import {
   type Catalogo, type Filtro, type Peca, FILTRO_VAZIO, anosDisponiveis, filtrar, money, resumoAplicacoes, urlFoto,
 } from "@/lib/catalogo-site";
+import { type Veiculo, servePara } from "@/lib/garagem";
 import "./catalogo-loja.css";
 
 const PAGINA = 24;
@@ -15,10 +16,12 @@ export type CatalogoLojaProps = {
   erro: boolean;
   live: Map<string, Product>;
   filtro: Filtro;
+  veiculo: Veiculo | null;
   onFiltro: (filtro: Filtro) => void;
   onSelecionar: (peca: Peca) => void;
   onAdicionar: (peca: Peca) => void;
   onTentarNovamente: () => void;
+  onEscolherVeiculo: () => void;
 };
 
 export function precoDaPeca(peca: Peca, live: Map<string, Product>) {
@@ -30,7 +33,7 @@ export function disponibilidadeDaPeca(peca: Peca, live: Map<string, Product>) {
   const atual = peca.externalId ? live.get(peca.externalId) : undefined;
   if (atual) return atual.stock > 0 ? { texto: "Em estoque · pedido online", classe: "nl-disp-online", estoque: atual.stock } : { texto: "Indisponível no momento", classe: "nl-disp-fora", estoque: 0 };
   if (peca.disponivel > 0) return { texto: "Em estoque na loja", classe: "nl-disp-loja", estoque: peca.disponivel };
-  return { texto: "Sob consulta", classe: "nl-disp-consulta", estoque: 0 };
+  return { texto: "Sob encomenda · consulte", classe: "nl-disp-consulta", estoque: 0 };
 }
 
 export function tituloDaPeca(peca: Peca) {
@@ -42,11 +45,18 @@ export function fotoDaPeca(peca: Peca, catalogo: Catalogo, live: Map<string, Pro
   return atual?.image || urlFoto(catalogo.meta, peca.foto);
 }
 
-export default function CatalogoLoja({ catalogo, carregando, erro, live, filtro, onFiltro, onSelecionar, onAdicionar, onTentarNovamente }: CatalogoLojaProps) {
+export function dataEstoque(catalogo: Catalogo | null) {
+  const iso = catalogo?.meta.exportadoEm;
+  if (!iso) return "";
+  return new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", timeZone: "America/Sao_Paulo" });
+}
+
+export default function CatalogoLoja({ catalogo, carregando, erro, live, filtro, veiculo, onFiltro, onSelecionar, onAdicionar, onTentarNovamente, onEscolherVeiculo }: CatalogoLojaProps) {
   const [limite, setLimite] = useState(PAGINA);
   const [filtrosAbertos, setFiltrosAbertos] = useState(false);
-  const resultados = useMemo(() => (catalogo ? filtrar(catalogo, filtro) : []), [catalogo, filtro]);
-  useEffect(() => { setLimite(PAGINA); }, [filtro]);
+  const filtroAdiado = useDeferredValue(filtro);
+  const resultados = useMemo(() => (catalogo ? filtrar(catalogo, filtroAdiado) : []), [catalogo, filtroAdiado]);
+  useEffect(() => { setLimite(PAGINA); }, [filtroAdiado]);
 
   const meta = catalogo?.meta;
   const departamento = meta?.departamentos.find((d) => d.id === filtro.departamento) || null;
@@ -65,22 +75,42 @@ export default function CatalogoLoja({ catalogo, carregando, erro, live, filtro,
   }, [meta, resultados, filtro.marca]);
 
   const atualizar = (parte: Partial<Filtro>) => onFiltro({ ...filtro, ...parte });
+  const filtrandoPeloCarro = !!veiculo && filtro.modelo === veiculo.modelo && filtro.ano === veiculo.ano;
   const filtrosAtivos = [filtro.departamento, filtro.grupo >= 0, filtro.marca >= 0, filtro.montadora >= 0, filtro.modelo >= 0, filtro.ano > 0, filtro.somenteEstoque].filter(Boolean).length;
   const visiveis = resultados.slice(0, limite);
+  const estoqueEm = dataEstoque(catalogo);
 
   return (
     <div className="nl-catalogo">
+      <div className={`nl-carro-barra${veiculo ? " com-carro" : ""}`}>
+        <CarFront size={20} />
+        {veiculo ? (
+          <>
+            <span>{filtrandoPeloCarro ? <>Mostrando peças para o seu <b>{veiculo.rotulo}</b></> : <>Seu carro: <b>{veiculo.rotulo}</b> · as peças que servem aparecem marcadas</>}</span>
+            {filtrandoPeloCarro
+              ? <button type="button" onClick={() => atualizar({ montadora: -1, modelo: -1, ano: 0 })}>Ver todas as peças</button>
+              : <button type="button" onClick={() => atualizar({ montadora: veiculo.montadora, modelo: veiculo.modelo, ano: veiculo.ano })}>Só peças do meu carro</button>}
+            <button type="button" onClick={onEscolherVeiculo}>Trocar carro</button>
+          </>
+        ) : (
+          <>
+            <span>Selecione seu carro para ver só as peças com aplicação para ele.</span>
+            <button type="button" className="nl-carro-barra-cta" onClick={onEscolherVeiculo}>Selecionar meu carro</button>
+          </>
+        )}
+      </div>
+
       <div className="nl-catalog-tools">
         <form className="searchbox" role="search" onSubmit={(e) => e.preventDefault()}>
           <Search size={20} />
-          <input aria-label="Buscar peça por nome, marca, grupo ou veículo" placeholder="Busque a peça: nome, marca ou veículo (ex.: pastilha gol)" maxLength={120} value={filtro.q} onChange={(e) => atualizar({ q: e.target.value })} />
+          <input aria-label="Buscar peça por nome, marca, grupo ou veículo" placeholder="Busque a peça: nome, marca ou carro (ex.: pastilha gol)" maxLength={120} value={filtro.q} onChange={(e) => atualizar({ q: e.target.value })} />
           {filtro.q && <button type="button" aria-label="Limpar busca" onClick={() => atualizar({ q: "" })}>×</button>}
         </form>
         <button type="button" className={`nl-filtros-toggle${filtrosAbertos ? " ativo" : ""}`} aria-expanded={filtrosAbertos} aria-controls="nl-filtros" onClick={() => setFiltrosAbertos((v) => !v)}>
-          <SlidersHorizontal size={16} /> Filtrar por veículo e marca{filtrosAtivos > 0 && <b>{filtrosAtivos}</b>}
+          <SlidersHorizontal size={16} /> Filtros{filtrosAtivos > 0 && <b>{filtrosAtivos}</b>}
         </button>
         <span className="subtle" aria-live="polite">
-          {carregando ? "Carregando catálogo…" : erro ? "Catálogo indisponível" : `${resultados.length.toLocaleString("pt-BR")} ${resultados.length === 1 ? "peça" : "peças"}${meta ? ` de ${meta.total.toLocaleString("pt-BR")}` : ""}`}
+          {carregando ? "Carregando catálogo…" : erro ? "Catálogo indisponível" : `${resultados.length.toLocaleString("pt-BR")} ${resultados.length === 1 ? "peça" : "peças"}${estoqueEm ? ` · estoque de ${estoqueEm}` : ""}`}
         </span>
       </div>
 
@@ -111,7 +141,7 @@ export default function CatalogoLoja({ catalogo, carregando, erro, live, filtro,
 
       <div id="nl-filtros" className={`nl-filtros${filtrosAbertos ? " aberto" : ""}`} hidden={!filtrosAbertos}>
         <div className="nl-filtro-veiculo">
-          <p className="nl-filtro-titulo"><CarFront size={18} /> Encontre pelo seu carro</p>
+          <p className="nl-filtro-titulo"><CarFront size={18} /> Veículo</p>
           <div className="nl-filtro-selects">
             <label>Montadora
               <span className="nl-select"><select value={filtro.montadora} onChange={(e) => atualizar({ montadora: Number(e.target.value), modelo: -1, ano: 0 })}>
@@ -153,12 +183,13 @@ export default function CatalogoLoja({ catalogo, carregando, erro, live, filtro,
         </div>
       </div>
 
-      {(filtro.montadora >= 0 || filtro.modelo >= 0 || filtro.marca >= 0 || filtro.ano > 0) && meta && (
+      {(filtro.montadora >= 0 || filtro.modelo >= 0 || filtro.marca >= 0 || filtro.ano > 0 || filtro.somenteEstoque) && meta && (
         <div className="nl-filtros-resumo" aria-label="Filtros aplicados">
           {filtro.montadora >= 0 && <button type="button" onClick={() => atualizar({ montadora: -1, modelo: -1, ano: 0 })}>{meta.montadoras[filtro.montadora]} <X size={12} /></button>}
           {filtro.modelo >= 0 && <button type="button" onClick={() => atualizar({ modelo: -1, ano: 0 })}>{meta.modelos[filtro.modelo][1]} <X size={12} /></button>}
           {filtro.ano > 0 && <button type="button" onClick={() => atualizar({ ano: 0 })}>{filtro.ano} <X size={12} /></button>}
           {filtro.marca >= 0 && <button type="button" onClick={() => atualizar({ marca: -1 })}>{meta.marcas[filtro.marca][0]} <X size={12} /></button>}
+          {filtro.somenteEstoque && <button type="button" onClick={() => atualizar({ somenteEstoque: false })}>Em estoque <X size={12} /></button>}
         </div>
       )}
 
@@ -168,15 +199,15 @@ export default function CatalogoLoja({ catalogo, carregando, erro, live, filtro,
         </div>
       )}
 
-      <div className="product-grid">
-        {catalogo && visiveis.map((p) => <CartaoPeca key={p.id} peca={p} catalogo={catalogo} live={live} onSelecionar={onSelecionar} onAdicionar={onAdicionar} />)}
+      <div className="product-grid" aria-busy={filtro !== filtroAdiado}>
+        {catalogo && visiveis.map((p) => <CartaoPeca key={p.id} peca={p} catalogo={catalogo} live={live} veiculo={veiculo} onSelecionar={onSelecionar} onAdicionar={onAdicionar} />)}
       </div>
       {carregando && <div className="nl-skeletons" role="status" aria-label="Carregando catálogo">{[1, 2, 3, 4].map((i) => <div key={i} />)}</div>}
       {catalogo && !resultados.length && !carregando && (
         <div className="empty-state">
           <Search />
           <h3>Nenhuma peça encontrada</h3>
-          <p>Tente outro nome, a marca da peça ou só o modelo do carro. A equipe também procura para você pelo WhatsApp.</p>
+          <p>Tente outro nome, a marca da peça ou só o modelo do carro. Se preferir, a equipe procura para você pelo WhatsApp.</p>
           <button type="button" onClick={() => onFiltro(FILTRO_VAZIO)}>Limpar busca e filtros</button>
         </div>
       )}
@@ -190,24 +221,26 @@ export default function CatalogoLoja({ catalogo, carregando, erro, live, filtro,
   );
 }
 
-function CartaoPeca({ peca, catalogo, live, onSelecionar, onAdicionar }: { peca: Peca; catalogo: Catalogo; live: Map<string, Product>; onSelecionar: (p: Peca) => void; onAdicionar: (p: Peca) => void }) {
+function CartaoPeca({ peca, catalogo, live, veiculo, onSelecionar, onAdicionar }: { peca: Peca; catalogo: Catalogo; live: Map<string, Product>; veiculo: Veiculo | null; onSelecionar: (p: Peca) => void; onAdicionar: (p: Peca) => void }) {
   const titulo = tituloDaPeca(peca);
   const foto = fotoDaPeca(peca, catalogo, live);
   const preco = precoDaPeca(peca, live);
   const disp = disponibilidadeDaPeca(peca, live);
   const aplicacoes = resumoAplicacoes(catalogo.meta, peca);
   const indisponivel = !!peca.externalId && disp.estoque <= 0;
+  const serve = servePara(peca, veiculo);
   return (
     <article className="product-card nl-product-card">
       <button type="button" className="product-photo photo-button" onClick={() => onSelecionar(peca)} aria-label={`Ver detalhes de ${titulo}`}>
-        {foto ? <img src={foto} alt={titulo} loading="lazy" decoding="async" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} /> : <div className="nl-photo-placeholder"><Package size={44} strokeWidth={1} /><small>Sem foto</small></div>}
+        {foto ? <img src={foto} alt={titulo} loading="lazy" decoding="async" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} /> : <div className="nl-photo-placeholder"><Package size={44} strokeWidth={1} /><small>Foto em breve</small></div>}
         <span>{peca.grupo}</span>
+        {serve && <em className="nl-serve"><Check size={13} /> Serve no seu {catalogo.meta.modelos[veiculo!.modelo][1]}</em>}
         <i className="nl-photo-open" aria-hidden="true"><ArrowUpRight size={18} /></i>
       </button>
       <div className="product-info">
         <p className="product-brand">{peca.marca || peca.departamento.nome}</p>
         <h3><button type="button" onClick={() => onSelecionar(peca)}>{titulo}</button></h3>
-        <p className="application">{aplicacoes ? <><CarFront size={13} aria-hidden="true" /> {aplicacoes}</> : "Confira a aplicação com a equipe."}</p>
+        <p className="application">{aplicacoes ? <><CarFront size={13} aria-hidden="true" /> {aplicacoes}</> : "Aplicação conferida pela equipe."}</p>
         <div className="product-bottom">
           <div>
             <strong>{preco > 0 ? money(preco) : "Consultar preço"}</strong>

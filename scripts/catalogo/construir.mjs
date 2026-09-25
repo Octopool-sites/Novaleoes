@@ -34,20 +34,40 @@ export const FOTO_BASE = "https://octopool-fotos-produtos.s3.sa-east-1.amazonaws
 const FOTO_ERP = "https://api.octopool.com.br/api/produtos-foto/";
 export const BUCKETS = 200;
 
-const SUFIXOS_MARCA = new Set(["AMORT", "JUNTAS", "JUNTA", "BRONZ", "GERAL", "CORREIA", "PASTILHA", "RET", "MANGU", "TAMPA", "LOJA",
-  "NN", "BBA", "OLEO", "BUCHA", "COMANDO", "LAMPADA", "CABOS", "CABO", "FILTRO", "FILTROS", "COXIM", "AMORTECEDOR", "BOMBA",
-  "SENSOR", "ROL", "ROLAMENTO", "DISCO", "VELA", "VELAS", "BOBINA", "PECAS", "AUTO", "IND", "COM", "LTDA", "DIST", "MANG"]);
+// Marca do ERP = fabricante + linha do produto ("VIEMAR TERM", "TECFIL F AR", "NAKATA PIVO").
+// O site mostra só o fabricante: primeira palavra, exceto marcas de duas palavras conhecidas.
+const MARCAS_COMPOSTAS = { NOVO: "Novo Kit", PRO: "Pro Automotive", FILTROS: "Filtros Brasil", TC: "TC Chicotes", AZEVEDO: "Azevedo", GM: "GM" };
+// Rótulos internos do legado que não são fabricante: não exibir marca.
+const MARCAS_OCULTAS = new Set(["DIVERSOS", "FERRAMENTAS", "UNIVERSAL", "IMPORTADO", "DV", "OUTROS", "GERAL", "LOJA", "NN"]);
+const MARCAS_GRAFIA = { "FRAS-LE": "Fras-le", "3-RHO": "3-RHO", NAKATA: "Nakata", MOBENSANI: "Mobensani", CONTITECH: "ContiTech", KITCIA: "Kitcia" };
 
 export function limparMarca(marca) {
-  const tokens = String(marca || "").trim().toUpperCase().split(/\s+/).filter(Boolean);
-  while (tokens.length > 1 && SUFIXOS_MARCA.has(tokens[tokens.length - 1])) tokens.pop();
+  const tokens = String(marca || "").trim().toUpperCase().replace(/[.,]+$/, "").split(/\s+/).filter(Boolean);
   if (!tokens.length) return "";
-  return tokens.map((t) => (/\d/.test(t) || t.length <= 2 ? t : t.charAt(0) + t.slice(1).toLowerCase())).join(" ");
+  const primeiro = tokens[0];
+  if (MARCAS_OCULTAS.has(primeiro)) return "";
+  if (MARCAS_COMPOSTAS[primeiro] && (primeiro !== "NOVO" || tokens[1] === "KIT")) return MARCAS_COMPOSTAS[primeiro];
+  if (MARCAS_GRAFIA[primeiro]) return MARCAS_GRAFIA[primeiro];
+  if (/\d/.test(primeiro) || primeiro.length <= 3) return primeiro;
+  return primeiro.charAt(0) + primeiro.slice(1).toLowerCase();
+}
+
+// Modelos: o legado grava o mesmo carro com grafias diferentes (S-10/S10, HR-V/HRV, Del Rey/Delrey).
+// A chave junta as grafias; a grafia exibida vem do mapa ou da primeira forma normalizada.
+const GRAFIA_MODELO = { S10: "S10", TCROSS: "T-Cross", DELREY: "Del Rey", F1000: "F-1000", F250: "F-250", CRV: "CR-V", HRV: "HR-V",
+  WRV: "WR-V", RCZ: "RCZ", ASX: "ASX", UP: "up!", SW4: "SW4", RAV4: "RAV4", HB20: "HB20", IX35: "ix35", I30: "i30", DS3: "DS3", DS4: "DS4",
+  ZX: "ZX", TT: "TT", TR4: "TR4", L200: "L200", D20: "D20", KA: "Ka", SANTAFE: "Santa Fe", VERACRUZ: "Vera Cruz", GRANDLIVINA: "Grand Livina",
+  CLASSEA: "Classe A", RANGEROVER: "Range Rover", CROSSFOX: "CrossFox", SPACEFOX: "SpaceFox", "118I": "118i", "120I": "120i", "320I": "320i", "328I": "328i" };
+
+export function chaveModelo(modelo) {
+  return String(modelo || "").toUpperCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^A-Z0-9]/g, "");
 }
 
 export function nomeModelo(modelo) {
   const texto = String(modelo || "").trim();
   if (!texto) return "";
+  const chave = chaveModelo(texto);
+  if (GRAFIA_MODELO[chave]) return GRAFIA_MODELO[chave];
   return texto.split(/\s+/).map((t) => (/\d/.test(t) || t.length <= 2 ? t.toUpperCase() : t.charAt(0).toUpperCase() + t.slice(1).toLowerCase())).join(" ");
 }
 
@@ -69,9 +89,12 @@ export function bucketDe(id) {
   return parseInt(id.slice(0, 4), 36) % BUCKETS;
 }
 
+// Fotos que não responderam na conferência (scripts/catalogo/verificar-fotos.mjs) saem do catálogo.
+const FOTOS_QUEBRADAS = new Set(existsSync("outputs/fotos-quebradas.json") ? JSON.parse(readFileSync("outputs/fotos-quebradas.json", "utf8")) : []);
+
 function fotoPublica(url) {
   const texto = String(url || "").trim();
-  if (!texto) return "";
+  if (!texto || FOTOS_QUEBRADAS.has(texto)) return "";
   if (texto.startsWith(FOTO_BASE)) return texto.slice(FOTO_BASE.length).split("?")[0];
   if (texto.startsWith(FOTO_ERP)) return texto; // foto colada no cadastro, servida pela rota pública do ERP
   return ""; // hosts de terceiros ficam fora (CSP e direitos de imagem)
@@ -138,7 +161,7 @@ export function construir(exportacao) {
       const modelo = nomeModelo(a.mo);
       if (!montadora || !modelo) continue;
       const montIdx = montadoras.idx(montadora);
-      const modIdx = modelos.idx(`${montIdx}|${modelo}`, [montIdx, modelo]);
+      const modIdx = modelos.idx(`${montIdx}|${chaveModelo(modelo)}`, [montIdx, modelo]);
       const ai = normalizarAno(a.ai), af = normalizarAno(a.af);
       aplicacoes.push([modIdx, String(a.v || "").trim(), String(a.mt || "").trim(), ai, af, String(a.o || "").trim()]);
       const chave = `${modIdx}|${ai}|${af}`;
@@ -157,8 +180,16 @@ export function construir(exportacao) {
 
   const departamentos = DEPARTAMENTOS.map((d, depIdx) => {
     const idxGrupos = grupos.lista.map((g, i) => [g, i]).filter(([g]) => g[1] === depIdx).sort((a, b) => b[0][2] - a[0][2] || a[0][0].localeCompare(b[0][0], "pt-BR")).map(([, i]) => i);
-    return { id: d.id, nome: d.nome, resumo: d.resumo, n: idxGrupos.reduce((s, i) => s + grupos.lista[i][2], 0), grupos: idxGrupos };
+    // Capa do departamento: peça com foto, estoque e preço do grupo mais numeroso, com mais aplicações.
+    let capa = "";
+    for (const g of idxGrupos) {
+      const candidatas = pecas.filter((p) => p[3] === g && p[6] && p[5] > 0 && p[4] > 0).sort((x, y) => y[7].length - x[7].length || x[0].localeCompare(y[0]));
+      if (candidatas.length) { capa = candidatas[0][6]; break; }
+    }
+    return { id: d.id, nome: d.nome, resumo: d.resumo, n: idxGrupos.reduce((s, i) => s + grupos.lista[i][2], 0), grupos: idxGrupos, capa };
   });
+  const pecasPorModelo = new Array(modelos.lista.length).fill(0);
+  for (const p of pecas) for (const m of new Set(p[7].map((a) => a[0]))) pecasPorModelo[m]++;
 
   const meta = {
     versao: 1,
@@ -174,7 +205,7 @@ export function construir(exportacao) {
     grupos: grupos.lista,
     marcas: marcas.lista.map((nome, i) => [nome, contagemMarca.get(i) || 0]),
     montadoras: montadoras.lista,
-    modelos: modelos.lista,
+    modelos: modelos.lista.map((m, i) => [m[0], m[1], pecasPorModelo[i]]),
     unidades: unidades.lista,
   };
   return { meta, indice: { pecas }, detalhes };

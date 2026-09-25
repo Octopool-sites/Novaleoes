@@ -70,3 +70,17 @@
   .nl-footer-colunas { grid-template-columns: 1fr; gap: 26px; padding: 30px 0 26px; }
   .nl-footer-meta { flex-direction: column; gap: 10px; }
 }
+
+/* Entrega e frete */
+.nl-entrega { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr); gap: 60px; padding: 84px 0; border-top: 1px solid var(--inst-line); scroll-margin-top: 110px; }
+.nl-entrega > div > p:not(.nl-editorial-eyebrow) { margin: 20px 0 0; max-width: 520px; color: var(--inst-muted); }
+.nl-entrega-tabela { width: 100%; max-width: 460px; margin-top: 26px; border-collapse: collapse; font-size: 14px; }
+.nl-entrega-tabela th { text-align: left; padding: 8px 0; font-size: 10px; font-weight: 600; letter-spacing: 1.2px; text-transform: uppercase; color: #6c7362; border-bottom: 1px solid #cfd4c2; }
+.nl-entrega-tabela td { padding: 11px 0; border-bottom: 1px solid var(--inst-line); }
+.nl-entrega-tabela td:last-child, .nl-entrega-tabela th:last-child { text-align: right; font-weight: 500; }
+.nl-entrega-info { margin: 22px 0 0; padding: 0; list-style: none; display: grid; gap: 10px; font-size: 14px; color: var(--inst-muted); }
+.nl-entrega-info li { display: flex; gap: 10px; align-items: flex-start; }
+.nl-entrega-info svg { flex-shrink: 0; margin-top: 3px; color: #9a8044; }
+.nl-entrega-calc .nl-frete { margin: 0; padding: 22px; background: #f5f3ee; border-color: #e6e3d8; }
+@media (max-width: 1050px) { .nl-entrega { grid-template-columns: 1fr; gap: 30px; } }
+@media (max-width: 700px) { .nl-entrega { padding: 56px 0; scroll-margin-top: 92px; } }

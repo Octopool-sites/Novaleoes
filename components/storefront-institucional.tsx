@@ -1,4 +1,6 @@
-import { ArrowUpRight, Clock, MapPin, MessageCircle, Phone, ShieldCheck, Truck } from "lucide-react";
+import { ArrowUpRight, Clock, CreditCard, MapPin, MessageCircle, Phone, ShieldCheck, Store, Truck } from "lucide-react";
+import { money } from "@/lib/catalogo-site";
+import CalculoFrete from "./calculo-frete";
 import { LOJA, enderecoLinha, mapaUrl, telefoneHref, whatsappUrl } from "@/lib/loja";
 import "./storefront-institucional.css";
 
@@ -30,6 +32,28 @@ export function StorefrontInstitucional({ totalPecas }: { totalPecas: number }) 
         <article><MessageCircle size={24} strokeWidth={1.4} /><h3>Atendimento direto</h3><p>Não achou a peça no site? A equipe procura para você pelo WhatsApp ou telefone, inclusive itens sob encomenda.</p></article>
       </section>
 
+      <section className="nl-entrega" id="entrega" aria-labelledby="nl-entrega-titulo">
+        <div>
+          <p className="nl-editorial-eyebrow">ENTREGA E FRETE</p>
+          <h2 id="nl-entrega-titulo">Da loja para a<br /><em>sua oficina.</em></h2>
+          <p>Os motoboys da própria loja levam o pedido. O frete é calculado pela distância entre a loja e o CEP de entrega; a retirada no balcão é grátis.</p>
+          <table className="nl-entrega-tabela">
+            <thead><tr><th>Distância da loja</th><th>Frete</th></tr></thead>
+            <tbody>
+              {LOJA.frete.faixas.map((f, i) => <tr key={f.ateKm}><td>{i === 0 ? `até ${f.ateKm} km` : `${LOJA.frete.faixas[i - 1].ateKm} a ${f.ateKm} km`}</td><td>{money(f.valorCents)}</td></tr>)}
+              <tr><td>acima de {LOJA.frete.faixas[LOJA.frete.faixas.length - 1].ateKm} km</td><td>a combinar</td></tr>
+              <tr><td>Retirada na loja</td><td>grátis</td></tr>
+            </tbody>
+          </table>
+          <ul className="nl-entrega-info">
+            <li><Truck size={17} /> {LOJA.frete.prazoEntrega}.</li>
+            <li><Store size={17} /> {LOJA.frete.prazoRetirada}.</li>
+            <li><CreditCard size={17} /> Pagamento na entrega ou na retirada: {LOJA.pagamentos.join(", ")}. Não há cobrança no site.</li>
+          </ul>
+        </div>
+        <div className="nl-entrega-calc"><CalculoFrete titulo="Calcule o frete para o seu CEP" /></div>
+      </section>
+
       <section className="nl-contato" id="contato" aria-labelledby="nl-contato-titulo">
         <div className="nl-contato-info">
           <p className="nl-editorial-eyebrow">ONDE ESTAMOS</p>
@@ -59,6 +83,7 @@ export function StorefrontInstitucional({ totalPecas }: { totalPecas: number }) 
           <article><h3>Garantia</h3><p>As peças têm a garantia do fabricante e a garantia legal prevista no Código de Defesa do Consumidor. Guarde o comprovante de compra: ele é o documento da garantia.</p></article>
           <article><h3>Troca por peça errada ou com defeito</h3><p>Fale com a loja com o comprovante em mãos. A peça precisa estar sem uso, sem sinais de instalação e na embalagem original. A equipe confere e orienta sobre a troca ou a devolução.</p></article>
           <article><h3>Pedidos feitos pelo site</h3><p>O pedido só é confirmado depois da conferência da equipe. Compras feitas fora da loja física têm o prazo de arrependimento de 7 dias previsto no artigo 49 do Código de Defesa do Consumidor.</p></article>
+          <article><h3>Seus dados</h3><p>Nome, telefone e endereço informados no pedido servem só para a loja atender e entregar o pedido, conforme a Lei Geral de Proteção de Dados. O site não guarda cartão nem faz cobrança.</p></article>
           <article><h3>Pagamento e retirada</h3><p>Pagamento na loja ou combinado com a equipe na aprovação. Retirada no balcão ou entrega pelos motoboys da casa. Não há cobrança online neste site.</p></article>
         </div>
       </section>
@@ -92,6 +117,7 @@ export function RodapeLoja({ storefrontHref, departamentos, onDepartamento }: {
             <a href="#quem-somos">Quem somos</a>
             <a href="#contato">Onde estamos</a>
             <a href="#como-funciona">Como comprar</a>
+            <a href="#entrega">Entrega e frete</a>
             <a href="#trocas-e-garantia">Trocas e garantia</a>
             <a href="#duvidas">Dúvidas frequentes</a>
           </nav>

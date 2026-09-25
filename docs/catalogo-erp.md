@@ -63,6 +63,64 @@ arquivos estáticos; a integração de estoque (`octopool.stock.v1`), a gestão 
   mapa, telefone, WhatsApp, horário), Trocas e garantia e o rodapé com departamentos, links da loja,
   atendimento, razão social e CNPJ. Os dados ficam em `lib/loja.ts`.
 
+## Loja pronta para vender — 25/09/2026 (tarde)
+
+Revisão completa pedida pelo Luca para levar ao Berna. Padrão seguido: lojas de autopeças que vendem bem
+(Canal da Peça, PeçaAgora, AutoZone, Mercado Livre Autopeças): o carro do cliente em primeiro lugar,
+departamentos com foto, selo de compatibilidade no cartão, frete pelo CEP na página da peça e no carrinho,
+WhatsApp sempre à mão e rodapé com políticas.
+
+- **Meu carro** (`components/seletor-veiculo.tsx`, `lib/garagem.ts`): montadora → modelo → ano, salvo no
+  navegador pelo nome. Botão no cabeçalho e faixa "Qual é o seu carro?" com as 12 montadoras com mais
+  aplicações. Com o carro escolhido, o catálogo filtra, cada cartão ganha o selo "Serve no seu Uno" e o
+  detalhe destaca a linha do carro na tabela de aplicação (ou avisa quando não há aplicação cadastrada).
+- **Departamentos com foto** (`components/vitrines.tsx`): capa escolhida pelo construtor entre peças com foto,
+  estoque e preço do grupo mais numeroso.
+- **Frete** (`lib/frete.ts`, `components/calculo-frete.tsx`): CEP → endereço e coordenadas pela AwesomeAPI CEP
+  (ViaCEP de reserva), distância até a loja × 1,35 (rua), faixas em `lib/loja.ts`. Retirada grátis sempre;
+  acima de 15 km, "a combinar". Aparece no detalhe da peça, no carrinho, no checkout e na seção Entrega. O CEP
+  fica salvo e o endereço preenche o checkout.
+- **Checkout** (`components/storefront.tsx`, `lib/pedido.ts`): peças e frete → dados (nome, WhatsApp, carro já
+  preenchido) → entrega (retirar ou receber, com rua/número/bairro) → pagamento na entrega/retirada (Pix,
+  débito, crédito, dinheiro) → **Enviar pedido pelo WhatsApp** com o texto completo (itens, valores, frete,
+  total, cliente, carro, endereço, pagamento e o link de cada peça no site, para a loja identificar sem
+  código interno). O pedido online do Commerce continua disponível quando só houver peças integradas e o
+  envio online estiver ligado.
+- **Compartilhar**: cada peça tem link próprio (`/?peca=xxxxxxxx`) que abre o detalhe; botão "Compartilhar
+  esta peça" (menu nativo no celular, cópia no computador) e tags Open Graph para a prévia no WhatsApp.
+- **Dados corrigidos no construtor**: marca sem a linha do produto ("VIEMAR TERM" → Viemar, "TECFIL F AR" →
+  Tecfil; rótulos internos como DIVERSOS e FERRAMENTAS não aparecem), modelos duplicados unidos
+  (S-10/S10, HR-V/HRV, Del Rey/Delrey…; 232 → 224), ordenação por relevância com desempate pela parte do
+  carro (freios, suspensão, direção…).
+- **Fotos conferidas**: `scripts/catalogo/verificar-fotos.mjs` fez HEAD em todas as 23.089 URLs em 25/09:
+  todas 200 e image/*. Se uma próxima conferência achar quebradas, o construtor tira a foto da peça.
+- **Defeitos corrigidos**: formulário dentro de formulário (frete no checkout) e padrão de telefone inválido
+  nos navegadores atuais (já existia na versão anterior; a validação do campo era ignorada).
+- **Verificação**: `npm test` (149, 0 falhas), build, e um fluxo de cliente ponta a ponta no Edge em
+  1366 px e 390 px: escolher Fiat Uno 2010, selo em todos os cartões, Freios (119 peças), detalhe com
+  aplicação, frete para o CEP 07110-000 (5,2 km, R$ 12,00), carrinho com frete, checkout com endereço
+  preenchido pelo CEP, mensagem do WhatsApp conferida, link compartilhado abrindo a mesma peça, âncoras,
+  sem rolagem horizontal e sem erro no console.
+
+### Confirmar com o Berna antes de divulgar
+
+Tudo funciona com os valores abaixo, mas são decisões da loja (todos em `lib/loja.ts`):
+
+1. Número do WhatsApp da loja (hoje o fixo (11) 2452-8939).
+2. Tabela de frete: até 3 km R$ 8 · 3–6 km R$ 12 · 6–10 km R$ 18 · 10–15 km R$ 25 · acima, a combinar.
+3. Prazo de entrega ("mesmo dia útil para pedidos confirmados até as 16h") e de retirada.
+4. Formas de pagamento na entrega/retirada (Pix, débito, crédito, dinheiro).
+5. Horário de atendimento, Instagram e e-mail público (vazios hoje).
+6. Texto de trocas e garantia.
+
+### Para colocar no ar
+
+- Deploy na Vercel (projeto `nova-leoes-preview`, CLI na conta do Arthur).
+- Domínio próprio: apontar o DNS, trocar `og:image` para URL absoluta do domínio e tirar o `noindex`
+  (`index.html` e `X-Robots-Tag` em `vercel.json`) quando quiserem aparecer no Google.
+- Reexportar o catálogo periodicamente (preço/estoque das peças não integradas são da exportação; a data
+  aparece no catálogo como "estoque de DD/MM"). Sincronização automática exige um endpoint novo no Nexus.
+
 ## Pendências e limites
 
 - **Dados da loja a confirmar** em `lib/loja.ts`: qual número tem WhatsApp (o site usa o telefone fixo
