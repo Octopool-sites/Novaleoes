@@ -168,3 +168,4 @@
 .nl-entrega-opcoes label input, .nl-pagamentos label input { min-height: 0 !important; padding: 0 !important; border: 0 !important; top: 50% !important; transform: translateY(-50%); }
 .nl-entrega-opcoes label { justify-content: center; min-height: 58px; }
 .nl-pagamentos label { justify-content: center; min-height: 46px; }
+.nl-cart-line-erro { color: #9a3a2a !important; }

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { LoaderCircle, MapPin, Store, Truck, MessageCircle } from "lucide-react";
 import { CHAVE_CEP, type OpcaoFrete, type ResultadoFrete, calcularFrete, formatarCep, limparCep } from "@/lib/frete";
 import { money } from "@/lib/catalogo-site";
@@ -19,19 +19,24 @@ export default function CalculoFrete({ selecionada, onResultado, onSelecionar, t
   const [carregando, setCarregando] = useState(false);
   const [erro, setErro] = useState("");
   const [resultado, setResultado] = useState<ResultadoFrete | null>(null);
+  // Só a resposta do último CEP pedido vale: o cliente pode corrigir o CEP antes da anterior chegar.
+  const pedido = useRef(0);
 
   async function calcular(valor = cep) {
     if (limparCep(valor).length !== 8) { setErro("Digite os 8 números do CEP."); return; }
+    const meu = ++pedido.current;
     setCarregando(true); setErro("");
     try {
       const r = await calcularFrete(valor);
+      if (meu !== pedido.current) return;
       setResultado(r); onResultado?.(r);
       try { localStorage.setItem(CHAVE_CEP, limparCep(valor)); } catch {}
       if (onSelecionar && !selecionada) onSelecionar(r.opcoes[0]);
     } catch (e) {
+      if (meu !== pedido.current) return;
       setResultado(null); onResultado?.(null);
       setErro(e instanceof Error ? e.message : "Não foi possível calcular agora.");
-    } finally { setCarregando(false); }
+    } finally { if (meu === pedido.current) setCarregando(false); }
   }
   // CEP já salvo de uma visita anterior: calcula sozinho.
   useEffect(() => { if (limparCep(cep).length === 8) void calcular(cep); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);

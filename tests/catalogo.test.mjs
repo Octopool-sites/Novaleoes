@@ -1,8 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { limparNome, limparGrupo, limparDescricao, unidadeLegivel } from "../scripts/catalogo/nomes.mjs";
+import { limparNome, limparGrupo, limparDescricao, unidadeLegivel, VAZAMENTO_CODIGO } from "../scripts/catalogo/nomes.mjs";
 import { classificar, DEPARTAMENTOS, normalizarTexto } from "../scripts/catalogo/taxonomia.mjs";
-import { construir, grupoDerivado, limparMarca, nomeModelo, chaveModelo, idCurto, bucketDe, normalizarAno, BUCKETS } from "../scripts/catalogo/construir.mjs";
+import { construir, vazamentos, grupoDerivado, limparMarca, nomeModelo, chaveModelo, idCurto, bucketDe, normalizarAno, BUCKETS } from "../scripts/catalogo/construir.mjs";
 import { filtrar, montarCatalogo, filtroDaUrl, filtroParaUrl, FILTRO_VAZIO, resumoAplicacoes, faixaAnos } from "../lib/catalogo-site.ts";
 
 test("nomes: expande abreviações do balcão, restaura acentos e remove código de fabricante do fim", () => {
@@ -27,7 +27,8 @@ test("descrição: separa destaques '> ... <', remove pontos soltos, códigos is
   const { linhas, destaques } = limparDescricao("ECOSPORT / FOCUS 2.0 16V\r\n\r\n> 2 PINOS TIPO CANETA <\r\n.\r\n1174-49\r\nECOSPORT / FOCUS 2.0 16V\r\nBOBINA DE IGNICAO");
   assert.deepEqual(destaques, ["2 Pinos Tipo Caneta"]);
   assert.deepEqual(linhas, ["Ecosport / Focus 2.0 16V", "Bobina de Ignição"]);
-  assert.equal(unidadeLegivel("JG", 4), "Jogo com 4");
+  assert.equal(unidadeLegivel("JG", 4), "Jogo · venda mínima de 4");
+  assert.equal(unidadeLegivel("PC", 2), "venda mínima de 2");
   assert.equal(unidadeLegivel("PC", 1), "");
 });
 
@@ -106,7 +107,31 @@ test("construir: gera índice compacto sem código interno, com aplicações, ma
   assert.equal(resumoAplicacoes(meta, catalogo.pecas.find((p) => p.nome.startsWith("Pastilha"))), "Volkswagen Gol, Volkswagen Voyage");
   assert.equal(faixaAnos(2008, 2014), "2008–2014");
   assert.equal(faixaAnos(2009, 0), "2009 em diante");
-  const url = filtroParaUrl({ ...FILTRO_VAZIO, q: "gol", departamento: "freios", modelo: 0, ano: 2010 }).toString();
-  assert.deepEqual(filtroDaUrl(`?${url}`), { ...FILTRO_VAZIO, q: "gol", departamento: "freios", modelo: 0, ano: 2010 });
-  assert.deepEqual(filtroDaUrl("?ano=abc&ordem=x&grupo=1.5"), FILTRO_VAZIO);
+  // Filtro vai para a URL por nome e volta resolvido; link velho ou inválido é ignorado, sem quebrar.
+  const url = filtroParaUrl({ ...FILTRO_VAZIO, q: "gol", departamento: "freios", montadora: 0, modelo: 0, ano: 2010 }, meta).toString();
+  assert.match(url, /montadora=Volkswagen/);
+  assert.match(url, /modelo=Gol/);
+  assert.deepEqual(filtroDaUrl(`?${url}`, meta), { ...FILTRO_VAZIO, q: "gol", departamento: "freios", montadora: 0, modelo: 0, ano: 2010 });
+  assert.deepEqual(filtroDaUrl("?modelo=voyage", meta), { ...FILTRO_VAZIO, montadora: 0, modelo: 1 }, "modelo sem montadora resolve a montadora");
+  assert.deepEqual(filtroDaUrl("?modelo=99999&marca=99999&montadora=Ford&dep=inexistente", meta), FILTRO_VAZIO, "índice velho e nome inexistente são ignorados");
+  assert.deepEqual(filtroDaUrl("?ano=abc&ordem=x&grupo=1.5", meta), FILTRO_VAZIO);
+  assert.deepEqual(filtroDaUrl("?modelo=Gol&q=disco"), { ...FILTRO_VAZIO, q: "disco" }, "sem o catálogo carregado, não chuta posições");
+});
+
+test("código de fabricante e referências não chegam ao site", () => {
+  assert.equal(limparNome("AMORT DT ( USAR GP30120 )"), "Amortecedor Dianteiro");
+  assert.equal(limparNome("BATERIA 60AH ( LE ) > USAR CS50E"), "Bateria 60AH ( Lado Esquerdo )");
+  assert.equal(limparNome("ATUAL T-010037"), "");
+  assert.equal(limparNome("AXIAL DH 320 MM ( REF )"), "Axial DH 320 MM");
+  const { linhas, destaques } = limparDescricao([
+    "COD Orig 1234211018", "COD Fabricante: 03.066.72 / 0306672", "64151H3STD ( COD SKY )", "Fiat Marea 2.0 20V 99/( REF: 5984837 )",
+    "Cod. Metalsystem ----> M31544", ">> Usar Atuador 510 0065 11 <<", "Usar C/ RO4529 OU Similar", ">> Atenção: Difícil de Usar <<", "GOL 1.6 - 08 / 14",
+  ].join("\n"));
+  assert.deepEqual(linhas, ["Fiat Marea 2.0 20V 99", "GOL 1.6 - 08 / 14"]);
+  assert.deepEqual(destaques, ["Atenção: Difícil de Usar"]);
+  for (const t of [...linhas, ...destaques]) assert.equal(VAZAMENTO_CODIGO.test(t), false, t);
+  const { indice, detalhes } = construir({ prods: [{ id: "x1", nome: "PAST FREIO ( ATUAL AL910 )", marca: "COBREQ", grupo: "PASTILHA FREIO", descricao: "COD GM 46.842.706\nPALIO 1.0", preco: 50, disp: 1, foto: null, unidade: "JG", qmin: 1 }],
+    apl: [{ pid: "x1", m: "Fiat", mo: "PALIO", v: null, mt: null, ai: 2000, af: 2005, o: "Orig 7.086.502" }], bind: [] });
+  assert.deepEqual(vazamentos({ indice, detalhes }), []);
+  assert.doesNotMatch(JSON.stringify(indice) + JSON.stringify([...detalhes.values()]), /AL910|46\.842|7\.086/);
 });

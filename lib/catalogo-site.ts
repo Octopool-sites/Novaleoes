@@ -185,27 +185,51 @@ export function anosDisponiveis(catalogo: Catalogo, modelo: number, montadora: n
 }
 
 // Estado do filtro na URL, para compartilhar uma busca ("?q=pastilha&dep=freios").
-export function filtroParaUrl(filtro: Filtro) {
+// Estado do filtro na URL, para compartilhar uma busca. Vai por NOME ("?montadora=Fiat&modelo=Uno"), não por
+// posição interna: as posições mudam a cada exportação do catálogo e um link antigo apontaria para outro carro.
+export const CHAVES_FILTRO = ["q", "dep", "grupo", "marca", "montadora", "modelo", "ano", "estoque", "ordem"];
+
+export function filtroParaUrl(filtro: Filtro, meta?: Meta | null) {
   const p = new URLSearchParams();
+  const nome = <T,>(lista: T[] | undefined, i: number, f: (x: T) => string) => (lista && i >= 0 && i < lista.length ? f(lista[i]) : "");
   if (filtro.q) p.set("q", filtro.q);
   if (filtro.departamento) p.set("dep", filtro.departamento);
-  if (filtro.grupo >= 0) p.set("grupo", String(filtro.grupo));
-  if (filtro.marca >= 0) p.set("marca", String(filtro.marca));
-  if (filtro.montadora >= 0) p.set("montadora", String(filtro.montadora));
-  if (filtro.modelo >= 0) p.set("modelo", String(filtro.modelo));
+  if (filtro.grupo >= 0 && meta) p.set("grupo", nome(meta.grupos, filtro.grupo, (g) => g[0]));
+  if (filtro.marca >= 0 && meta) p.set("marca", nome(meta.marcas, filtro.marca, (m) => m[0]));
+  if (filtro.montadora >= 0 && meta) p.set("montadora", nome(meta.montadoras, filtro.montadora, (m) => m));
+  if (filtro.modelo >= 0 && meta) p.set("modelo", nome(meta.modelos, filtro.modelo, (m) => m[1]));
   if (filtro.ano) p.set("ano", String(filtro.ano));
   if (filtro.somenteEstoque) p.set("estoque", "1");
   if (filtro.ordem !== "relevancia") p.set("ordem", filtro.ordem);
+  for (const [k, v] of [...p.entries()]) if (!v) p.delete(k);
   return p;
 }
 
-export function filtroDaUrl(search: string): Filtro {
+// Sem meta (catálogo ainda carregando) só lê o que não depende do catálogo; com meta, resolve os nomes e
+// descarta o que não existe (link velho ou digitado errado não quebra a página).
+export function filtroDaUrl(search: string, meta?: Meta | null): Filtro {
   const p = new URLSearchParams(search);
-  const inteiro = (chave: string, padrao: number) => { const v = Number(p.get(chave)); return Number.isInteger(v) && p.has(chave) ? v : padrao; };
   const ordem = p.get("ordem");
+  const anoTxt = Number(p.get("ano"));
+  const norm = (x: string) => normalizeSearch(x);
+  const achar = <T,>(chave: string, lista: T[] | undefined, f: (x: T) => string, aceita: (i: number) => boolean = () => true) => {
+    const v = p.get(chave);
+    if (!v || !lista) return -1;
+    const alvo = norm(v);
+    const i = lista.findIndex((x, idx) => norm(f(x)) === alvo && aceita(idx));
+    return i;
+  };
+  const departamento = meta ? (meta.departamentos.some((d) => d.id === p.get("dep")) ? p.get("dep")! : "") : p.get("dep") || "";
+  const montadora = achar("montadora", meta?.montadoras, (m) => m);
+  const modelo = achar("modelo", meta?.modelos, (m) => m[1], (i) => montadora < 0 || meta!.modelos[i][0] === montadora);
+  const depIdx = meta && departamento ? meta.departamentos.findIndex((d) => d.id === departamento) : -1;
   return {
-    q: (p.get("q") || "").slice(0, 120), departamento: p.get("dep") || "", grupo: inteiro("grupo", -1), marca: inteiro("marca", -1),
-    montadora: inteiro("montadora", -1), modelo: inteiro("modelo", -1), ano: inteiro("ano", 0), somenteEstoque: p.get("estoque") === "1",
+    q: (p.get("q") || "").slice(0, 120), departamento,
+    grupo: achar("grupo", meta?.grupos, (g) => g[0], (i) => depIdx < 0 || meta!.grupos[i][1] === depIdx),
+    marca: achar("marca", meta?.marcas, (m) => m[0]),
+    montadora: montadora >= 0 ? montadora : modelo >= 0 ? meta!.modelos[modelo][0] : -1, modelo,
+    ano: Number.isInteger(anoTxt) && anoTxt >= 1950 && anoTxt <= new Date().getFullYear() + 1 ? anoTxt : 0,
+    somenteEstoque: p.get("estoque") === "1",
     ordem: ordem === "nome" || ordem === "menor-preco" || ordem === "maior-preco" ? ordem : "relevancia",
   };
 }

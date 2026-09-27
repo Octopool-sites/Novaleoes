@@ -16,7 +16,7 @@ const ABREVIACOES = {
   REFRIG: "Refrigeração", DISTR: "Distribuidor", ABERT: "Abertura", MOT: "Motor", ESC: "Escapamento", DESL: "Deslizante",
   VELOC: "Velocímetro", CARB: "Carburador", ARREF: "Arrefecimento", PRES: "Pressão", REGUL: "Regulador", "M.LENTA": "Marcha Lenta",
   AUX: "Auxiliar", PROT: "Protetor", ELET: "Elétrica", HALOG: "Halógena", INTERR: "Interruptor", CONJ: "Conjunto", CEB: "Cebolinha",
-  RESP: "Respiro", AQUEC: "Aquecedor", GDE: "Grande", PEQ: "Pequeno", MED: "Médio", RECOND: "Recondicionado", ALUM: "Alumínio",
+  RESP: "Respiro", ORIG: "Original", AQUEC: "Aquecedor", GDE: "Grande", PEQ: "Pequeno", MED: "Médio", RECOND: "Recondicionado", ALUM: "Alumínio",
   "4F": "4 furos", "5F": "5 furos", "3P": "3 pinos", "2P": "2 pinos", "4P": "4 pinos",
   C: "com", "C/": "com", S: "sem", "S/": "sem", P: "para", "P/": "para", D: "Direito", E: "e",
 };
@@ -79,12 +79,32 @@ function capitalizar(token) {
 }
 
 // Código de fabricante entre parênteses no nome: "( 31 )", "(4213)", "( 680037 )".
+// Referências de código escritas no texto pelo balcão: "( Usar GP30120 )", "Atual T-010037", "COD Fabricante: 000330019",
+// "Orig 7.086.502", "( REF: 5984837 )", "( COD SKY )". Nunca vão ao site (regra: sem código interno nem de fabricante).
+const PALAVRA_CODIGO = String.raw`(?:C[OÓ]D(?:IGO)?|REF(?:ER[EÊ]NCIA)?|ORIG(?:INAL)?|FABRICANTE|ATUAL|USAR|SUBST(?:ITUI)?|SIMILAR|OEM|EAN|SKU)`;
+// Código = token com dígito ("GP30120", "03.066.72", "T-010037"), opcionalmente vários separados por / , ;
+const TOKEN_CODIGO = String.raw`[A-Za-z0-9./\-]*\d[A-Za-z0-9./\-]*`;
+// Até 3 palavras entre a palavra-chave e o código ("COD Fabricante:", "COD GM", "COD SIM Lubrificantes:").
+const PONTE = String.raw`\.?\s*[:.\-]?\s*(?:[A-Za-zÀ-ú]+\s*[:.]?\s*){0,3}`;
+const PAREN_CODIGO = new RegExp(String.raw`\(\s*\b${PALAVRA_CODIGO}\b[^)]*\)`, "gi");
+const TRECHO_CODIGO = new RegExp(String.raw`[>(]*\s*\b${PALAVRA_CODIGO}\b${PONTE}${TOKEN_CODIGO}(?:\s*[/,;]\s*${TOKEN_CODIGO})*\s*[)<]*`, "gi");
+export const VAZAMENTO_CODIGO = new RegExp(String.raw`\b(?:C[OÓ]D(?:IGO)?|REF)\b|\bUSAR\s+C\/|\b${PALAVRA_CODIGO}\b${PONTE}${TOKEN_CODIGO}`, "i");
+// Em descrição, "COD ...", "REF ..." e "Usar C/ ..." só têm código depois: corta até o fim da linha.
+const CORTE_CODIGO = /\(?\s*(?:\bC[OÓ]D(?:IGO)?\b|\bREF\b|\bFABRICANTE\b|\bUSAR\s+C\/)[\s\S]*$/i;
+export function cortarCodigos(texto) {
+  return removerCodigos(String(texto || "").replace(CORTE_CODIGO, "")).replace(/[\/\-,;:(\s]+$/, "").trim();
+}
+
+export function removerCodigos(texto) {
+  return String(texto || "").replace(PAREN_CODIGO, " ").replace(TRECHO_CODIGO, " ").replace(/\s+/g, " ").trim();
+}
+
 const CODIGO_PARENTESES = /\(\s*[A-Z]{0,2}\d[\w.\-\/]*(?:\s+[A-Z0-9][\w.\-\/]*){0,2}\s*\)/g;
 // Em disco de freio, VENT = ventilado e SOL = sólido (fora disso VENT é ventoinha).
 const CONTEXTO_DISCO = { VENT: "Ventilado", SOL: "Sólido" };
 
 export function limparNome(nome) {
-  let texto = String(nome || "").replace(MARCADORES, " ").replace(CODIGO_PARENTESES, " ").replace(/\s+/g, " ").trim();
+  let texto = removerCodigos(nome).replace(MARCADORES, " ").replace(CODIGO_PARENTESES, " ").replace(/\s+/g, " ").trim();
   texto = texto.replace(SUFIXO_CODIGO, "").trim();
   if (!texto) return "";
   const disco = /^DISCO\b/i.test(texto);
@@ -117,6 +137,9 @@ export function limparDescricao(descricao) {
     if (!linha || /^[.\-–_*]+$/.test(linha)) continue;
     const destaque = linha.match(/^>+\s*(.+?)\s*<+$/);
     if (destaque) linha = destaque[1];
+    linha = cortarCodigos(linha).replace(/^[>\s]+|[<\s]+$/g, "").replace(/[\/\-,;:\s]+$/, "");
+    // Linha só de códigos ("64151H3STD", "1174-49 / NV-200"): toda palavra tem dígito ou é sigla de até 2 letras.
+    if (linha.split(/\s+/).every((t) => /\d/.test(t) || t.replace(/[^A-Za-zÀ-ú]/g, "").length <= 2)) continue;
     linha = linha.replace(MARCADORES, " ").replace(/\s+/g, " ").replace(/^["']+|["']+$/g, "").trim();
     if (!linha) continue;
     // Linha que é só um código/referência (sem letras suficientes): não exibir.
@@ -150,15 +173,6 @@ function titularLinha(linha) {
 export function unidadeLegivel(unidade, quantidadeMinima) {
   const u = String(unidade || "").toUpperCase();
   const q = Number(quantidadeMinima) || 1;
-  if (u === "JG") return q > 1 ? `Jogo com ${q}` : "Jogo";
-  if (u === "KT" || u === "KI") return "Kit";
-  if (u === "CJ") return "Conjunto";
-  if (u === "LT") return "Litro";
-  if (u === "ML") return "Mililitro";
-  if (u === "KG") return "Quilo";
-  if (u === "MT" || u === "M") return "Metro";
-  if (u === "CX") return "Caixa";
-  if (u === "GL") return "Galão";
-  if (u === "PA" || u === "PR") return "Par";
-  return q > 1 ? `Vendido em ${q} unidades` : "";
+  const nomes = { JG: "Jogo", KT: "Kit", KI: "Kit", CJ: "Conjunto", LT: "Litro", ML: "Mililitro", KG: "Quilo", MT: "Metro", M: "Metro", CX: "Caixa", GL: "Galão", PA: "Par", PR: "Par" };
+  return [nomes[u] || "", q > 1 ? `venda mínima de ${q}` : ""].filter(Boolean).join(" · ");
 }

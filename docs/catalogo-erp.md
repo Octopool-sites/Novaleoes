@@ -121,6 +121,29 @@ Tudo funciona com os valores abaixo, mas são decisões da loja (todos em `lib/l
 - Reexportar o catálogo periodicamente (preço/estoque das peças não integradas são da exportação; a data
   aparece no catálogo como "estoque de DD/MM"). Sincronização automática exige um endpoint novo no Nexus.
 
+## Revisão final — 27/09/2026
+
+Revisão independente do código mais teste da build de produção servida com os cabeçalhos do `vercel.json`
+(CSP ativa, API da gestão fora do ar de propósito). Corrigido:
+
+- **Código de fabricante vazando**: 39 nomes ("( Usar GP30120 )", "Atual T-010037") e 1.132 linhas de descrição
+  ("COD Fabricante: 000330019", "Orig 7.086.502", "Cod. Metalsystem ----> M31544"). Agora `removerCodigos` e
+  `cortarCodigos` limpam nome, descrição e observação de aplicação, e o `construir.mjs` **falha** se algum texto
+  publicado ainda casar com `VAZAMENTO_CODIGO`. Resultado: zero.
+- **Filtro na URL por nome** (`?montadora=Fiat&modelo=Uno`), resolvido depois que o catálogo carrega. Link antigo
+  ou inválido é ignorado em vez de derrubar a página; `utm_*`, `gclid` e `fbclid` são preservados; escolher o
+  carro com uma peça aberta mantém o `?peca=`.
+- **Busca do topo** perdia o foco ao clicar (o catálogo roubava o foco): agora só rola a página.
+- **Frete**: a retirada escolhida voltava sozinha para entrega ao reabrir o carrinho; CEP inválido depois de um
+  válido mantinha o frete antigo; respostas de CEP fora de ordem podiam gravar o endereço errado. Os três corrigidos.
+- **Carrinho**: peça integrada adicionada antes da API responder não duplica mais; peça que saiu do catálogo
+  bloqueia "Finalizar" com aviso (antes ia ao WhatsApp como "Peça indisponível"); o "−" para na venda mínima.
+- **Venda mínima**: `quantidadeMinimaVenda` é a quantidade que o balcão já lança (ex.: 4 velas) e o preço é por
+  unidade; o site mostra "venda mínima de 4" em vez de "Jogo com 4".
+
+Verificação: `npm test` 150 testes (0 falhas); fluxo de cliente no Edge em 1366 e 390 px e seis cenários de
+regressão na build de produção com CSP, todos OK. Script do fluxo: fora do repositório, em `C:dev_e2e-nl`.
+
 ## Pendências e limites
 
 - **Dados da loja a confirmar** em `lib/loja.ts`: qual número tem WhatsApp (o site usa o telefone fixo

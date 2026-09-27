@@ -14,7 +14,7 @@
 import { createHash } from "node:crypto";
 import { mkdirSync, readFileSync, writeFileSync, rmSync, existsSync, statSync, readdirSync } from "node:fs";
 import { join, resolve } from "node:path";
-import { limparNome, limparGrupo, limparDescricao } from "./nomes.mjs";
+import { limparNome, limparGrupo, limparDescricao, removerCodigos, cortarCodigos, VAZAMENTO_CODIGO } from "./nomes.mjs";
 import { classificar, DEPARTAMENTOS, GRUPOS_BALDE } from "./taxonomia.mjs";
 
 // Itens que o legado deixou em baldes ("LUBRIFICANTES", "DIVERSOS") ganham um grupo derivado
@@ -163,7 +163,7 @@ export function construir(exportacao) {
       const montIdx = montadoras.idx(montadora);
       const modIdx = modelos.idx(`${montIdx}|${chaveModelo(modelo)}`, [montIdx, modelo]);
       const ai = normalizarAno(a.ai), af = normalizarAno(a.af);
-      aplicacoes.push([modIdx, String(a.v || "").trim(), String(a.mt || "").trim(), ai, af, String(a.o || "").trim()]);
+      aplicacoes.push([modIdx, removerCodigos(a.v), removerCodigos(a.mt), ai, af, cortarCodigos(a.o)]);
       const chave = `${modIdx}|${ai}|${af}`;
       if (!resumo.has(chave)) resumo.set(chave, [modIdx, ai, af]);
     }
@@ -211,6 +211,14 @@ export function construir(exportacao) {
   return { meta, indice: { pecas }, detalhes };
 }
 
+// Trava: nenhum texto publicado pode conter referência de código ("COD ...", "Orig ...", "Usar GP30120").
+export function vazamentos({ indice, detalhes }) {
+  const achados = [];
+  for (const p of indice.pecas) if (VAZAMENTO_CODIGO.test(p[1])) achados.push(p[1]);
+  for (const d of detalhes.values()) for (const t of [...d.d, ...d.h, ...d.a.flatMap((a) => [a[1], a[2], a[5]])]) if (t && VAZAMENTO_CODIGO.test(t)) achados.push(t);
+  return achados;
+}
+
 export function escrever(saida, { meta, indice, detalhes }) {
   const dirDetalhes = join(saida, "detalhes");
   if (existsSync(dirDetalhes)) rmSync(dirDetalhes, { recursive: true, force: true });
@@ -230,6 +238,12 @@ if (process.argv[1] && resolve(process.argv[1]) === resolve(new URL(import.meta.
   const saida = resolve(process.argv[3] || "public/catalogo");
   const exportacao = JSON.parse(readFileSync(entrada, "utf8"));
   const resultado = construir(exportacao);
+  const achados = vazamentos(resultado);
+  if (achados.length) {
+    console.error(`ERRO: ${achados.length} textos com referência de código. Exemplos:`);
+    for (const t of achados.slice(0, 15)) console.error(`- ${t}`);
+    process.exit(1);
+  }
   escrever(saida, resultado);
   const tamanho = (f) => `${(statSync(join(saida, f)).size / 1024).toFixed(0)} KB`;
   const detalhesTotal = readdirSync(join(saida, "detalhes")).reduce((s, f) => s + statSync(join(saida, "detalhes", f)).size, 0);

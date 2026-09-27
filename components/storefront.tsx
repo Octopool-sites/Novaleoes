@@ -7,7 +7,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { money, type Product } from "@/lib/catalog";
 import { normalizeSearch, type Order } from "@/lib/commerce-contracts";
-import { type Catalogo, type Filtro, type Peca, FILTRO_VAZIO, carregarCatalogo, filtroDaUrl, filtroParaUrl, filtrar, urlFoto } from "@/lib/catalogo-site";
+import { type Catalogo, type Filtro, type Peca, CHAVES_FILTRO, FILTRO_VAZIO, carregarCatalogo, filtroDaUrl, filtroParaUrl, filtrar, urlFoto } from "@/lib/catalogo-site";
 import { type Veiculo, type VeiculoSalvo, lerVeiculoSalvo, resolverVeiculo, salvarVeiculo } from "@/lib/garagem";
 import type { OpcaoFrete, ResultadoFrete } from "@/lib/frete";
 import { LOJA, whatsappUrl } from "@/lib/loja";
@@ -26,7 +26,7 @@ import "./storefront-loja.css";
 const StorefrontEditorialVariant = lazy(() => import("./storefront-editorial-variant"));
 
 type Cart = Record<string, number>;
-export type Linha = { id: string; quantity: number; nome: string; marca: string; image: string; priceCents: number; stock: number; integrado: boolean; link: string; peca?: Peca; product?: Product };
+export type Linha = { valida: boolean; minimo: number; id: string; quantity: number; nome: string; marca: string; image: string; priceCents: number; stock: number; integrado: boolean; link: string; peca?: Peca; product?: Product };
 type Entrega = "retirada" | "entrega" | "combinar";
 export type Dados = { nome: string; telefone: string; email: string; veiculo: string; entrega: Entrega; cep: string; logradouro: string; numero: string; complemento: string; bairro: string; cidade: string; pagamento: string; obs: string };
 const CHAVE_CATALOGO = "c:";
@@ -65,6 +65,8 @@ export default function Storefront() {
   const [ultimoPedido, setUltimoPedido] = useState<{ link: string; texto: string } | null>(null);
   const [dados, setDados] = useState<Dados>(() => ({ nome: "", telefone: "", email: "", veiculo: "", entrega: "retirada", cep: "", logradouro: "", numero: "", complemento: "", bairro: "", cidade: "", pagamento: LOJA.pagamentos[0], obs: "", ...lerDados() }));
   const attempt = useRef("");
+  const detalheId = useRef<string | null>(null);
+  const escolhaEntrega = useRef<OpcaoFrete["tipo"] | null>(null);
   const live = useMemo(() => new Map(products.map((p) => [p.id, p])), [products]);
   const veiculo: Veiculo | null = useMemo(() => (catalogo ? resolverVeiculo(catalogo, veiculoSalvo) : null), [catalogo, veiculoSalvo]);
 
@@ -99,38 +101,63 @@ export default function Storefront() {
   useEffect(() => { if (hydrated) try { localStorage.setItem(CHAVE_CARRINHO, JSON.stringify(cart)); } catch {} }, [cart, hydrated]);
 
   // URL: filtro do catálogo e peça aberta (?peca=), para compartilhar. Preserva ?visual=editorial.
+  // Mexe só nas chaves do filtro e em ?peca=; preserva utm_*, gclid, fbclid e ?visual=editorial.
   const escreverUrl = useCallback((f: Filtro, peca: string | null) => {
     try {
-      const params = filtroParaUrl(f);
-      if (editorialVariant) params.set("visual", "editorial");
+      const params = new URLSearchParams(location.search);
+      for (const k of [...CHAVES_FILTRO, "peca"]) params.delete(k);
+      for (const [k, v] of filtroParaUrl(f, catalogo?.meta)) params.set(k, v);
       if (peca) params.set("peca", peca);
       const query = params.toString();
       history.replaceState(null, "", `${location.pathname}${query ? `?${query}` : ""}${location.hash}`);
     } catch {}
-  }, [editorialVariant]);
-  const setFiltro = useCallback((proximo: Filtro) => { setFiltroEstado(proximo); escreverUrl(proximo, null); }, [escreverUrl]);
-  const setDetalhe = useCallback((p: Peca | null) => { setDetalheEstado(p); escreverUrl(filtro, p?.id || null); }, [escreverUrl, filtro]);
+  }, [catalogo]);
+  const setFiltro = useCallback((proximo: Filtro) => { setFiltroEstado(proximo); escreverUrl(proximo, detalheId.current); }, [escreverUrl]);
+  const setDetalhe = useCallback((p: Peca | null) => { detalheId.current = p?.id || null; setDetalheEstado(p); escreverUrl(filtro, detalheId.current); }, [escreverUrl, filtro]);
 
   useEffect(() => {
     if (!catalogo) return;
+    // Agora que o catálogo existe, resolve os nomes do filtro da URL (link compartilhado).
+    const daUrl = filtroDaUrl(window.location.search, catalogo.meta);
+    setFiltroEstado(daUrl);
     const params = new URLSearchParams(window.location.search);
     const peca = params.get("peca");
-    if (peca && catalogo.porId.has(peca)) { setDetalheEstado(catalogo.porId.get(peca)!); return; }
-    if (JSON.stringify(filtroDaUrl(window.location.search)) !== JSON.stringify(FILTRO_VAZIO) && !window.location.hash)
+    if (peca && catalogo.porId.has(peca)) { detalheId.current = peca; setDetalheEstado(catalogo.porId.get(peca)!); return; }
+    if (JSON.stringify(daUrl) !== JSON.stringify(FILTRO_VAZIO) && !window.location.hash)
       document.getElementById("catalogo")?.scrollIntoView({ block: "start" });
   }, [catalogo]);
+
+  // Peça integrada que entrou como item do catálogo antes da API responder: vira o produto ao vivo (sem duplicar).
+  useEffect(() => {
+    if (!catalogo || !live.size) return;
+    setCart((prev) => {
+      let mudou = false;
+      const next: Cart = {};
+      for (const [id, q] of Object.entries(prev)) {
+        const ext = id.startsWith(CHAVE_CATALOGO) ? catalogo.porId.get(id.slice(CHAVE_CATALOGO.length))?.externalId : null;
+        const produto = ext ? live.get(ext) : null;
+        if (produto) {
+          mudou = true;
+          const total = Math.min(20, produto.stock, (next[produto.id] || 0) + q);
+          if (total > 0) next[produto.id] = total;
+        } else next[id] = (next[id] || 0) + q;
+      }
+      return mudou ? next : prev;
+    });
+  }, [catalogo, live]);
 
   const linhas: Linha[] = useMemo(() => Object.entries(cart).map(([id, quantity]) => {
     if (id.startsWith(CHAVE_CATALOGO)) {
       const peca = catalogo?.porId.get(id.slice(CHAVE_CATALOGO.length));
-      if (!peca) return { id, quantity, nome: catalogo ? "Peça indisponível" : "Carregando peça…", marca: "", image: "", priceCents: 0, stock: 0, integrado: false, link: "" };
-      return { id, quantity, nome: tituloDaPeca(peca), marca: peca.marca, image: urlFoto(catalogo!.meta, peca.foto), priceCents: peca.precoCents, stock: peca.disponivel, integrado: false, link: linkDaPeca(peca), peca };
+      if (!peca) return { valida: false, minimo: 1, id, quantity, nome: catalogo ? "Peça que saiu do catálogo" : "Carregando peça…", marca: "", image: "", priceCents: 0, stock: 0, integrado: false, link: "" };
+      return { valida: true, minimo: Math.max(1, Math.round(peca.quantidadeMinima) || 1), id, quantity, nome: tituloDaPeca(peca), marca: peca.marca, image: urlFoto(catalogo!.meta, peca.foto), priceCents: peca.precoCents, stock: peca.disponivel, integrado: false, link: linkDaPeca(peca), peca };
     }
     const product = live.get(id);
     const peca = catalogo?.porExternalId.get(id);
-    if (!product) return { id, quantity, nome: "Peça indisponível", marca: "", image: "", priceCents: 0, stock: 0, integrado: true, link: "" };
-    return { id, quantity, nome: productTitles[id] || product.name, marca: product.brand, image: product.image, priceCents: product.priceCents, stock: product.stock, integrado: true, link: peca ? linkDaPeca(peca) : "", product };
-  }), [cart, catalogo, live]);
+    if (!product) return { valida: false, minimo: 1, id, quantity, nome: catalogLoading ? "Carregando peça…" : "Peça indisponível no momento", marca: "", image: "", priceCents: 0, stock: 0, integrado: true, link: "" };
+    return { valida: true, minimo: 1, id, quantity, nome: productTitles[id] || product.name, marca: product.brand, image: product.image, priceCents: product.priceCents, stock: product.stock, integrado: true, link: peca ? linkDaPeca(peca) : "", product };
+  }), [cart, catalogo, live, catalogLoading]);
+  const linhasInvalidas = linhas.filter((l) => !l.valida);
   const subtotal = linhas.reduce((s, l) => s + l.priceCents * l.quantity, 0);
   const valorFrete = dados.entrega === "entrega" && opcaoFrete?.tipo === "entrega" ? opcaoFrete.valorCents : 0;
   const semPreco = linhas.some((l) => l.priceCents <= 0);
@@ -176,9 +203,9 @@ export default function Storefront() {
       return next;
     });
   }
-  const irAoCatalogo = () => requestAnimationFrame(() => {
+  const irAoCatalogo = (focar = true) => requestAnimationFrame(() => {
     const el = document.getElementById("catalogo");
-    el?.focus({ preventScroll: true });
+    if (focar) el?.focus({ preventScroll: true });
     el?.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth", block: "start" });
   });
   function explorarDepartamento(id: string) { setFiltro({ ...FILTRO_VAZIO, departamento: id }); irAoCatalogo(); }
@@ -199,20 +226,34 @@ export default function Storefront() {
       if (!detalhe) irAoCatalogo();
     } else setFiltro({ ...filtro, montadora: -1, modelo: -1, ano: 0 });
   }
+  // Novo resultado de CEP: mantém a escolha do cliente (ex.: retirada) se ela ainda existir; CEP inválido zera o frete.
   function aoFrete(r: ResultadoFrete | null) {
     setFrete(r);
-    if (r) {
-      const e = r.endereco;
-      atualizarDados({ cep: e.cep.replace(/^(\d{5})(\d{3})$/, "$1-$2"), logradouro: e.logradouro || dados.logradouro, bairro: e.bairro || dados.bairro, cidade: `${e.cidade}/${e.uf}` });
-      const principal = r.opcoes[0];
-      setOpcaoFrete(principal);
-      atualizarDados({ entrega: principal.tipo });
+    if (!r) {
+      setOpcaoFrete(null);
+      atualizarDados({ cep: "", cidade: "", entrega: escolhaEntrega.current === "retirada" ? "retirada" : "combinar" });
+      return;
     }
+    const e = r.endereco;
+    const escolhida = r.opcoes.find((o) => o.tipo === escolhaEntrega.current) || r.opcoes[0];
+    setOpcaoFrete(escolhida);
+    setDados((prev) => {
+      const next = { ...prev, cep: e.cep.replace(/^(\d{5})(\d{3})$/, "$1-$2"), logradouro: e.logradouro || prev.logradouro, bairro: e.bairro || prev.bairro, cidade: `${e.cidade}/${e.uf}`, entrega: escolhida.tipo };
+      try { const { obs: _o, ...salvar } = next; localStorage.setItem(CHAVE_DADOS, JSON.stringify(salvar)); } catch {}
+      return next;
+    });
   }
-  function escolherOpcao(o: OpcaoFrete) { setOpcaoFrete(o); atualizarDados({ entrega: o.tipo }); }
+  function escolherOpcao(o: OpcaoFrete) { escolhaEntrega.current = o.tipo; setOpcaoFrete(o); atualizarDados({ entrega: o.tipo }); }
+  function escolherEntrega(tipo: Entrega) {
+    escolhaEntrega.current = tipo;
+    const opcao = frete?.opcoes.find((o) => o.tipo === tipo) || (tipo === "retirada" ? null : frete?.opcoes.find((o) => o.tipo !== "retirada")) || null;
+    if (opcao) setOpcaoFrete(opcao);
+    atualizarDados({ entrega: opcao?.tipo ?? tipo });
+  }
 
   function enviarWhatsApp(e?: React.FormEvent) {
     e?.preventDefault();
+    if (linhasInvalidas.length) { setStep("cart"); return; }
     const texto = mensagemPedido(linhas, dados, dados.entrega === "retirada" ? null : opcaoFrete, frete?.distanciaKm ?? null);
     const link = whatsappUrl(texto);
     window.open(link, "_blank", "noopener");
@@ -287,10 +328,10 @@ export default function Storefront() {
           <img src="/assets/logo.png" alt="" />
           <span>NOVA LEÕES<small>AUTOPEÇAS</small></span>
         </a>
-        <form className="nl-header-busca" role="search" onSubmit={(e) => { e.preventDefault(); irAoCatalogo(); }}>
+        <form className="nl-header-busca" role="search" onSubmit={(e) => { e.preventDefault(); irAoCatalogo(false); }}>
           <Search size={17} />
           <input aria-label="Buscar peça" placeholder="Buscar peça, marca ou carro" maxLength={120} value={filtro.q}
-            onChange={(e) => setFiltro({ ...filtro, q: e.target.value })} onFocus={() => { if (!filtro.q) irAoCatalogo(); }} />
+            onChange={(e) => setFiltro({ ...filtro, q: e.target.value })} onFocus={() => { if (!filtro.q) irAoCatalogo(false); }} />
         </form>
         <button type="button" className={`nl-header-carro${veiculo ? " com-carro" : ""}`} onClick={() => escolherVeiculo()} aria-label={veiculo ? `Meu carro: ${veiculo.rotulo}. Trocar` : "Selecionar meu carro"}>
           <CarFront size={19} /><span>{veiculo ? veiculo.rotulo : "Meu carro"}</span>
@@ -390,9 +431,9 @@ export default function Storefront() {
                           <h3>{l.nome}</h3>
                           <p>{l.marca || ""}</p>
                           <strong>{l.priceCents > 0 ? money(l.priceCents * l.quantity) : "Preço sob consulta"}</strong>
-                          {!l.integrado && <small className="nl-cart-line-obs">{l.stock > 0 ? "Em estoque na loja" : "Sob encomenda · a loja confirma o prazo"}</small>}
+                          {!l.valida ? <small className="nl-cart-line-obs nl-cart-line-erro">Não está mais disponível no site. Remova para continuar.</small> : !l.integrado && <small className="nl-cart-line-obs">{l.stock > 0 ? "Em estoque na loja" : "Sob encomenda · a loja confirma o prazo"}{l.minimo > 1 ? ` · venda mínima de ${l.minimo}` : ""}</small>}
                           <div className="quantity">
-                            <button aria-label={`Diminuir ${l.nome}`} onClick={() => change(l.id, l.quantity - 1)}><Minus size={15} /></button>
+                            <button aria-label={`Diminuir ${l.nome}`} disabled={l.quantity <= l.minimo} onClick={() => change(l.id, l.quantity - 1)}><Minus size={15} /></button>
                             <span>{l.quantity}</span>
                             <button aria-label={`Aumentar ${l.nome}`} disabled={l.quantity >= (l.integrado ? Math.min(20, l.stock) : 20)} onClick={() => change(l.id, l.quantity + 1)}><Plus size={15} /></button>
                           </div>
@@ -415,8 +456,8 @@ export default function Storefront() {
 
                         <h3>Entrega</h3>
                         <div className="nl-entrega-opcoes" role="radiogroup" aria-label="Forma de entrega">
-                          <label className={dados.entrega === "retirada" ? "ativo" : ""}><input type="radio" name="entrega" checked={dados.entrega === "retirada"} onChange={() => atualizarDados({ entrega: "retirada" })} /><b>Retirar na loja</b><small>{LOJA.endereco.logradouro}, {LOJA.endereco.numero} · Grátis</small></label>
-                          <label className={dados.entrega !== "retirada" ? "ativo" : ""}><input type="radio" name="entrega" checked={dados.entrega !== "retirada"} onChange={() => atualizarDados({ entrega: opcaoFrete?.tipo === "entrega" ? "entrega" : "combinar" })} /><b>Receber no endereço</b><small>{opcaoFrete?.tipo === "entrega" ? `Motoboy da loja · ${money(opcaoFrete.valorCents)}` : frete ? "Fora do raio: frete combinado" : "Informe o CEP abaixo"}</small></label>
+                          <label className={dados.entrega === "retirada" ? "ativo" : ""}><input type="radio" name="entrega" checked={dados.entrega === "retirada"} onChange={() => escolherEntrega("retirada")} /><b>Retirar na loja</b><small>{LOJA.endereco.logradouro}, {LOJA.endereco.numero} · Grátis</small></label>
+                          <label className={dados.entrega !== "retirada" ? "ativo" : ""}><input type="radio" name="entrega" checked={dados.entrega !== "retirada"} onChange={() => escolherEntrega(frete?.opcoes.some((o) => o.tipo === "entrega") ? "entrega" : "combinar")} /><b>Receber no endereço</b><small>{frete?.opcoes.find((o) => o.tipo === "entrega") ? `Motoboy da loja · ${money(frete.opcoes.find((o) => o.tipo === "entrega")!.valorCents)}` : frete ? "Fora do raio: frete combinado" : "Informe o CEP abaixo"}</small></label>
                         </div>
                         {precisaEndereco && (
                           <>
@@ -459,10 +500,13 @@ export default function Storefront() {
                   {semPreco && <p className="subtle">Itens sem preço no site entram como "a consultar".</p>}
                   {error && <p role="alert" className="inline-error">{error}</p>}
                   {step === "cart" ? (
-                    <button className="primary-button wide" onClick={() => { setError(""); setStep("checkout"); }}>Finalizar pedido <ArrowRight size={18} /></button>
+                    <>
+                      {linhasInvalidas.length > 0 && <p role="alert" className="inline-error">{catalogoCarregando || catalogLoading ? "Carregando as peças do pedido…" : "Há peça que não está mais disponível no site. Remova-a para finalizar."}</p>}
+                      <button className="primary-button wide" disabled={linhasInvalidas.length > 0} onClick={() => { setError(""); setStep("checkout"); }}>Finalizar pedido <ArrowRight size={18} /></button>
+                    </>
                   ) : (
                     <>
-                      <button type="submit" form="checkout-form" className="primary-button wide nl-botao-whats"><MessageCircle size={18} /> Enviar pedido pelo WhatsApp</button>
+                      <button type="submit" form="checkout-form" className="primary-button wide nl-botao-whats" disabled={linhasInvalidas.length > 0}><MessageCircle size={18} /> Enviar pedido pelo WhatsApp</button>
                       {pedidoOnline && (
                         <button type="button" className="nl-cart-whats" disabled={loading || linhas.some((l) => !l.product || l.quantity > l.product.stock)} onClick={submitOnline}>
                           {loading ? <LoaderCircle className="animate-spin" size={17} /> : <PackageCheck size={17} />} {loading ? "Enviando…" : "Enviar pelo site (aprovação online)"}

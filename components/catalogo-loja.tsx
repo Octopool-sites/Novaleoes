@@ -185,10 +185,10 @@ export default function CatalogoLoja({ catalogo, carregando, erro, live, filtro,
 
       {(filtro.montadora >= 0 || filtro.modelo >= 0 || filtro.marca >= 0 || filtro.ano > 0 || filtro.somenteEstoque) && meta && (
         <div className="nl-filtros-resumo" aria-label="Filtros aplicados">
-          {filtro.montadora >= 0 && <button type="button" onClick={() => atualizar({ montadora: -1, modelo: -1, ano: 0 })}>{meta.montadoras[filtro.montadora]} <X size={12} /></button>}
-          {filtro.modelo >= 0 && <button type="button" onClick={() => atualizar({ modelo: -1, ano: 0 })}>{meta.modelos[filtro.modelo][1]} <X size={12} /></button>}
+          {filtro.montadora >= 0 && <button type="button" onClick={() => atualizar({ montadora: -1, modelo: -1, ano: 0 })}>{meta.montadoras[filtro.montadora] ?? "Montadora"} <X size={12} /></button>}
+          {filtro.modelo >= 0 && <button type="button" onClick={() => atualizar({ modelo: -1, ano: 0 })}>{meta.modelos[filtro.modelo]?.[1] ?? "Modelo"} <X size={12} /></button>}
           {filtro.ano > 0 && <button type="button" onClick={() => atualizar({ ano: 0 })}>{filtro.ano} <X size={12} /></button>}
-          {filtro.marca >= 0 && <button type="button" onClick={() => atualizar({ marca: -1 })}>{meta.marcas[filtro.marca][0]} <X size={12} /></button>}
+          {filtro.marca >= 0 && <button type="button" onClick={() => atualizar({ marca: -1 })}>{meta.marcas[filtro.marca]?.[0] ?? "Marca"} <X size={12} /></button>}
           {filtro.somenteEstoque && <button type="button" onClick={() => atualizar({ somenteEstoque: false })}>Em estoque <X size={12} /></button>}
         </div>
       )}
@@ -234,7 +234,7 @@ function CartaoPeca({ peca, catalogo, live, veiculo, onSelecionar, onAdicionar }
       <button type="button" className="product-photo photo-button" onClick={() => onSelecionar(peca)} aria-label={`Ver detalhes de ${titulo}`}>
         {foto ? <img src={foto} alt={titulo} loading="lazy" decoding="async" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} /> : <div className="nl-photo-placeholder"><Package size={44} strokeWidth={1} /><small>Foto em breve</small></div>}
         <span>{peca.grupo}</span>
-        {serve && <em className="nl-serve"><Check size={13} /> Serve no seu {catalogo.meta.modelos[veiculo!.modelo][1]}</em>}
+        {serve && <em className="nl-serve"><Check size={13} /> Serve no seu {catalogo.meta.modelos[veiculo!.modelo]?.[1] ?? "carro"}</em>}
         <i className="nl-photo-open" aria-hidden="true"><ArrowUpRight size={18} /></i>
       </button>
       <div className="product-info">
@@ -244,7 +244,7 @@ function CartaoPeca({ peca, catalogo, live, veiculo, onSelecionar, onAdicionar }
         <div className="product-bottom">
           <div>
             <strong>{preco > 0 ? money(preco) : "Consultar preço"}</strong>
-            <small className={disp.classe}>{disp.texto}</small>
+            <small className={disp.classe}>{disp.texto}{peca.quantidadeMinima > 1 ? ` · mín. ${peca.quantidadeMinima}` : ""}</small>
           </div>
           <button type="button" disabled={indisponivel} onClick={() => onAdicionar(peca)} aria-label={`Adicionar ${titulo} ao pedido`} className="add-button"><Plus size={17} /><span>{indisponivel ? "Indisponível" : "Adicionar ao pedido"}</span></button>
         </div>
