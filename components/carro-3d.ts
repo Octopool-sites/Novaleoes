@@ -8,7 +8,10 @@ import {
   Mesh,
   MeshStandardMaterial,
   Object3D,
-  OrthographicCamera,
+  PerspectiveCamera,
+  PCFSoftShadowMap,
+  MeshPhysicalMaterial,
+  ShadowMaterial,
   PlaneGeometry,
   PMREMGenerator,
   Quaternion,
@@ -88,6 +91,8 @@ export type Carro3D = {
   focar(id: string | null): void;
   /** Gira o carro (botões de seta), em radianos. */
   girar(delta: number): void;
+  /** Empurra o carro para a esquerda (px) quando um painel cobre a direita do palco. */
+  deslocar(px: number): void;
   dispose(): void;
 };
 
@@ -97,6 +102,49 @@ type Ancora = { pino: PinoCarro; objeto: Object3D; centroLocal: Vector3; face: V
 const suave = (v: number) => { const t = Math.max(0, Math.min(1, v)); return t * t * (3 - 2 * t); };
 const PITCH_MIN = 0.16, PITCH_MAX = 0.62, PITCH_INICIAL = 0.36;
 const YAW_INICIAL = -0.78; // três quartos: frente à esquerda, lateral esquerda à mostra
+
+// Só a pintura precisa do material "físico" (verniz); os outros viram o padrão, que compila mais rápido.
+const trocados = new Map<Material, MeshStandardMaterial>();
+function simplificar(m: MeshStandardMaterial): MeshStandardMaterial {
+  if (!(m instanceof MeshPhysicalMaterial) || m.name.toUpperCase() === "LATARIA") return m;
+  let novo = trocados.get(m);
+  if (!novo) {
+    novo = new MeshStandardMaterial({ name: m.name, color: m.color, map: m.map, normalMap: m.normalMap, roughness: m.roughness, metalness: m.metalness, roughnessMap: m.roughnessMap, metalnessMap: m.metalnessMap, transparent: m.transparent, opacity: m.opacity, side: m.side, depthWrite: m.depthWrite, alphaTest: m.alphaTest });
+    trocados.set(m, novo);
+    m.dispose();
+  }
+  return novo;
+}
+
+// Pintura com verniz, vidro escuro transparente, borracha e plásticos foscos, cromado só onde é cromado.
+function acabamento(m: MeshStandardMaterial): MeshStandardMaterial {
+  const nome = m.name.toUpperCase();
+  m.envMapIntensity = 1;
+  if (nome === "LATARIA" && m instanceof MeshPhysicalMaterial) {
+    m.color.set("#4a0710"); m.metalness = 0.55; m.roughness = 0.32; m.clearcoat = 1; m.clearcoatRoughness = 0.04; m.envMapIntensity = 0.95;
+  } else if (nome === "METAL") {
+    // Molduras das janelas e frisos: borracha/plástico preto acetinado (vinha cinza espelhado, parecia branco).
+    m.color.set("#121314"); m.metalness = 0.1; m.roughness = 0.45;
+    if (m instanceof MeshPhysicalMaterial) m.clearcoat = 0;
+  } else if (nome === "GLASS" || nome === "VIDROS") {
+    m.color.set("#0c1114"); m.opacity = 0.28; m.metalness = 0; m.roughness = 0.04; m.envMapIntensity = 1.3; m.depthWrite = false;
+  } else if (nome === "GRADE") {
+    m.color.set("#0b0b0b"); m.opacity = 0.85; m.roughness = 0.6;
+  } else if (nome === "PNEUS") {
+    m.color.set("#141414"); m.roughness = 0.92;
+  } else if (/^PL.?STIC|^PRETO|AMORTECEDORES|BANCOS/.test(nome)) {
+    m.roughness = Math.max(m.roughness, 0.75);
+  } else if (nome === "ESPELHO" || nome === "METAL.001") {
+    m.color.set("#c9cccf"); m.metalness = 1; m.roughness = 0.12;
+  } else if (nome === "MOTOR" && !m.map) {
+    // O bloco do motor veio sem textura (branco chapado): vira metal fundido escuro.
+    m.color.set("#4b5053"); m.metalness = 0.75; m.roughness = 0.42;
+  } else if (nome === "CALOTAS") {
+    m.metalness = 0.85; m.roughness = 0.3;
+  }
+  m.needsUpdate = true;
+  return m;
+}
 
 function liberar(raiz: Object3D) {
   const geometrias = new Set<Mesh["geometry"]>();
@@ -133,14 +181,15 @@ export async function montarCarro3D(host: HTMLElement, opcoes: {
   const centralizador = new Group(); // desloca o modelo para o centro ficar na origem
   giroGrupo.add(centralizador);
   cena.add(giroGrupo);
-  const camera = new OrthographicCamera(-4, 4, 3, -3, 0.1, 80);
+  // Perspectiva (lente de ~30°): com câmera ortográfica o carro parecia maquete.
+  const camera = new PerspectiveCamera(30, 1, 0.1, 100);
   const partes: ParteMovel[] = [];
   const ancoras: Ancora[] = [];
   let raioMontado = 2.3, raioAberto = 3;
   const centroAberto = new Vector3(), alvoCamera = new Vector3();
 
   // Estado animado
-  let abertura = 0, aberturaAlvo = 0;
+  let abertura = 0, aberturaAlvo = 0, desvioTela = 0, desvioTelaAlvo = 0;
   let yaw = YAW_INICIAL, pitch = PITCH_INICIAL, velYaw = 0, yawAlvo: number | null = null;
   let arrastando = false, ultimoX = 0, ultimoY = 0, tipoPonteiro = "mouse", girouAlguma = false, percorrido = 0;
 
@@ -170,6 +219,8 @@ export async function montarCarro3D(host: HTMLElement, opcoes: {
     let mexendo = false;
     const dA = aberturaAlvo - abertura;
     if (Math.abs(dA) > 0.0008) { abertura += dA * 0.16; mexendo = true; } else abertura = aberturaAlvo;
+    const dT = desvioTelaAlvo - desvioTela;
+    if (Math.abs(dT) > 0.5) { desvioTela += dT * 0.14; mexendo = true; } else desvioTela = desvioTelaAlvo;
     if (!arrastando) {
       if (yawAlvo !== null) {
         const d = Math.atan2(Math.sin(yawAlvo - yaw), Math.cos(yawAlvo - yaw));
@@ -184,13 +235,19 @@ export async function montarCarro3D(host: HTMLElement, opcoes: {
     const aspecto = largura / altura;
     const raio = raioMontado + (raioAberto - raioMontado) * suave(abertura);
     // Tela estreita (celular): aceita cortar a ponta do carro aberto para ele não ficar miúdo.
-    const meiaAltura = Math.max((raio * (largura < 700 ? 0.7 : 0.94)) / aspecto, raio * 0.56);
-    camera.left = -meiaAltura * aspecto; camera.right = meiaAltura * aspecto;
-    camera.top = meiaAltura; camera.bottom = -meiaAltura;
+    // Distância para a esfera do carro caber na tela (a mais apertada entre altura e largura).
+    const meioV = (camera.fov * Math.PI) / 360;
+    const meioH = Math.atan(Math.tan(meioV) * aspecto);
+    // A esfera sobra muito em volta do carro (ele é baixo e comprido): a folga aproxima a câmera.
+    const folga = largura < 700 ? 0.74 : aspecto > 1.3 ? 0.72 : 0.8;
+    const distancia = (raio / Math.sin(Math.min(meioV, meioH))) * folga;
+    camera.aspect = aspecto;
     // Aberto, o capô e o porta-malas sobem: a câmera acompanha o centro do carro aberto.
     alvoCamera.copy(centroAberto).multiplyScalar(suave(abertura)).applyAxisAngle(giroGrupo.up, yaw);
-    camera.position.set(alvoCamera.x, alvoCamera.y + Math.sin(pitch) * 20, alvoCamera.z + Math.cos(pitch) * 20);
+    camera.position.set(alvoCamera.x, alvoCamera.y + Math.sin(pitch) * distancia, alvoCamera.z + Math.cos(pitch) * distancia);
     camera.lookAt(alvoCamera);
+    if (Math.abs(desvioTela) > 0.5) camera.setViewOffset(largura, altura, desvioTela, 0, largura, altura);
+    else camera.clearViewOffset();
     camera.updateProjectionMatrix();
     camera.updateMatrixWorld(true);
     dirCamera.copy(camera.position).normalize();
@@ -223,6 +280,8 @@ export async function montarCarro3D(host: HTMLElement, opcoes: {
   // Arrastar gira (mouse também inclina). No celular o gesto vertical continua rolando a página (touch-action: pan-y).
   const aoBaixar = (e: PointerEvent) => {
     if (!e.isPrimary || e.button > 0) return;
+    // Painel de peças e botões por cima do carro não giram o carro.
+    if ((e.target as Element | null)?.closest?.("[data-sem-giro]")) return;
     arrastando = true; yawAlvo = null; velYaw = 0; ultimoX = e.clientX; ultimoY = e.clientY; tipoPonteiro = e.pointerType; percorrido = 0;
   };
   const aoMover = (e: PointerEvent) => {
@@ -261,6 +320,11 @@ export async function montarCarro3D(host: HTMLElement, opcoes: {
       velYaw = 0;
       agendar();
     },
+    deslocar(px) {
+      if (descartado || !Number.isFinite(px)) return;
+      desvioTelaAlvo = px;
+      agendar();
+    },
     girar(delta) {
       if (descartado) return;
       yawAlvo = (yawAlvo ?? yaw) + delta;
@@ -296,7 +360,9 @@ export async function montarCarro3D(host: HTMLElement, opcoes: {
     renderer = new WebGLRenderer({ alpha: true, antialias: true, powerPreference: "high-performance" });
     renderer.outputColorSpace = SRGBColorSpace;
     renderer.toneMapping = ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.15;
+    renderer.toneMappingExposure = 1.0;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = PCFSoftShadowMap;
     renderer.setClearColor(0xf6f4ed, 0);
     renderer.domElement.setAttribute("aria-hidden", "true");
     renderer.domElement.style.cssText = "display:block;width:100%;height:100%;";
@@ -307,15 +373,15 @@ export async function montarCarro3D(host: HTMLElement, opcoes: {
     const gltf = await new GLTFLoader().parseAsync(dados, "");
     if (descartado) { liberar(gltf.scene); return handle; }
 
-    // Materiais e texturas originais do modelo (é o que o deixa com cara de carro de verdade); só realça o reflexo.
+    // Acabamento de cada material para parecer carro de verdade (o modelo veio com vários sem cor ou espelhados).
     gltf.scene.traverse((o) => {
       if (!(o instanceof Mesh)) return;
-      for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
-        if (!(m instanceof MeshStandardMaterial)) continue;
-        m.envMapIntensity = 1.1;
-        // O bloco do motor veio sem textura (branco chapado): vira metal fundido escuro.
-        if (/^MOTOR$/i.test(m.name) && !m.map) { m.color.set("#4b5053"); m.metalness = 0.75; m.roughness = 0.42; }
-      }
+      const lista = Array.isArray(o.material) ? o.material : [o.material];
+      const transparente = lista.some((m) => m.transparent);
+      o.castShadow = !transparente;
+      o.receiveShadow = !transparente;
+      const novos = lista.map((m) => (m instanceof MeshStandardMaterial ? acabamento(simplificar(m)) : m));
+      o.material = Array.isArray(o.material) ? novos : novos[0];
     });
     centralizador.add(gltf.scene);
 
@@ -364,12 +430,19 @@ export async function montarCarro3D(host: HTMLElement, opcoes: {
 
     const sala = new RoomEnvironment();
     const pmrem = new PMREMGenerator(renderer);
-    try { ambiente = pmrem.fromScene(sala, 0.045, 0.1, 100, { size: 128 }); } finally { sala.dispose(); pmrem.dispose(); }
+    try { ambiente = pmrem.fromScene(sala, 0.04, 0.1, 100, { size: 64 }); } finally { sala.dispose(); pmrem.dispose(); }
     cena.environment = ambiente.texture;
     cena.environmentIntensity = 1.35;
-    const luz = new DirectionalLight(0xfff4de, 2.8); luz.position.set(-3, 7, 5);
-    const contra = new DirectionalLight(0xe8f0ef, 2.1); contra.position.set(5, 4, -4);
-    cena.add(luz, contra, new HemisphereLight(0xfffbf2, 0x88897b, 1.7));
+    // Luz de estúdio: principal alta e à frente (faz a sombra no chão), contraluz para o recorte e céu fraco.
+    const luz = new DirectionalLight(0xfff6e8, 2.6); luz.position.set(-2.5, 7, 4.5);
+    luz.castShadow = true;
+    luz.shadow.mapSize.set(1024, 1024);
+    Object.assign(luz.shadow.camera, { left: -4, right: 4, top: 4, bottom: -4, near: 1, far: 20 });
+    luz.shadow.bias = -0.0004;
+    luz.shadow.normalBias = 0.02;
+    luz.shadow.radius = 6;
+    const contra = new DirectionalLight(0xe8eef0, 1.4); contra.position.set(5, 4, -4);
+    cena.add(luz, contra, new HemisphereLight(0xfffbf2, 0x8a8a80, 0.6));
 
     const sombra = new Mesh(new PlaneGeometry(6.4, 6.4), new ShaderMaterial({
       transparent: true, depthWrite: false,
@@ -379,6 +452,12 @@ export async function montarCarro3D(host: HTMLElement, opcoes: {
     sombra.rotation.x = -Math.PI / 2;
     sombra.position.set(0, caixa.setFromObject(gltf.scene).min.y - 0.01, 0);
     giroGrupo.add(sombra);
+    // Chão invisível que só recebe a sombra do carro (e das peças quando ele abre).
+    const chao = new Mesh(new PlaneGeometry(30, 30), new ShadowMaterial({ opacity: 0.22 }));
+    chao.rotation.x = -Math.PI / 2;
+    chao.position.y = sombra.position.y + 0.002;
+    chao.receiveShadow = true;
+    cena.add(chao);
 
     host.appendChild(renderer.domElement);
     superficie.style.touchAction = "pan-y";
@@ -391,6 +470,9 @@ export async function montarCarro3D(host: HTMLElement, opcoes: {
     observador = new ResizeObserver(redimensionar);
     observador.observe(host);
     redimensionar();
+    // Compila os materiais em paralelo (sem travar a página) antes do primeiro quadro; a foto do carro fica na tela.
+    try { await renderer.compileAsync(cena, camera); } catch { /* navegador sem compilação paralela: compila no quadro */ }
+    if (descartado) return handle;
     passo();
     if (!descartado) opcoes.onPronto();
     return handle;
