@@ -157,3 +157,13 @@ regressão na build de produção com CSP, todos OK. Script do fluxo: fora do re
   apontar. Ampliar o vínculo ERP para mais peças (aprovação online com reserva) é uma mudança no
   Nexus, fora deste repositório.
 - Ainda não há página própria por peça (URL por produto) nem indexação: o site segue `noindex`.
+
+## Atualização automática de preço e estoque — 28/09/2026
+
+Em 3 dias sem reexportar (25/09 → 28/09), 20 preços mudaram e 27 peças esgotaram no ERP, mas o site continuava mostrando "Em estoque". Por isso a exportação passou a rodar sozinha.
+
+- **Script:** `scripts/catalogo/atualizar.mjs`. Faz `git pull` da main, roda a exportação **somente leitura** no container de produção (a mesma do cabeçalho de `exportar-erp.cjs`), confere a exportação (precisa terminar em `NL_END` e ter pelo menos 90% das peças da anterior), roda o `construir.mjs` e, se algo mudou, commita `chore(catalogo): estoque e preços do ERP — DD/MM, HH:MM` e faz push na main. A Vercel publica sozinha. `--sem-publicar` commita sem push.
+- **Onde roda:** num clone só para isso, `C:\dev\novaleoes-site-estoque`, sempre na main, para nunca tocar na pasta de trabalho. Precisa do AWS CLI com o profile `octopool` e do plugin do Session Manager (o PC do Luca tem os dois).
+- **Agendamento:** tarefa do Windows "Nova Leoes estoque do site" chamando `scripts/catalogo/atualizar-agendado.cmd`. Log em `%TEMP%\nl-estoque-site.log`.
+- **No site:** o catálogo mostra "estoque de DD/MM, HHh" com a hora da exportação.
+- **Limite:** continua sendo uma fotografia (duas ou três por dia), não tempo real. Estoque ao vivo para todas as peças exige um endpoint público de leitura no Nexus (hoje só as sete peças integradas vêm ao vivo pela API do Commerce).
