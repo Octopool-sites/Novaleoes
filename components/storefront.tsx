@@ -12,7 +12,7 @@ import { type Veiculo, type VeiculoSalvo, lerVeiculoSalvo, resolverVeiculo, salv
 import type { OpcaoFrete, ResultadoFrete } from "@/lib/frete";
 import { LOJA, whatsappUrl } from "@/lib/loja";
 import { mensagemPedido } from "@/lib/pedido";
-import ScrollHero from "./scroll-hero";
+import CarroInterativo from "./carro-interativo";
 import CatalogoLoja, { tituloDaPeca } from "./catalogo-loja";
 import PecaDetalhe, { linkDaPeca } from "./peca-detalhe";
 import SeletorVeiculo from "./seletor-veiculo";
@@ -406,7 +406,7 @@ export default function Storefront() {
         <main className="wrap"><PaginaLoja pagina={pagina} totalPecas={catalogo?.meta.total || 0} onPagina={mudarPagina} onCatalogo={() => irAoCatalogo()} /></main>
       ) : (
         <>
-          <ScrollHero products={products} onProduct={abrirProduto} />
+          <CarroInterativo catalogo={catalogo} live={live} veiculo={veiculo} onSelecionar={setDetalhe} onAdicionar={adicionarPeca} onDepartamento={explorarDepartamento} />
           <main className="wrap">
             {editorialVariant && <Suspense fallback={null}><StorefrontEditorialVariant products={products} onExplore={exploreCategory} /></Suspense>}
             <section id="catalogo" className="catalog-section" tabIndex={-1}>
