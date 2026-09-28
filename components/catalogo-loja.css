@@ -77,7 +77,7 @@
 @media (max-width: 700px) {
   .nl-product-dialog .detail-photo { position: static; }
   .nl-detail-acoes { grid-template-columns: 1fr; }
-  .nl-detail-aplicacoes th:nth-child(2), .nl-detail-aplicacoes td:nth-child(2) { display: none; }
+  .nl-detail-aplicacoes table:not(.nl-aplic-descritos) :is(th, td):nth-child(2) { display: none; }
 }
 
 @media (max-width: 1100px) {

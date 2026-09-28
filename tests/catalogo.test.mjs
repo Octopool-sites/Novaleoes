@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { limparNome, limparGrupo, limparDescricao, unidadeLegivel, VAZAMENTO_CODIGO } from "../scripts/catalogo/nomes.mjs";
 import { classificar, DEPARTAMENTOS, normalizarTexto } from "../scripts/catalogo/taxonomia.mjs";
 import { construir, vazamentos, grupoDerivado, limparMarca, nomeModelo, chaveModelo, idCurto, bucketDe, normalizarAno, BUCKETS } from "../scripts/catalogo/construir.mjs";
-import { filtrar, montarCatalogo, filtroDaUrl, filtroParaUrl, FILTRO_VAZIO, resumoAplicacoes, faixaAnos } from "../lib/catalogo-site.ts";
+import { filtrar, montarCatalogo, filtroDaUrl, filtroParaUrl, FILTRO_VAZIO, resumoAplicacoes, faixaAnos, separarDescricao } from "../lib/catalogo-site.ts";
 
 test("nomes: expande abreviações do balcão, restaura acentos e remove código de fabricante do fim", () => {
   assert.equal(limparNome("AMORT DT LE"), "Amortecedor Dianteiro Lado Esquerdo");
@@ -134,4 +134,14 @@ test("código de fabricante e referências não chegam ao site", () => {
     apl: [{ pid: "x1", m: "Fiat", mo: "PALIO", v: null, mt: null, ai: 2000, af: 2005, o: "Orig 7.086.502" }], bind: [] });
   assert.deepEqual(vazamentos({ indice, detalhes }), []);
   assert.doesNotMatch(JSON.stringify(indice) + JSON.stringify([...detalhes.values()]), /AL910|46\.842|7\.086/);
+});
+
+test("descrição: separa a lista de veículos do texto e converte anos de 2 dígitos", () => {
+  const { texto, veiculos } = separarDescricao(["Doblo / Palio / Mobi / Strada", "Mobi 1.0 8V EVO - 16 / ...", "Palio 1.3 8V FIRE - 02 / 05", "Palio / Siena / Strada 96", "Opala 4.1 - 85 / 92"]);
+  assert.deepEqual(texto, ["Doblo / Palio / Mobi / Strada", "Palio / Siena / Strada 96"]);
+  assert.deepEqual(veiculos, [
+    { nome: "Mobi 1.0 8V EVO", inicio: 2016, fim: 0 },
+    { nome: "Palio 1.3 8V FIRE", inicio: 2002, fim: 2005 },
+    { nome: "Opala 4.1", inicio: 1985, fim: 1992 },
+  ]);
 });

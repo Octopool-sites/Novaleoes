@@ -4,14 +4,15 @@ import CalculoFrete from "./calculo-frete";
 import { LOJA, enderecoLinha, mapaUrl, telefoneHref, whatsappUrl } from "@/lib/loja";
 import "./storefront-institucional.css";
 import { caminho, BASE_URL } from "@/lib/base";
+import { type Pagina, PAGINAS, hrefPagina } from "@/lib/paginas";
 
 const CIDADE = `${LOJA.endereco.cidade}/${LOJA.endereco.uf}`;
 
-export function StorefrontInstitucional({ totalPecas }: { totalPecas: number }) {
+// Seções institucionais: cada uma é mostrada numa página própria (?pagina=), não na página inicial.
+export function SecaoSobre({ totalPecas }: { totalPecas: number }) {
   const anos = new Date().getFullYear() - LOJA.fundacao;
   const pecas = totalPecas ? `${Math.floor(totalPecas / 1000)} mil` : "milhares de";
   return (
-    <div className="nl-institucional">
       <section className="nl-sobre" id="quem-somos" aria-labelledby="nl-sobre-titulo">
         <div className="nl-sobre-copy">
           <p className="nl-editorial-eyebrow">QUEM SOMOS</p>
@@ -26,13 +27,21 @@ export function StorefrontInstitucional({ totalPecas }: { totalPecas: number }) 
           <li><b>{CIDADE}</b><span>loja física e entrega</span></li>
         </ul>
       </section>
+  );
+}
 
+export function SecaoServicos() {
+  return (
       <section className="nl-servicos" aria-label="Como a loja atende">
         <article><Truck size={24} strokeWidth={1.4} /><h3>Entrega própria</h3><p>Motoboys da loja levam o pedido para oficinas e clientes da região. Prazo e valor combinados no atendimento.</p></article>
         <article><ShieldCheck size={24} strokeWidth={1.4} /><h3>Aplicação conferida</h3><p>Antes de aprovar, a equipe confere se a peça serve no seu modelo, ano e motor. Sem surpresa na hora de instalar.</p></article>
         <article><MessageCircle size={24} strokeWidth={1.4} /><h3>Atendimento direto</h3><p>Não achou a peça no site? A equipe procura para você pelo WhatsApp ou telefone, inclusive itens sob encomenda.</p></article>
       </section>
+  );
+}
 
+export function SecaoEntrega() {
+  return (
       <section className="nl-entrega" id="entrega" aria-labelledby="nl-entrega-titulo">
         <div>
           <p className="nl-editorial-eyebrow">ENTREGA E FRETE</p>
@@ -54,7 +63,11 @@ export function StorefrontInstitucional({ totalPecas }: { totalPecas: number }) 
         </div>
         <div className="nl-entrega-calc"><CalculoFrete titulo="Calcule o frete para o seu CEP" /></div>
       </section>
+  );
+}
 
+export function SecaoContato() {
+  return (
       <section className="nl-contato" id="contato" aria-labelledby="nl-contato-titulo">
         <div className="nl-contato-info">
           <p className="nl-editorial-eyebrow">ONDE ESTAMOS</p>
@@ -74,7 +87,11 @@ export function StorefrontInstitucional({ totalPecas }: { totalPecas: number }) 
           </a>
         </div>
       </section>
+  );
+}
 
+export function SecaoPoliticas() {
+  return (
       <section className="nl-politicas" id="trocas-e-garantia" aria-labelledby="nl-politicas-titulo">
         <div>
           <p className="nl-editorial-eyebrow">TROCAS E GARANTIA</p>
@@ -88,19 +105,18 @@ export function StorefrontInstitucional({ totalPecas }: { totalPecas: number }) 
           <article><h3>Pagamento e retirada</h3><p>Pagamento na loja ou combinado com a equipe na aprovação. Retirada no balcão ou entrega pelos motoboys da casa. Não há cobrança online neste site.</p></article>
         </div>
       </section>
-    </div>
   );
 }
 
-export function RodapeLoja({ storefrontHref, departamentos, onDepartamento }: {
-  storefrontHref: string; departamentos: { id: string; nome: string }[]; onDepartamento: (id: string) => void;
+export function RodapeLoja({ storefrontHref, departamentos, onDepartamento, onPagina }: {
+  storefrontHref: string; departamentos: { id: string; nome: string }[]; onDepartamento: (id: string) => void; onPagina: (p: Pagina) => void;
 }) {
   return (
     <footer className="nl-footer">
       <div className="wrap">
         <div className="nl-footer-top">
           <div><p className="nl-kicker">{LOJA.nome.toUpperCase()}</p><h2>Seu próximo caminho<br />merece <em>cuidado.</em></h2></div>
-          <a className="nl-button" href="#catalogo">Encontrar minha peça <ArrowUpRight size={19} /></a>
+          <a className="nl-button" href={`${BASE_URL}#catalogo`} onClick={(e) => { e.preventDefault(); onDepartamento(""); }}>Encontrar minha peça <ArrowUpRight size={19} /></a>
         </div>
         <div className="nl-footer-colunas">
           <div className="nl-footer-coluna">
@@ -115,12 +131,7 @@ export function RodapeLoja({ storefrontHref, departamentos, onDepartamento }: {
           </nav>
           <nav className="nl-footer-coluna" aria-label="Institucional">
             <h3>A loja</h3>
-            <a href="#quem-somos">Quem somos</a>
-            <a href="#contato">Onde estamos</a>
-            <a href="#como-funciona">Como comprar</a>
-            <a href="#entrega">Entrega e frete</a>
-            <a href="#trocas-e-garantia">Trocas e garantia</a>
-            <a href="#duvidas">Dúvidas frequentes</a>
+            {PAGINAS.map((p) => <a key={p.id} href={hrefPagina(p.id)} onClick={(e) => { e.preventDefault(); onPagina(p.id); }}>{p.titulo}</a>)}
           </nav>
           <div className="nl-footer-coluna">
             <h3>Atendimento</h3>

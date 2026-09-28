@@ -5,7 +5,7 @@ import { productTitles } from "./storefront-editorial";
 import {
   type Catalogo, type Filtro, type Peca, FILTRO_VAZIO, anosDisponiveis, filtrar, money, resumoAplicacoes, urlFoto,
 } from "@/lib/catalogo-site";
-import { type Veiculo, servePara } from "@/lib/garagem";
+import { type Veiculo, type VeiculoSalvo, servePara } from "@/lib/garagem";
 import "./catalogo-loja.css";
 
 const PAGINA = 24;
@@ -21,7 +21,7 @@ export type CatalogoLojaProps = {
   onSelecionar: (peca: Peca) => void;
   onAdicionar: (peca: Peca) => void;
   onTentarNovamente: () => void;
-  onEscolherVeiculo: () => void;
+  onVeiculo: (v: VeiculoSalvo | null) => void;
 };
 
 export function precoDaPeca(peca: Peca, live: Map<string, Product>) {
@@ -51,7 +51,7 @@ export function dataEstoque(catalogo: Catalogo | null) {
   return new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", timeZone: "America/Sao_Paulo" });
 }
 
-export default function CatalogoLoja({ catalogo, carregando, erro, live, filtro, veiculo, onFiltro, onSelecionar, onAdicionar, onTentarNovamente, onEscolherVeiculo }: CatalogoLojaProps) {
+export default function CatalogoLoja({ catalogo, carregando, erro, live, filtro, veiculo, onFiltro, onSelecionar, onAdicionar, onTentarNovamente, onVeiculo }: CatalogoLojaProps) {
   const [limite, setLimite] = useState(PAGINA);
   const [filtrosAbertos, setFiltrosAbertos] = useState(false);
   const filtroAdiado = useDeferredValue(filtro);
@@ -63,9 +63,15 @@ export default function CatalogoLoja({ catalogo, carregando, erro, live, filtro,
   const gruposDoDepartamento = departamento && meta ? departamento.grupos.slice(0, 18) : [];
   const modelos = useMemo(() => {
     if (!meta) return [] as { idx: number; montadora: number; nome: string }[];
-    return meta.modelos.map((m, idx) => ({ idx, montadora: m[0], nome: m[1] })).filter((m) => filtro.montadora < 0 || m.montadora === filtro.montadora).sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+    if (filtro.montadora < 0) return [];
+    return meta.modelos.map((m, idx) => ({ idx, montadora: m[0], nome: m[1], n: m[2] })).filter((m) => m.montadora === filtro.montadora && m.n > 0).sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
   }, [meta, filtro.montadora]);
-  const anos = useMemo(() => (catalogo && (filtro.modelo >= 0 || filtro.montadora >= 0) ? anosDisponiveis(catalogo, filtro.modelo, filtro.montadora) : []), [catalogo, filtro.modelo, filtro.montadora]);
+  const montadorasAz = useMemo(() => {
+    if (!meta) return [] as { idx: number; nome: string }[];
+    const comPecas = new Set(meta.modelos.filter((m) => m[2] > 0).map((m) => m[0]));
+    return meta.montadoras.map((nome, idx) => ({ idx, nome })).filter((m) => comPecas.has(m.idx)).sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+  }, [meta]);
+  const anos = useMemo(() => (catalogo && filtro.modelo >= 0 ? anosDisponiveis(catalogo, filtro.modelo, -1) : []), [catalogo, filtro.modelo]);
   const marcas = useMemo(() => {
     if (!meta) return [] as { idx: number; nome: string; n: number }[];
     const contagem = new Map<string, number>();
@@ -75,29 +81,35 @@ export default function CatalogoLoja({ catalogo, carregando, erro, live, filtro,
   }, [meta, resultados, filtro.marca]);
 
   const atualizar = (parte: Partial<Filtro>) => onFiltro({ ...filtro, ...parte });
-  const filtrandoPeloCarro = !!veiculo && filtro.modelo === veiculo.modelo && filtro.ano === veiculo.ano;
-  const filtrosAtivos = [filtro.departamento, filtro.grupo >= 0, filtro.marca >= 0, filtro.montadora >= 0, filtro.modelo >= 0, filtro.ano > 0, filtro.somenteEstoque].filter(Boolean).length;
+  // Montadora → modelo → ano, um de cada vez. O carro fica lembrado a partir do modelo.
+  const lembrar = (modelo: number, ano: number) => { if (meta) onVeiculo(modelo >= 0 ? { montadora: meta.montadoras[meta.modelos[modelo][0]], modelo: meta.modelos[modelo][1], ano } : null); };
+  const escolherMontadora = (montadora: number) => { atualizar({ montadora, modelo: -1, ano: 0 }); lembrar(-1, 0); };
+  const escolherModelo = (modelo: number) => { atualizar({ modelo, ano: 0 }); lembrar(modelo, 0); };
+  const escolherAno = (ano: number) => { atualizar({ ano }); lembrar(filtro.modelo, ano); };
+  const limparCarro = () => { atualizar({ montadora: -1, modelo: -1, ano: 0 }); lembrar(-1, 0); };
+  const filtrosAtivos = [filtro.marca >= 0, filtro.somenteEstoque, filtro.ordem !== "relevancia"].filter(Boolean).length;
   const visiveis = resultados.slice(0, limite);
   const estoqueEm = dataEstoque(catalogo);
 
   return (
     <div className="nl-catalogo">
-      <div className={`nl-carro-barra${veiculo ? " com-carro" : ""}`}>
-        <CarFront size={20} />
-        {veiculo ? (
-          <>
-            <span>{filtrandoPeloCarro ? <>Mostrando peças para o seu <b>{veiculo.rotulo}</b></> : <>Seu carro: <b>{veiculo.rotulo}</b> · as peças que servem aparecem marcadas</>}</span>
-            {filtrandoPeloCarro
-              ? <button type="button" onClick={() => atualizar({ montadora: -1, modelo: -1, ano: 0 })}>Ver todas as peças</button>
-              : <button type="button" onClick={() => atualizar({ montadora: veiculo.montadora, modelo: veiculo.modelo, ano: veiculo.ano })}>Só peças do meu carro</button>}
-            <button type="button" onClick={onEscolherVeiculo}>Trocar carro</button>
-          </>
-        ) : (
-          <>
-            <span>Selecione seu carro para ver só as peças com aplicação para ele.</span>
-            <button type="button" className="nl-carro-barra-cta" onClick={onEscolherVeiculo}>Selecionar meu carro</button>
-          </>
-        )}
+      <div className={`nl-carro-barra${filtro.modelo >= 0 ? " com-carro" : ""}`} role="group" aria-label="Filtrar pelo seu carro">
+        <p className="nl-carro-barra-rotulo"><CarFront size={19} /> {veiculo && filtro.modelo === veiculo.modelo ? <>Peças para o seu <b>{veiculo.rotulo}</b></> : "Qual é o seu carro?"}</p>
+        <div className="nl-carro-selects">
+          <span className="nl-select"><select aria-label="Montadora" value={filtro.montadora} disabled={!meta} onChange={(e) => escolherMontadora(Number(e.target.value))}>
+            <option value={-1}>Montadora</option>
+            {montadorasAz.map((m) => <option key={m.idx} value={m.idx}>{m.nome}</option>)}
+          </select><ChevronDown size={15} /></span>
+          <span className="nl-select"><select aria-label="Modelo" value={filtro.modelo} disabled={filtro.montadora < 0} onChange={(e) => escolherModelo(Number(e.target.value))}>
+            <option value={-1}>Modelo</option>
+            {modelos.map((m) => <option key={m.idx} value={m.idx}>{m.nome}</option>)}
+          </select><ChevronDown size={15} /></span>
+          <span className="nl-select"><select aria-label="Ano" value={filtro.ano} disabled={filtro.modelo < 0} onChange={(e) => escolherAno(Number(e.target.value))}>
+            <option value={0}>Ano</option>
+            {anos.map((a) => <option key={a} value={a}>{a}</option>)}
+          </select><ChevronDown size={15} /></span>
+          {(filtro.montadora >= 0 || veiculo) && <button type="button" className="nl-carro-limpar" onClick={limparCarro}><X size={14} /> Limpar</button>}
+        </div>
       </div>
 
       <div className="nl-catalog-tools">
@@ -140,29 +152,6 @@ export default function CatalogoLoja({ catalogo, carregando, erro, live, filtro,
       )}
 
       <div id="nl-filtros" className={`nl-filtros${filtrosAbertos ? " aberto" : ""}`} hidden={!filtrosAbertos}>
-        <div className="nl-filtro-veiculo">
-          <p className="nl-filtro-titulo"><CarFront size={18} /> Veículo</p>
-          <div className="nl-filtro-selects">
-            <label>Montadora
-              <span className="nl-select"><select value={filtro.montadora} onChange={(e) => atualizar({ montadora: Number(e.target.value), modelo: -1, ano: 0 })}>
-                <option value={-1}>Todas</option>
-                {meta?.montadoras.map((m, idx) => <option key={m} value={idx}>{m}</option>)}
-              </select><ChevronDown size={15} /></span>
-            </label>
-            <label>Modelo
-              <span className="nl-select"><select value={filtro.modelo} disabled={!meta} onChange={(e) => { const modelo = Number(e.target.value); atualizar({ modelo, montadora: modelo >= 0 && meta ? meta.modelos[modelo][0] : filtro.montadora, ano: 0 }); }}>
-                <option value={-1}>Todos</option>
-                {modelos.map((m) => <option key={m.idx} value={m.idx}>{filtro.montadora < 0 && meta ? `${meta.montadoras[m.montadora]} ${m.nome}` : m.nome}</option>)}
-              </select><ChevronDown size={15} /></span>
-            </label>
-            <label>Ano
-              <span className="nl-select"><select value={filtro.ano} disabled={!anos.length} onChange={(e) => atualizar({ ano: Number(e.target.value) })}>
-                <option value={0}>{anos.length ? "Todos" : "Escolha o modelo"}</option>
-                {anos.map((a) => <option key={a} value={a}>{a}</option>)}
-              </select><ChevronDown size={15} /></span>
-            </label>
-          </div>
-        </div>
         <div className="nl-filtro-outros">
           <label>Marca da peça
             <span className="nl-select"><select value={filtro.marca} onChange={(e) => atualizar({ marca: Number(e.target.value) })}>
@@ -179,15 +168,12 @@ export default function CatalogoLoja({ catalogo, carregando, erro, live, filtro,
             </select><ChevronDown size={15} /></span>
           </label>
           <label className="nl-check"><input type="checkbox" checked={filtro.somenteEstoque} onChange={(e) => atualizar({ somenteEstoque: e.target.checked })} /> Só peças em estoque</label>
-          {filtrosAtivos > 0 && <button type="button" className="nl-limpar" onClick={() => onFiltro({ ...FILTRO_VAZIO, q: filtro.q })}><X size={14} /> Limpar filtros</button>}
+          {filtrosAtivos > 0 && <button type="button" className="nl-limpar" onClick={() => atualizar({ marca: -1, somenteEstoque: false, ordem: "relevancia" })}><X size={14} /> Limpar filtros</button>}
         </div>
       </div>
 
-      {(filtro.montadora >= 0 || filtro.modelo >= 0 || filtro.marca >= 0 || filtro.ano > 0 || filtro.somenteEstoque) && meta && (
+      {(filtro.marca >= 0 || filtro.somenteEstoque) && meta && (
         <div className="nl-filtros-resumo" aria-label="Filtros aplicados">
-          {filtro.montadora >= 0 && <button type="button" onClick={() => atualizar({ montadora: -1, modelo: -1, ano: 0 })}>{meta.montadoras[filtro.montadora] ?? "Montadora"} <X size={12} /></button>}
-          {filtro.modelo >= 0 && <button type="button" onClick={() => atualizar({ modelo: -1, ano: 0 })}>{meta.modelos[filtro.modelo]?.[1] ?? "Modelo"} <X size={12} /></button>}
-          {filtro.ano > 0 && <button type="button" onClick={() => atualizar({ ano: 0 })}>{filtro.ano} <X size={12} /></button>}
           {filtro.marca >= 0 && <button type="button" onClick={() => atualizar({ marca: -1 })}>{meta.marcas[filtro.marca]?.[0] ?? "Marca"} <X size={12} /></button>}
           {filtro.somenteEstoque && <button type="button" onClick={() => atualizar({ somenteEstoque: false })}>Em estoque <X size={12} /></button>}
         </div>
