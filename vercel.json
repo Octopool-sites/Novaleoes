@@ -14,10 +14,15 @@
     { "source": "/versao-b.html", "destination": "/?visual=editorial", "permanent": false }
   ],
   "crons": [{ "path": "/api/maintenance", "schedule": "0 7 * * *" }],
-  "headers": [{ "source": "/(.*)", "headers": [
-    { "key": "X-Robots-Tag", "value": "noindex, nofollow" },
-    { "key": "X-Content-Type-Options", "value": "nosniff" },
-    { "key": "Referrer-Policy", "value": "no-referrer" },
-    { "key": "Content-Security-Policy", "value": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; media-src 'self' blob:; font-src 'self'; connect-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'" }
-  ]}]
+  "headers": [
+    { "source": "/(.*)", "headers": [
+      { "key": "X-Robots-Tag", "value": "noindex, nofollow" },
+      { "key": "X-Content-Type-Options", "value": "nosniff" },
+      { "key": "Referrer-Policy", "value": "no-referrer" },
+      { "key": "Content-Security-Policy", "value": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://octopool-fotos-produtos.s3.sa-east-1.amazonaws.com https://api.octopool.com.br; media-src 'self' blob:; font-src 'self'; connect-src 'self' https://cep.awesomeapi.com.br https://viacep.com.br; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'" }
+    ]},
+    { "source": "/catalogo/(.*)", "headers": [
+      { "key": "Cache-Control", "value": "public, max-age=3600, s-maxage=86400, stale-while-revalidate=86400" }
+    ]}
+  ]
 }

@@ -3,6 +3,7 @@ import { ArrowDown, ArrowRight, ArrowUpRight } from "lucide-react";
 import type { Product } from "@/lib/catalog";
 import { productTitles } from "./storefront-editorial";
 import "./storefront-editorial-variant.css";
+import { caminho } from "@/lib/base";
 
 const stories = [
   {
@@ -47,7 +48,7 @@ function StoryImage({ name, product }: { name: string; product: Product | undefi
     <div className={`nl-v2-artboard${showProduct ? " nl-v2-artboard-product" : ""}`}>
       {!showProduct && <img
         className="nl-v2-scene"
-        src={name === "filtros" ? "/assets/car/nova-leoes-assembled.webp" : "/assets/car/nova-leoes-exploded.webp"}
+        src={caminho(name === "filtros" ? "assets/car/nova-leoes-assembled.webp" : "assets/car/nova-leoes-exploded.webp")}
         alt=""
         width={2688}
         height={1520}

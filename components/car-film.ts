@@ -1,4 +1,5 @@
 export type CarFilm = { update(progress: number): void; dispose(): void };
+import { caminho } from "@/lib/base";
 
 export type CarFilmOptions = {
   src?: string;
@@ -27,8 +28,8 @@ export function mountCarFilm(
 ): CarFilm {
   mounts.get(host)?.dispose();
 
-  const src = options.src ?? "/assets/car/nova-leoes-exploded.mp4";
-  const posterSrc = options.poster ?? "/assets/car/nova-leoes-assembled.webp";
+  const src = options.src ?? caminho("assets/car/nova-leoes-exploded.mp4");
+  const posterSrc = options.poster ?? caminho("assets/car/nova-leoes-assembled.webp");
   const fps = Number.isFinite(options.framesPerSecond) ? clamp(options.framesPerSecond!, 1, 60) : 24;
   const endProgress = Number.isFinite(options.endProgress) ? clamp(options.endProgress!, 0.01, 1) : 1;
   const motion = window.matchMedia("(prefers-reduced-motion: reduce)");

@@ -1,0 +1,101 @@
+/* Catálogo completo: departamentos, grupos, filtro por veículo e grade de peças. Segue a paleta da versão A. */
+.nl-catalogo { --nl-verde: #303b2b; --nl-verde-claro: #eef1e6; --nl-dourado: #b48c36; }
+.nl-store .nl-catalogo .nl-catalog-tools { flex-wrap: wrap; row-gap: 12px; }
+.nl-store .nl-catalogo .searchbox { flex: 1 1 420px; }
+.nl-filtros-toggle { display: inline-flex; align-items: center; gap: 9px; min-height: 46px; padding: 0 18px; border: 1px solid #dedfd4; border-radius: 12px; background: #fff; color: #3d4634; font-size: 13px; font-weight: 500; }
+.nl-filtros-toggle:hover, .nl-filtros-toggle.ativo { border-color: #8c916e; background: #f6f6f1; }
+.nl-filtros-toggle b { display: grid; place-items: center; min-width: 21px; height: 21px; padding: 0 6px; border-radius: 30px; background: var(--nl-verde); color: #fff; font-size: 11px; font-weight: 600; }
+
+.nl-store .nl-departamentos { margin: 8px 0 14px; }
+.nl-store .nl-departamentos button { display: inline-flex; align-items: center; gap: 8px; }
+.nl-store .nl-departamentos button small { font-size: 10px; color: #8a9279; }
+.nl-store .nl-departamentos button.active small { color: #cfd6c1; }
+
+.nl-grupos { margin: 0 0 22px; padding: 16px 18px; background: #f8f8f3; border: 1px solid #e8e9e0; border-radius: 12px; }
+.nl-grupos-rotulo { display: block; margin-bottom: 11px; font-size: 12px; color: #6a7260; }
+.nl-grupos-lista { display: flex; flex-wrap: wrap; gap: 7px; }
+.nl-grupos-lista button { display: inline-flex; align-items: center; gap: 7px; min-height: 34px; padding: 6px 13px; border: 1px solid #dfe1d6; border-radius: 30px; background: #fff; font-size: 12px; color: #4b543f; }
+.nl-grupos-lista button small { font-size: 10px; color: #98a08a; }
+.nl-grupos-lista button:hover { border-color: #aab394; }
+.nl-grupos-lista button.active { background: var(--nl-verde); border-color: var(--nl-verde); color: #fff; }
+.nl-grupos-lista button.active small { color: #cfd6c1; }
+
+.nl-filtros { display: grid; grid-template-columns: 1.4fr 1fr; gap: 22px; margin: 0 0 24px; padding: 22px 24px; background: #f3f5eb; border: 1px solid #e0e6d2; border-radius: 14px; }
+.nl-filtros[hidden] { display: none; }
+.nl-filtro-titulo { display: flex; align-items: center; gap: 9px; margin: 0 0 14px; font-size: 13px; font-weight: 500; color: #36482d; }
+.nl-filtro-titulo svg { color: var(--nl-dourado); }
+.nl-filtro-selects { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.nl-filtro-outros { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-content: start; padding-top: 37px; }
+.nl-filtros label { display: flex; flex-direction: column; gap: 6px; font-size: 11px; letter-spacing: .3px; color: #5f6d52; }
+.nl-select { position: relative; display: block; }
+.nl-select select { width: 100%; min-height: 44px; padding: 0 36px 0 13px; border: 1px solid #d5dcc7; border-radius: 9px; background: #fff; color: #283023; font-size: 13px; appearance: none; }
+.nl-select select:disabled { color: #9aa28d; background: #f6f7f2; }
+.nl-select svg { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: #7a8568; pointer-events: none; }
+.nl-check { flex-direction: row !important; align-items: center; gap: 9px !important; font-size: 13px !important; color: #36482d !important; min-height: 44px; }
+.nl-check input { width: 17px; height: 17px; accent-color: var(--nl-verde); }
+.nl-limpar { display: inline-flex; align-items: center; gap: 7px; justify-self: end; min-height: 44px; font-size: 12px; color: #6e5a2a; text-decoration: underline; text-underline-offset: 3px; }
+
+.nl-filtros-resumo { display: flex; flex-wrap: wrap; gap: 8px; margin: -8px 0 20px; }
+.nl-filtros-resumo button { display: inline-flex; align-items: center; gap: 8px; min-height: 32px; padding: 4px 12px; border-radius: 30px; background: var(--nl-verde-claro); border: 1px solid #d8dfca; color: #35442b; font-size: 12px; }
+.nl-filtros-resumo button:hover { background: #e2e7d5; }
+
+.nl-store .nl-product-card .application { display: flex; gap: 6px; align-items: flex-start; }
+.nl-store .nl-product-card .application svg { flex-shrink: 0; margin-top: 3px; color: #8d9680; }
+.nl-store .nl-product-card .product-bottom small.nl-disp-online { color: #3f5a2d; font-weight: 500; }
+.nl-store .nl-product-card .product-bottom small.nl-disp-loja { color: #4a5b3a; }
+.nl-store .nl-product-card .product-bottom small.nl-disp-consulta { color: #7d7a63; }
+.nl-store .nl-product-card .product-bottom small.nl-disp-fora { color: #9a5c3a; }
+.nl-store .nl-product-card .product-photo > span { max-width: calc(100% - 30px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.nl-carregar-mais { display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 42px 0 8px; color: #6c7362; font-size: 12px; }
+.nl-carregar-mais .nl-button { gap: 14px; }
+
+/* Detalhe da peça (dialog em portal, fora de .nl-store). */
+.nl-product-dialog { max-height: calc(100vh - 40px); overflow: auto; }
+.nl-product-dialog .detail-photo { position: sticky; top: 0; align-self: start; }
+.nl-detail-destaques { margin: 14px 0 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 7px; }
+.nl-detail-destaques li { padding: 6px 11px; border-radius: 30px; background: #f3f1e6; border: 1px solid #e6e1cc; color: #5f5636; font-size: 12px; }
+.nl-detail-aplicacoes { margin: 20px 0 16px; }
+.nl-detail-subtitulo { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; font-size: 13px; font-weight: 500; color: #36482d; }
+.nl-detail-subtitulo svg { color: #b48c36; }
+.nl-detail-aplicacoes table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.nl-detail-aplicacoes th { text-align: left; padding: 6px 8px; font-weight: 500; font-size: 10px; letter-spacing: .8px; text-transform: uppercase; color: #6c7362; border-bottom: 1px solid #e1e5d6; }
+.nl-detail-aplicacoes td { padding: 8px; border-bottom: 1px solid #edefe6; color: #3d4634; vertical-align: top; }
+.nl-detail-aplicacoes td small { display: block; color: #7b8272; font-size: 11px; }
+.nl-detail-aplicacoes tbody tr:hover td { background: #f8f8f3; }
+.nl-detail-aplicacoes .subtle { margin-top: 8px; font-size: 12px; }
+.nl-product-dialog .compatibility-note { margin-top: 16px; display: flex; gap: 12px; align-items: flex-start; }
+.nl-product-dialog .compatibility-note svg { color: #b48c36; flex-shrink: 0; margin-top: 2px; }
+.nl-product-dialog .detail-price { display: block; margin-top: 18px; }
+.nl-detail-acoes { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 16px; }
+.nl-whats-button { display: inline-flex; align-items: center; justify-content: center; gap: 9px; min-height: 48px; padding: 0 16px; border-radius: 9px; border: 1px solid #cfd8bb; background: #f3f5eb; color: #35442b; font-size: 13px; font-weight: 500; }
+.nl-whats-button:hover { background: #e3e8d6; }
+.nl-cart-whats { display: flex; align-items: center; justify-content: center; gap: 9px; min-height: 46px; margin-top: 10px; border-radius: 9px; border: 1px solid #cfd8bb; background: #f3f5eb; color: #35442b; font-size: 13px; font-weight: 500; }
+.nl-cart-whats:hover { background: #e3e8d6; }
+.nl-cart-line-obs { display: block; margin-top: 3px; font-size: 11px; color: #7b8272; }
+.nl-cart-aviso { margin-top: 10px; padding: 11px 13px; border-radius: 9px; background: #f8f6ee; border: 1px solid #ebe4cd; color: #6a644f; font-size: 12px; line-height: 1.6; }
+@media (max-width: 700px) {
+  .nl-product-dialog .detail-photo { position: static; }
+  .nl-detail-acoes { grid-template-columns: 1fr; }
+  .nl-detail-aplicacoes th:nth-child(2), .nl-detail-aplicacoes td:nth-child(2) { display: none; }
+}
+
+@media (max-width: 1100px) {
+  .nl-filtros { grid-template-columns: 1fr; }
+  .nl-filtro-outros { padding-top: 0; }
+}
+@media (max-width: 960px) and (min-width: 701px) {
+  .nl-store .nl-header-nav { gap: 14px; font-size: 12px; }
+  .nl-store .nl-header-nav a:nth-child(3), .nl-store .nl-header-nav a:nth-child(5) { display: none; }
+}
+@media (max-width: 700px) {
+  .nl-store .nl-catalogo .nl-catalog-tools { position: static; }
+  .nl-filtros-toggle { flex: 1; justify-content: center; min-height: 44px; font-size: 12px; }
+  .nl-store .nl-departamentos button small { display: none; }
+  .nl-grupos { padding: 13px 14px; }
+  .nl-grupos-lista button { min-height: 32px; font-size: 11px; }
+  .nl-filtros { padding: 17px 15px; gap: 16px; }
+  .nl-filtro-selects { grid-template-columns: 1fr; }
+  .nl-filtro-outros { grid-template-columns: 1fr; }
+  .nl-limpar { justify-self: start; }
+}
