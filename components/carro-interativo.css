@@ -1,0 +1,87 @@
+/* Abertura: compra pela parte do carro (components/carro-interativo.tsx) */
+.nl-carro { position: relative; height: 165svh; background: var(--nl-paper); }
+.nl-carro-fixo { position: sticky; top: 84px; height: calc(100svh - 84px); min-height: 560px; max-height: 900px; width: min(1320px, calc(100% - 64px)); margin: 0 auto; display: grid; grid-template-columns: minmax(300px, 390px) minmax(0, 1fr); gap: 28px; align-items: center; }
+
+.nl-carro-texto { position: relative; z-index: 2; }
+.nl-carro-titulo { margin: 18px 0 0; font-size: clamp(40px, 4.2vw, 62px); font-weight: 500; line-height: 1.02; letter-spacing: -.05em; color: var(--nl-ink); }
+.nl-carro-copy { margin: 18px 0 0; max-width: 360px; color: var(--nl-muted); font-size: 14px; line-height: 1.7; }
+.nl-carro-zonas { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 24px; }
+.nl-carro-zonas button { padding: 9px 14px; border: 1px solid var(--nl-line); border-radius: 30px; background: #fff; color: #36402f; font-size: 12.5px; transition: border-color .2s, background .2s; }
+.nl-carro-zonas button:hover { border-color: #b48c36; background: #fffaf0; }
+.nl-carro-direto { display: inline-flex; align-items: center; gap: 6px; margin-top: 22px; color: #36402f; font-size: 13px; text-decoration: underline; text-underline-offset: 4px; }
+
+.nl-carro-painel { padding: 22px; border: 1px solid var(--nl-line); border-radius: 16px; background: #fff; box-shadow: 0 18px 50px -30px #2629214d; animation: nl-carro-entra .28s ease-out; }
+@keyframes nl-carro-entra { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.nl-carro-painel-topo { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.nl-carro-fechar { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; color: #4a5343; }
+.nl-carro-fechar:hover { background: #f3f1ea; }
+.nl-carro-deps { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
+.nl-carro-deps button { padding: 6px 11px; border: 1px solid var(--nl-line); border-radius: 30px; font-size: 12px; color: #4a5343; }
+.nl-carro-deps button.ativo { background: var(--nl-ink); border-color: var(--nl-ink); color: #fff; }
+.nl-carro-pecas { margin: 14px 0 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+.nl-carro-pecas li { position: relative; }
+.nl-carro-peca { display: grid; grid-template-columns: 64px 1fr; gap: 12px; align-items: center; width: 100%; padding: 8px 48px 8px 8px; border: 1px solid #ecebe3; border-radius: 12px; text-align: left; transition: border-color .2s; }
+.nl-carro-peca:hover { border-color: #cfc9b3; }
+.nl-carro-peca-foto { display: grid; place-items: center; width: 64px; height: 64px; border-radius: 9px; background: #f5f3ee; overflow: hidden; color: #9aa28d; }
+.nl-carro-peca-foto img { width: 100%; height: 100%; object-fit: contain; mix-blend-mode: multiply; }
+.nl-carro-peca-info { display: grid; gap: 1px; min-width: 0; }
+.nl-carro-peca-info b { overflow: hidden; color: #262921; font-size: 13px; font-weight: 500; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.nl-carro-peca-info small { overflow: hidden; color: #7b8272; font-size: 11px; white-space: nowrap; text-overflow: ellipsis; }
+.nl-carro-peca-info strong { margin-top: 3px; color: #262921; font-size: 15px; font-weight: 600; }
+.nl-carro-disp { font-size: 10.5px; }
+.nl-carro-add { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: var(--nl-ink); color: #fff; }
+.nl-carro-add:hover { background: #3a4033; }
+.nl-carro-peca-vazia { height: 82px; border-radius: 12px; background: linear-gradient(90deg, #f3f1ea, #faf9f5, #f3f1ea); background-size: 200% 100%; animation: nl-carro-brilho 1.2s linear infinite; }
+.nl-carro-ver-todas.nl-button { width: 100%; margin-top: 14px; gap: 10px; }
+
+.nl-carro-palco-area { position: relative; height: 100%; min-height: 420px; overflow: hidden; }
+.nl-carro-palco-area { cursor: grab; }
+.nl-carro-palco-area[data-arrastando] { cursor: grabbing; }
+.nl-carro-palco-area[data-arrastando] .nl-pino { pointer-events: none; }
+.nl-carro-palco { position: absolute; inset: 0; }
+.nl-carro-pinos { position: absolute; inset: 0; pointer-events: none; }
+.nl-pino { position: absolute; left: 0; top: 0; display: flex; align-items: center; gap: 7px; margin: -15px 0 0 -15px; pointer-events: auto; transition: opacity .25s; will-change: transform; }
+.nl-pino[data-visivel="0"] { opacity: 0; pointer-events: none; }
+.nl-pino-ponto { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: var(--nl-ink); color: #fff; font-size: 12px; font-weight: 600; box-shadow: 0 0 0 5px #e7cd9466, 0 6px 16px -6px #26292199; transition: background .2s, transform .2s; }
+.nl-pino:hover .nl-pino-ponto, .nl-pino:focus-visible .nl-pino-ponto { transform: scale(1.12); }
+.nl-pino.ativo .nl-pino-ponto { background: #b48c36; box-shadow: 0 0 0 6px #b48c3640, 0 6px 16px -6px #26292199; }
+.nl-pino-nome { padding: 5px 10px; border: 1px solid var(--nl-line); border-radius: 20px; background: #fffffff2; color: #262921; font-size: 12px; font-weight: 500; white-space: nowrap; box-shadow: 0 4px 14px -8px #26292166; }
+.nl-pino:focus-visible { outline: none; }
+.nl-pino:focus-visible .nl-pino-nome { outline: 2px solid #b48c36; outline-offset: 2px; }
+
+.nl-carro-carregando { position: absolute; inset: 0; display: grid; place-items: center; align-content: center; gap: 16px; color: #8c9480; font-size: 13px; pointer-events: none; }
+.nl-carro-carregando img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+.nl-carro-carregando .nl-carro-barra-carga { position: absolute; left: 50%; bottom: 60px; margin-left: -60px; }
+.nl-carro-palco canvas { animation: nl-carro-surge .35s ease-out; }
+@keyframes nl-carro-surge { from { opacity: 0; } to { opacity: 1; } }
+.nl-carro-barra-carga { width: 120px; height: 3px; border-radius: 3px; background: linear-gradient(90deg, #e3e0d4, #b48c36, #e3e0d4); background-size: 200% 100%; animation: nl-carro-brilho 1s linear infinite; }
+@keyframes nl-carro-brilho { to { background-position: -200% 0; } }
+.nl-carro-abrir { position: absolute; left: 50%; bottom: 44px; transform: translateX(-50%); display: inline-flex; align-items: center; gap: 10px; padding: 13px 20px; border-radius: 40px; background: var(--nl-ink); color: #fff; font-size: 13px; font-weight: 500; box-shadow: 0 10px 30px -14px #262921aa; }
+.nl-carro-dica { position: absolute; left: 50%; bottom: 46px; transform: translateX(-50%); display: inline-flex; align-items: center; gap: 7px; padding: 7px 13px; border-radius: 30px; background: #ffffffd9; color: #5c6453; font-size: 12px; pointer-events: none; }
+.nl-carro-nota { position: absolute; right: 0; bottom: 12px; color: #9a9f90; font-size: 10px; }
+.nl-carro-nota a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+
+.nl-carro-estatico { height: auto; }
+.nl-carro-estatico .nl-carro-fixo { position: relative; top: 0; }
+
+@media (max-width: 1100px) {
+  .nl-carro-fixo { width: calc(100% - 48px); grid-template-columns: minmax(280px, 340px) minmax(0, 1fr); gap: 16px; }
+  .nl-pino-nome { display: none; }
+  .nl-pino.ativo .nl-pino-nome, .nl-pino:hover .nl-pino-nome { display: block; }
+}
+@media (max-width: 800px) {
+  .nl-carro { height: auto; }
+  .nl-carro-fixo { position: relative; top: 0; height: auto; min-height: 0; max-height: none; width: calc(100% - 36px); grid-template-columns: 1fr; gap: 0; padding: 8px 0 30px; }
+  .nl-carro-palco-area { order: -1; height: 46svh; min-height: 300px; max-height: 420px; margin: 0 -18px; }
+  .nl-carro-titulo { font-size: 38px; margin-top: 12px; }
+  .nl-carro-zonas { gap: 6px; margin-top: 16px; }
+  .nl-carro-zonas button { padding: 8px 12px; font-size: 12px; }
+  .nl-carro-painel { padding: 16px; }
+  .nl-carro-abrir, .nl-carro-dica { bottom: 30px; }
+  .nl-carro-nota { right: 18px; bottom: 6px; }
+  .nl-carro-nota-longa { display: none; }
+  .nl-pino-ponto { width: 28px; height: 28px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .nl-carro-painel, .nl-carro-peca-vazia, .nl-carro-barra-carga { animation: none; }
+}

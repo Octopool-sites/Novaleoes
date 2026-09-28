@@ -48,7 +48,11 @@ export function fotoDaPeca(peca: Peca, catalogo: Catalogo, live: Map<string, Pro
 export function dataEstoque(catalogo: Catalogo | null) {
   const iso = catalogo?.meta.exportadoEm;
   if (!iso) return "";
-  return new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", timeZone: "America/Sao_Paulo" });
+  // O estoque é atualizado mais de uma vez por dia: "28/09, 13h".
+  const d = new Date(iso);
+  const dia = d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", timeZone: "America/Sao_Paulo" });
+  const hora = d.toLocaleTimeString("pt-BR", { hour: "2-digit", hour12: false, timeZone: "America/Sao_Paulo" });
+  return `${dia}, ${hora.replace(/\D/g, "")}h`;
 }
 
 export default function CatalogoLoja({ catalogo, carregando, erro, live, filtro, veiculo, onFiltro, onSelecionar, onAdicionar, onTentarNovamente, onVeiculo }: CatalogoLojaProps) {

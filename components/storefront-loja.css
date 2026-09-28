@@ -188,3 +188,15 @@
 .nl-entrega-opcoes label { justify-content: center; min-height: 58px; }
 .nl-pagamentos label { justify-content: center; min-height: 46px; }
 .nl-cart-line-erro { color: #9a3a2a !important; }
+
+/* Espaço de venda primeiro: cabeçalho do catálogo compacto, peças logo depois do carro */
+.nl-store:not(.nl-store-editorial) .catalog-section { padding-block: 44px 70px; }
+.nl-store:not(.nl-store-editorial) .catalog-section .section-heading { margin-bottom: 18px; }
+.nl-store:not(.nl-store-editorial) .catalog-section .section-heading h2 { font-size: clamp(30px, 2.8vw, 40px); margin-top: 12px; }
+.nl-store:not(.nl-store-editorial) .catalog-section .section-heading h2 br { display: none; }
+.nl-store:not(.nl-store-editorial) .catalog-section .section-heading h2 em { margin-left: .25em; }
+@media (max-width: 700px) {
+  .nl-store:not(.nl-store-editorial) .catalog-section { padding-block: 28px 50px; }
+  .nl-store:not(.nl-store-editorial) .catalog-section .section-heading h2 { font-size: 28px; }
+  .nl-store:not(.nl-store-editorial) .nl-catalog-intro { display: none; }
+}

@@ -12,7 +12,7 @@ import { type Veiculo, type VeiculoSalvo, lerVeiculoSalvo, resolverVeiculo, salv
 import type { OpcaoFrete, ResultadoFrete } from "@/lib/frete";
 import { LOJA, whatsappUrl } from "@/lib/loja";
 import { mensagemPedido } from "@/lib/pedido";
-import ScrollHero from "./scroll-hero";
+import CarroInterativo from "./carro-interativo";
 import CatalogoLoja, { tituloDaPeca } from "./catalogo-loja";
 import PecaDetalhe, { linkDaPeca } from "./peca-detalhe";
 import SeletorVeiculo from "./seletor-veiculo";
@@ -181,7 +181,7 @@ export default function Storefront() {
         const produto = ext ? live.get(ext) : null;
         if (produto) {
           mudou = true;
-          const total = Math.min(20, produto.stock, (next[produto.id] || 0) + q);
+          const total = produto.stock > 0 ? Math.min(20, (next[produto.id] || 0) + q) : 0;
           if (total > 0) next[produto.id] = total;
         } else next[id] = (next[id] || 0) + q;
       }
@@ -229,7 +229,7 @@ export default function Storefront() {
   }
   function addLive(p: Product) {
     if (p.stock <= 0) return;
-    change(p.id, Math.min((cart[p.id] || 0) + 1, p.stock));
+    change(p.id, Math.min((cart[p.id] || 0) + 1, 20));
     setDetalhe(null);
     setDetalheLive(null);
     abrirCarrinho();
@@ -406,7 +406,7 @@ export default function Storefront() {
         <main className="wrap"><PaginaLoja pagina={pagina} totalPecas={catalogo?.meta.total || 0} onPagina={mudarPagina} onCatalogo={() => irAoCatalogo()} /></main>
       ) : (
         <>
-          <ScrollHero products={products} onProduct={abrirProduto} />
+          <CarroInterativo catalogo={catalogo} live={live} veiculo={veiculo} onSelecionar={setDetalhe} onAdicionar={adicionarPeca} onDepartamento={explorarDepartamento} />
           <main className="wrap">
             {editorialVariant && <Suspense fallback={null}><StorefrontEditorialVariant products={products} onExplore={exploreCategory} /></Suspense>}
             <section id="catalogo" className="catalog-section" tabIndex={-1}>
@@ -496,7 +496,7 @@ export default function Storefront() {
                           <div className="quantity">
                             <button aria-label={`Diminuir ${l.nome}`} disabled={l.quantity <= l.minimo} onClick={() => change(l.id, l.quantity - 1)}><Minus size={15} /></button>
                             <span>{l.quantity}</span>
-                            <button aria-label={`Aumentar ${l.nome}`} disabled={l.quantity >= (l.integrado ? Math.min(20, l.stock) : 20)} onClick={() => change(l.id, l.quantity + 1)}><Plus size={15} /></button>
+                            <button aria-label={`Aumentar ${l.nome}`} disabled={l.quantity >= 20 || (l.integrado && l.stock <= 0)} onClick={() => change(l.id, l.quantity + 1)}><Plus size={15} /></button>
                           </div>
                         </div>
                         <button className="remove-line" aria-label={`Remover ${l.nome}`} onClick={() => change(l.id, 0)}><Trash2 size={17} /></button>
@@ -569,7 +569,7 @@ export default function Storefront() {
                     <>
                       <button type="submit" form="checkout-form" className="primary-button wide nl-botao-whats" disabled={linhasInvalidas.length > 0}><MessageCircle size={18} /> Enviar pedido pelo WhatsApp</button>
                       {pedidoOnline && (
-                        <button type="button" className="nl-cart-whats" disabled={loading || linhas.some((l) => !l.product || l.quantity > l.product.stock)} onClick={submitOnline}>
+                        <button type="button" className="nl-cart-whats" disabled={loading || linhas.some((l) => !l.product || l.product.stock <= 0)} onClick={submitOnline}>
                           {loading ? <LoaderCircle className="animate-spin" size={17} /> : <PackageCheck size={17} />} {loading ? "Enviando…" : "Enviar pelo site (aprovação online)"}
                         </button>
                       )}
