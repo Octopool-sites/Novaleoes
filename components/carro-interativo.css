@@ -41,6 +41,8 @@
 .nl-carro-palco { position: absolute; inset: 0; }
 .nl-carro-pinos { position: absolute; inset: 0; pointer-events: none; }
 .nl-pino { position: absolute; left: 0; top: 0; display: flex; align-items: center; gap: 7px; margin: -15px 0 0 -15px; pointer-events: auto; transition: opacity .25s; will-change: transform; }
+.nl-pino-nome { position: absolute; left: 37px; top: 50%; transform: translateY(-50%); }
+.nl-pino[data-lado="esq"] .nl-pino-nome { left: auto; right: 37px; }
 .nl-pino[data-visivel="0"] { opacity: 0; pointer-events: none; }
 .nl-pino-ponto { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: var(--nl-ink); color: #fff; font-size: 12px; font-weight: 600; box-shadow: 0 0 0 5px #e7cd9466, 0 6px 16px -6px #26292199; transition: background .2s, transform .2s; }
 .nl-pino:hover .nl-pino-ponto, .nl-pino:focus-visible .nl-pino-ponto { transform: scale(1.12); }
