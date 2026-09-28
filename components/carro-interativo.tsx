@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowRight, ArrowUpRight, CarFront, Hand, Package, Plus, X } from "lucide-react";
+import { ArrowRight, ArrowUpRight, CarFront, ChevronLeft, ChevronRight, Hand, Package, Plus, X } from "lucide-react";
 import type { Product } from "@/lib/catalog";
 import { type Catalogo, type Peca, money } from "@/lib/catalogo-site";
 import { type Veiculo, servePara } from "@/lib/garagem";
@@ -12,15 +12,15 @@ import "./carro-interativo.css";
 // e o painel mostra as peças à venda daquela parte.
 type Zona = { id: string; nome: string; deps: string[]; pino: PinoCarro };
 export const ZONAS: Zona[] = [
-  { id: "motor", nome: "Motor", deps: ["motor", "correias", "filtros", "injecao", "arrefecimento", "lubrificantes"], pino: { id: "motor", no: "Engine", desloca: [0, 0.22, 0], face: null } },
-  { id: "freios", nome: "Freios", deps: ["freios"], pino: { id: "freios", no: "WheelFrontLBrakeDisc", face: [1, 0, 0.2] } },
-  { id: "suspensao", nome: "Suspensão", deps: ["suspensao"], pino: { id: "suspensao", no: "WheelFrontL", desloca: [-0.3, 0.42, 0], face: [1, 0, 0.3] } },
-  { id: "rodas", nome: "Rodas e pneus", deps: ["rodas"], pino: { id: "rodas", no: "WheelRearLRim", face: [1, 0, -0.2] } },
-  { id: "direcao", nome: "Direção", deps: ["direcao"], pino: { id: "direcao", no: "InteriorSteeringWheel01", desloca: [0, 0.32, 0], face: null } },
-  { id: "transmissao", nome: "Câmbio e embreagem", deps: ["transmissao", "cabos"], pino: { id: "transmissao", no: "Axles", desloca: [0, -0.12, -0.55], face: null } },
-  { id: "eletrica", nome: "Elétrica e faróis", deps: ["eletrica"], pino: { id: "eletrica", no: "BodyHeadlights", face: [0, 0, 1] } },
-  { id: "escapamento", nome: "Escapamento", deps: ["escapamento"], pino: { id: "escapamento", no: "BodyTaillights", desloca: [0, -0.42, 0], face: [0, 0, -1] } },
-  { id: "carroceria", nome: "Carroceria", deps: ["carroceria"], pino: { id: "carroceria", no: "BodyDoorLColor1", face: [1, 0, 0] } },
+  { id: "motor", nome: "Motor", deps: ["motor", "correias", "filtros", "injecao", "arrefecimento", "lubrificantes"], pino: { id: "motor", no: "MOTOR_MOTOR_0", face: null } },
+  { id: "freios", nome: "Freios", deps: ["freios"], pino: { id: "freios", no: "RODA DIANTEIRA ESQ._METAL_0", face: [1, 0, 0.2] } },
+  { id: "suspensao", nome: "Suspensão", deps: ["suspensao"], pino: { id: "suspensao", no: "CORPO_AMORTECEDORES_0", canto: [0.9, 0.2, 0.95], face: [1, 0, 0.3] } },
+  { id: "rodas", nome: "Rodas e pneus", deps: ["rodas"], pino: { id: "rodas", no: "RODA TRASEIRA ESQ.", face: [1, 0, -0.2] } },
+  { id: "direcao", nome: "Direção", deps: ["direcao"], pino: { id: "direcao", no: "INTERNA.002", face: null } },
+  { id: "transmissao", nome: "Câmbio e embreagem", deps: ["transmissao", "cabos"], pino: { id: "transmissao", no: "INTERNA_PRETO_0", canto: [0, -0.4, -0.3], face: null } },
+  { id: "eletrica", nome: "Elétrica e faróis", deps: ["eletrica"], pino: { id: "eletrica", no: "LANTERNAS_LANTERNA_0", canto: [0.75, 0, 0], face: [0, 0, 1] } },
+  { id: "escapamento", nome: "Escapamento", deps: ["escapamento"], pino: { id: "escapamento", no: "CORPO", canto: [-0.4, -0.85, -0.95], face: [0, 0, -1] } },
+  { id: "carroceria", nome: "Carroceria", deps: ["carroceria"], pino: { id: "carroceria", no: "PORTA MOTORISTA", face: [1, 0, 0] } },
 ];
 
 const NA_VITRINE = 4;
@@ -66,7 +66,7 @@ export default function CarroInterativo({ catalogo, live, veiculo, onSelecionar,
       setAberto((a) => (a === algum ? a : algum));
     };
     // O modelo (0,7 MB) começa a baixar junto com o código do 3D, não depois dele.
-    const dados = fetch(caminho("assets/car/nova-leoes-carro-v2.glb"), { cache: "force-cache" }).then((r) => { if (!r.ok) throw new Error("modelo"); return r.arrayBuffer(); });
+    const dados = fetch(caminho("assets/car/nova-leoes-uno-v1.glb"), { cache: "force-cache" }).then((r) => { if (!r.ok) throw new Error("modelo"); return r.arrayBuffer(); });
     dados.catch(() => {});
     void import("./carro-3d").then(({ montarCarro3D }) => montarCarro3D(alvo, {
       pinos: ZONAS.map((z) => z.pino), onPinos: posicionar, superficie: area.current ?? undefined, dados,
@@ -184,9 +184,15 @@ export default function CarroInterativo({ catalogo, live, veiculo, onSelecionar,
               </button>
             ))}
           </div>
-          {!pronto && <div className="nl-carro-carregando">{semCarro ? <><CarFront size={64} strokeWidth={0.8} /><span>Escolha a parte do carro na lista</span></> : <><img src={caminho("assets/car/nova-leoes-carro-poster.jpg")} alt="" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} /><span className="nl-carro-barra-carga" /></>}</div>}
+          {!pronto && <div className="nl-carro-carregando">{semCarro ? <><CarFront size={64} strokeWidth={0.8} /><span>Escolha a parte do carro na lista</span></> : <><img src={caminho("assets/car/nova-leoes-uno-poster.jpg")} alt="" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} /><span className="nl-carro-barra-carga" /></>}</div>}
           {pronto && !aberto && !reduzido && <button type="button" className="nl-carro-abrir" onClick={abrirCarro}>Abrir o carro <ArrowRight size={16} /></button>}
           {pronto && aberto && !girou && <span className="nl-carro-dica" aria-hidden="true"><Hand size={15} /> Arraste para girar</span>}
+          {pronto && (
+            <div className="nl-carro-girar" role="group" aria-label="Girar o carro">
+              <button type="button" aria-label="Girar o carro para a esquerda" onClick={() => carro.current?.girar(-Math.PI / 4)}><ChevronLeft size={20} /></button>
+              <button type="button" aria-label="Girar o carro para a direita" onClick={() => carro.current?.girar(Math.PI / 4)}><ChevronRight size={20} /></button>
+            </div>
+          )}
           <small className="nl-carro-nota">Veículo ilustrativo<span className="nl-carro-nota-longa">. A aplicação de cada peça é conferida pela loja</span> · <a href={caminho("assets/car/ATTRIBUTION.txt")} target="_blank" rel="noopener noreferrer">Créditos do modelo</a></small>
         </div>
       </div>

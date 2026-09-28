@@ -1,5 +1,16 @@
 # Carro ilustrativo da vitrine Nova Leões
 
+## Atual: Uno Mille 2001 (28/09/2026)
+
+- **Origem:** "UNO MILLE SMART 2001 - RIGGED MODEL", de bruno_sales, no Sketchfab, licença **CC BY 4.0** (uso comercial permitido com crédito). Baixado pela conta do Luca (GLB, texturas 1k, 27 MB). Crédito em `/assets/car/ATTRIBUTION.txt`, com link na abertura ("Créditos do modelo").
+- **Otimização** (`public/assets/car/nova-leoes-uno-v1.glb`, 2,9 MB; ~1,3 MB com a compressão da Vercel): texturas até 1024 px em WebP, estepe e animação do autor removidos, malha simplificada (pneus 10%, resto 30%) e quantizada, sem decodificador (sem Draco/Meshopt, que exigiriam `wasm-unsafe-eval` na CSP). Script: `otimizar-uno.mjs` (glTF-Transform), fora do repositório.
+- **Marca:** emblema da grade, adesivos da tampa e as duas placas escondidos em runtime (`OCULTAR` em `components/carro-3d.ts`). O carro é ilustrativo.
+- **Peças que se movem** (`MOVIMENTOS`, em metros no mundo: x = lado do motorista, y = cima, z = frente): capô, bloco do motor, as duas portas, tampa do porta-malas, as quatro rodas, faróis, setas, grade e lanternas traseiras. Os nomes dos nós vieram com acento corrompido ("CAPÔ" → "CAP" + dois caracteres inválidos); `achar()` compara só letras e números.
+- **Botões nas partes:** presos a nós reais (bloco do motor, cubo da roda dianteira, amortecedor dianteiro esquerdo dentro da malha dos quatro, painel, console, farol, traseira, porta). Ver `ZONAS` em `components/carro-interativo.tsx`.
+- **Imagem de espera:** `nova-leoes-uno-poster.jpg`, capturada do próprio 3D.
+
+## Anterior: Car Concept (22–28/09/2026), registro histórico
+
 ## Origem e licença
 
 O asset deriva de [Car Concept, Khronos glTF Sample Assets](https://github.com/KhronosGroup/glTF-Sample-Assets/tree/main/Models/CarConcept). O [README oficial, seção Legal](https://github.com/KhronosGroup/glTF-Sample-Assets/blob/main/Models/CarConcept/README.md#legal) atribui modelo e texturas a **Eric Chadwick, Darmstadt Graphics Group GmbH, 2024**, sob [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
