@@ -23,6 +23,7 @@ import { StorefrontInstitucional, RodapeLoja } from "./storefront-institucional"
 import "./storefront-redesign.css";
 import "./storefront-polish.css";
 import "./storefront-loja.css";
+import { caminho, BASE_URL } from "@/lib/base";
 const StorefrontEditorialVariant = lazy(() => import("./storefront-editorial-variant"));
 
 type Cart = Record<string, number>;
@@ -39,7 +40,7 @@ function lerDados(): Partial<Dados> {
 
 export default function Storefront() {
   const [editorialVariant] = useState(() => new URLSearchParams(window.location.search).get("visual") === "editorial");
-  const storefrontHref = editorialVariant ? "/?visual=editorial" : "/";
+  const storefrontHref = editorialVariant ? `${BASE_URL}?visual=editorial` : BASE_URL;
   const [products, setProducts] = useState<Product[]>([]),
     [cart, setCart] = useState<Cart>({}),
     [cartOpen, setCartOpen] = useState(false),
@@ -325,7 +326,7 @@ export default function Storefront() {
       <a className="nl-skip-link" href="#catalogo">Pular apresentação e ir ao catálogo</a>
       <header className="store-header wrap">
         <a href={storefrontHref} className="store-brand">
-          <img src="/assets/logo.png" alt="" />
+          <img src={caminho("assets/logo.png")} alt="" />
           <span>NOVA LEÕES<small>AUTOPEÇAS</small></span>
         </a>
         <form className="nl-header-busca" role="search" onSubmit={(e) => { e.preventDefault(); irAoCatalogo(false); }}>

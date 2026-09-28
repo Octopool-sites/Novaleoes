@@ -8,9 +8,10 @@ import { type Veiculo, servePara } from "@/lib/garagem";
 import { disponibilidadeDaPeca, fotoDaPeca, precoDaPeca, tituloDaPeca } from "./catalogo-loja";
 import { unidadeLegivel } from "@/lib/unidades";
 import CalculoFrete from "./calculo-frete";
+import { BASE_URL } from "@/lib/base";
 
 export function linkDaPeca(peca: Peca) {
-  return `${location.origin}/?peca=${peca.id}`;
+  return `${location.origin}${BASE_URL}?peca=${peca.id}`;
 }
 
 export default function PecaDetalhe({ peca, catalogo, live, veiculo, onAdicionar, onWhatsApp, onEscolherVeiculo }: {

@@ -3,6 +3,7 @@ import { money } from "@/lib/catalogo-site";
 import CalculoFrete from "./calculo-frete";
 import { LOJA, enderecoLinha, mapaUrl, telefoneHref, whatsappUrl } from "@/lib/loja";
 import "./storefront-institucional.css";
+import { caminho, BASE_URL } from "@/lib/base";
 
 const CIDADE = `${LOJA.endereco.cidade}/${LOJA.endereco.uf}`;
 
@@ -103,13 +104,13 @@ export function RodapeLoja({ storefrontHref, departamentos, onDepartamento }: {
         </div>
         <div className="nl-footer-colunas">
           <div className="nl-footer-coluna">
-            <a className="store-brand" href={storefrontHref} aria-label="Nova Leões, início"><img src="/assets/logo.png" alt="" loading="lazy" /><span>NOVA LEÕES<small>AUTOPEÇAS</small></span></a>
+            <a className="store-brand" href={storefrontHref} aria-label="Nova Leões, início"><img src={caminho("assets/logo.png")} alt="" loading="lazy" /><span>NOVA LEÕES<small>AUTOPEÇAS</small></span></a>
             <p>{LOJA.razaoSocial}<br />CNPJ {LOJA.cnpj}</p>
             <p>{LOJA.endereco.logradouro}, {LOJA.endereco.numero} · {LOJA.endereco.bairro}<br />{CIDADE} · CEP {LOJA.endereco.cep}</p>
           </div>
           <nav className="nl-footer-coluna" aria-label="Peças por departamento">
             <h3>Peças</h3>
-            {departamentos.slice(0, 9).map((d) => <a key={d.id} href={`/?dep=${d.id}#catalogo`} onClick={(e) => { e.preventDefault(); onDepartamento(d.id); }}>{d.nome}</a>)}
+            {departamentos.slice(0, 9).map((d) => <a key={d.id} href={`${BASE_URL}?dep=${d.id}#catalogo`} onClick={(e) => { e.preventDefault(); onDepartamento(d.id); }}>{d.nome}</a>)}
             <a href="#catalogo" onClick={(e) => { e.preventDefault(); onDepartamento(""); }}>Todos os departamentos</a>
           </nav>
           <nav className="nl-footer-coluna" aria-label="Institucional">

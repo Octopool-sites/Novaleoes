@@ -1,5 +1,6 @@
 import { ArrowRight, CarFront, PackageCheck, ShoppingBag } from "lucide-react";
 import "./storefront-editorial.css";
+import { caminho } from "@/lib/base";
 
 export const productTitles: Record<string, string> = { amortecedor: "Amortecedor traseiro", "filtro-ar": "Filtro de ar", correia: "Correia dentada", bomba: "Bomba d’água", palheta: "Palheta dianteira", "cabo-bateria": "Cabo de bateria 200 A", lampada: "Lâmpada H4 60/55 W" };
 export const productBenefits: Record<string, string> = { amortecedor: "Controle e conforto ao dirigir.", "filtro-ar": "Proteção para o ar que entra no motor.", correia: "Sincronia para o funcionamento do motor.", bomba: "Circulação no sistema de arrefecimento.", palheta: "Visibilidade para os dias de chuva.", "cabo-bateria": "Auxílio para uma partida de emergência.", lampada: "Iluminação para seu próximo caminho." };
@@ -44,7 +45,7 @@ export default function StorefrontEditorial() {
       <section className="nl-fitment-guide" aria-labelledby="nl-fitment-title">
         <figure className="nl-fitment-image">
           <div className="nl-fitment-image-heading"><span>O CUIDADO COMEÇA NA ESCOLHA</span><CarFront size={23} strokeWidth={1.4} aria-hidden="true" /></div>
-          <img src="/assets/car/nova-leoes-assembled.webp" alt="Carro cinza ilustrativo, visto de frente e de lado" width={2688} height={1520} loading="lazy" decoding="async" />
+          <img src={caminho("assets/car/nova-leoes-assembled.webp")} alt="Carro cinza ilustrativo, visto de frente e de lado" width={2688} height={1520} loading="lazy" decoding="async" />
           <figcaption>Imagem ilustrativa. Não indica aplicação das peças.</figcaption>
         </figure>
         <div className="nl-fitment-copy">

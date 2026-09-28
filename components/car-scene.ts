@@ -23,6 +23,7 @@ import {
 } from 'three'
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js'
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
+import { caminho } from "@/lib/base";
 
 export type CarScene = { update(progress: number): void; dispose(): void }
 
@@ -196,7 +197,7 @@ export async function mountCarScene(
     renderer.domElement.addEventListener('webglcontextlost', contextLost)
     host.appendChild(renderer.domElement)
 
-    const response = await fetch('/assets/car/nova-leoes-concept.glb', { signal: controller.signal, cache: 'force-cache' })
+    const response = await fetch(caminho('assets/car/nova-leoes-concept.glb'), { signal: controller.signal, cache: 'force-cache' })
     if (!response.ok) throw new Error('Car asset unavailable')
     const data = await response.arrayBuffer()
     if (disposed) return handle

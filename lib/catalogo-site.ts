@@ -60,7 +60,10 @@ export function montarCatalogo(meta: Meta, linhas: LinhaIndice[]): Catalogo {
 }
 
 let carregamento: Promise<Catalogo> | null = null;
-export function carregarCatalogo(base = "/catalogo"): Promise<Catalogo> {
+// Prefixo "/" na Vercel ou a subpasta da prévia (VITE_BASE). Sem import para os testes rodarem no Node.
+const BASE_CATALOGO = `${((import.meta as unknown as { env?: { BASE_URL?: string } }).env?.BASE_URL) ?? "/"}catalogo`;
+
+export function carregarCatalogo(base = BASE_CATALOGO): Promise<Catalogo> {
   if (!carregamento) {
     carregamento = (async () => {
       const [meta, indice] = await Promise.all([
@@ -78,7 +81,7 @@ export function bucketDe(id: string, buckets: number) {
 }
 
 const detalhesCache = new Map<number, Promise<Record<string, Detalhe>>>();
-export async function carregarDetalhe(catalogo: Catalogo, id: string, base = "/catalogo"): Promise<Detalhe | null> {
+export async function carregarDetalhe(catalogo: Catalogo, id: string, base = BASE_CATALOGO): Promise<Detalhe | null> {
   const bucket = bucketDe(id, catalogo.meta.buckets);
   if (!detalhesCache.has(bucket)) {
     const pedido = fetch(`${base}/detalhes/${String(bucket).padStart(3, "0")}.json`).then((r) => {
