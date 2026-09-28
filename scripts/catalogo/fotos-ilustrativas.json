@@ -1,0 +1,7 @@
+{
+  "_leia": "Foto ilustrativa fixa por grupo, quando a escolha automática pegaria foto errada; _fotoErrada: fotos do cadastro que mostram outra peça (tratadas como sem foto até a loja corrigir no ERP). Ver docs/catalogo-erp.md.",
+  "Pastilha Freio": "https://octopool-fotos-produtos.s3.sa-east-1.amazonaws.com/9004.147.jpg",
+  "_fotoErrada": [
+    "https://octopool-fotos-produtos.s3.sa-east-1.amazonaws.com/1094.jpg"
+  ]
+}

@@ -45,6 +45,11 @@ export function fotoDaPeca(peca: Peca, catalogo: Catalogo, live: Map<string, Pro
   return atual?.image || urlFoto(catalogo.meta, peca.foto);
 }
 
+// Foto emprestada de outra peça do mesmo grupo (a peça não tem foto própria no cadastro).
+export function fotoIlustrativa(peca: Peca, live: Map<string, Product>) {
+  return peca.fotoIlustrativa && !(peca.externalId && live.get(peca.externalId)?.image);
+}
+
 export function dataEstoque(catalogo: Catalogo | null) {
   const iso = catalogo?.meta.exportadoEm;
   if (!iso) return "";
@@ -224,6 +229,7 @@ function CartaoPeca({ peca, catalogo, live, veiculo, onSelecionar, onAdicionar }
       <button type="button" className="product-photo photo-button" onClick={() => onSelecionar(peca)} aria-label={`Ver detalhes de ${titulo}`}>
         {foto ? <img src={foto} alt={titulo} loading="lazy" decoding="async" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} /> : <div className="nl-photo-placeholder"><Package size={44} strokeWidth={1} /><small>Foto em breve</small></div>}
         <span>{peca.grupo}</span>
+        {foto && fotoIlustrativa(peca, live) && <small className="nl-foto-ilustrativa">Foto ilustrativa</small>}
         {serve && <em className="nl-serve"><Check size={13} /> Serve no seu {catalogo.meta.modelos[veiculo!.modelo]?.[1] ?? "carro"}</em>}
         <i className="nl-photo-open" aria-hidden="true"><ArrowUpRight size={18} /></i>
       </button>

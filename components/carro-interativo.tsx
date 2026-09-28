@@ -114,7 +114,7 @@ export default function CarroInterativo({ catalogo, live, veiculo, onSelecionar,
   const vitrine = useMemo(() => {
     if (!catalogo || !dep) return [] as Peca[];
     const candidatas = catalogo.pecas.filter((p) => p.departamento.id === dep && p.precoCents > 0 && p.disponivel > 0);
-    const pontos = (p: Peca) => (servePara(p, veiculo) ? 1000 : 0) + (p.foto ? 100 : 0) + Math.min(99, p.aplicacoes.length);
+    const pontos = (p: Peca) => (servePara(p, veiculo) ? 1000 : 0) + (p.foto ? (p.fotoIlustrativa ? 40 : 100) : 0) + Math.min(39, p.aplicacoes.length);
     return candidatas.sort((a, b) => pontos(b) - pontos(a)).slice(0, NA_VITRINE);
   }, [catalogo, dep, veiculo]);
 
