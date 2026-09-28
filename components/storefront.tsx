@@ -139,6 +139,7 @@ export default function Storefront() {
 
   // Páginas da loja (?pagina=): entram no histórico, então o "voltar" do navegador funciona.
   const mudarPagina = useCallback((p: Pagina | null) => {
+    if (p === paginaRef.current) { if (p) window.scrollTo({ top: 0 }); return; }
     paginaRef.current = p;
     setPaginaEstado(p);
     try {

@@ -47,11 +47,24 @@ export default function PecaDetalhe({ peca, catalogo, live, veiculo, onAdicionar
   const aVista: string[] = [];
   for (const t of texto) { if (aVista.length && [...aVista, t].join(" · ").length > LIMITE_TEXTO) break; aVista.push(t); }
   const maisTexto = texto.slice(aVista.length);
+  // Uma linha só, longa demais: corta na palavra e manda o resto para "Mais informações".
+  if (aVista.length === 1 && aVista[0].length > LIMITE_TEXTO) {
+    const corte = aVista[0].lastIndexOf(" ", LIMITE_TEXTO);
+    const pos = corte > 60 ? corte : LIMITE_TEXTO;
+    maisTexto.unshift(aVista[0].slice(pos).trim());
+    aVista[0] = `${aVista[0].slice(0, pos).trim()}…`;
+  }
   // A lista da descrição costuma ser mais completa que a tabela estruturada; usa a que tiver mais veículos.
   const usarDescritos = descritos.length > aplicacoes.length;
-  const modeloDoCarro = veiculo ? normalizeSearch(meta.modelos[veiculo.modelo][1]) : "";
-  const descritoDoCarro = (d: { nome: string; inicio: number; fim: number }) =>
-    !!veiculo && normalizeSearch(d.nome).startsWith(modeloDoCarro) && aplicaAno([0, d.inicio, d.fim], veiculo.ano);
+  // "Palio Weekend 1.4" não é do dono de um Palio: vale o modelo de nome mais longo que abre a linha.
+  const modelosDaMontadora = veiculo ? meta.modelos.map((m, idx) => ({ idx, nome: normalizeSearch(m[1]), m: m[0] })).filter((m) => m.m === veiculo.montadora).sort((a, b) => b.nome.length - a.nome.length) : [];
+  const descritoDoCarro = (d: { nome: string; inicio: number; fim: number }) => {
+    if (!veiculo) return false;
+    const nome = normalizeSearch(d.nome);
+    // Depois do modelo tem que vir o motor ("Palio 1.4"); outra palavra é outra versão ("Palio Weekend").
+    const modelo = modelosDaMontadora.find((m) => nome === m.nome || (nome.startsWith(`${m.nome} `) && /^\d/.test(nome.slice(m.nome.length + 1))));
+    return modelo?.idx === veiculo.modelo && aplicaAno([0, d.inicio, d.fim], veiculo.ano);
+  };
   const listaDescritos = [...descritos].sort((x, y) => Number(descritoDoCarro(y)) - Number(descritoDoCarro(x)) || x.nome.localeCompare(y.nome, "pt-BR"));
   const totalVeiculos = usarDescritos ? descritos.length : aplicacoes.length;
   const limite = todosVeiculos ? Infinity : VEICULOS_A_VISTA;
