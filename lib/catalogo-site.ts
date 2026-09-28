@@ -16,14 +16,16 @@ export type Meta = {
   unidades: string[];
 };
 // [id, nome, marcaIdx, grupoIdx, precoCents, disponivel, foto, aplicacoes[modeloIdx, anoInicio, anoFim], externalId|0, unidadeIdx, qtdMinima]
-export type LinhaIndice = [string, string, number, number, number, number, string, [number, number, number][], string | 0, number, number];
-export type Detalhe = { d: string[]; h: string[]; a: [modeloIdx: number, versao: string, motor: string, anoInicio: number, anoFim: number, obs: string][] };
+// Posição 5 é 0/1 (tem/não tem); posição 11 = 1 quando a foto é ilustrativa (de outra peça do mesmo grupo).
+export type LinhaIndice = [string, string, number, number, number, number, string, [number, number, number][], string | 0, number, number, number?];
+// t: desenho técnico do fabricante, mostrado só no detalhe.
+export type Detalhe = { d: string[]; h: string[]; a: [modeloIdx: number, versao: string, motor: string, anoInicio: number, anoFim: number, obs: string][]; t?: string };
 
 export type Peca = {
   depOrdem: number; grupoN: number;
   id: string; nome: string; marca: string; grupo: string; grupoIdx: number; departamento: Departamento;
   precoCents: number; disponivel: number; foto: string; aplicacoes: [number, number, number][];
-  externalId: string | null; unidade: string; quantidadeMinima: number; busca: string;
+  externalId: string | null; unidade: string; quantidadeMinima: number; busca: string; fotoIlustrativa: boolean;
 };
 
 export type Catalogo = { meta: Meta; pecas: Peca[]; porId: Map<string, Peca>; porExternalId: Map<string, Peca> };
@@ -49,7 +51,7 @@ export function montarCatalogo(meta: Meta, linhas: LinhaIndice[]): Catalogo {
     const modelos = l[7].map(([m]) => `${meta.montadoras[meta.modelos[m][0]]} ${meta.modelos[m][1]}`).join(" ");
     return {
       id: l[0], nome: l[1], marca, grupo, grupoIdx: l[3], departamento, precoCents: l[4], disponivel: l[5], foto: l[6], aplicacoes: l[7],
-      externalId: l[8] || null, unidade: meta.unidades[l[9]] || "", quantidadeMinima: l[10] || 1,
+      externalId: l[8] || null, unidade: meta.unidades[l[9]] || "", quantidadeMinima: l[10] || 1, fotoIlustrativa: l[11] === 1,
       busca: normalizeSearch(`${l[1]} ${marca} ${grupo} ${departamento.nome} ${modelos}`),
       depOrdem: meta.departamentos.indexOf(departamento), grupoN: meta.grupos[l[3]][2],
     };

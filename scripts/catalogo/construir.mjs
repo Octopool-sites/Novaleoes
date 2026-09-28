@@ -90,11 +90,15 @@ export function bucketDe(id) {
 }
 
 // Fotos que não responderam na conferência (scripts/catalogo/verificar-fotos.mjs) saem do catálogo.
+// Desenhos técnicos (catálogo do fabricante com medidas, hoje só pastilhas): saem da vitrine e ficam no detalhe.
+// Lista gerada medindo as fotos (branco, traço, cor); ver docs/catalogo-erp.md.
+const DESENHOS = new Set(existsSync("scripts/catalogo/fotos-desenho.json") ? JSON.parse(readFileSync("scripts/catalogo/fotos-desenho.json", "utf8")) : []);
+const FOTO_FIXA = existsSync("scripts/catalogo/fotos-ilustrativas.json") ? JSON.parse(readFileSync("scripts/catalogo/fotos-ilustrativas.json", "utf8")) : {};
 const FOTOS_QUEBRADAS = new Set(existsSync("outputs/fotos-quebradas.json") ? JSON.parse(readFileSync("outputs/fotos-quebradas.json", "utf8")) : []);
 
 function fotoPublica(url) {
   const texto = String(url || "").trim();
-  if (!texto || FOTOS_QUEBRADAS.has(texto)) return "";
+  if (!texto || FOTOS_QUEBRADAS.has(texto) || (FOTO_FIXA._fotoErrada || []).includes(texto.split("?")[0])) return "";
   if (texto.startsWith(FOTO_BASE)) return texto.slice(FOTO_BASE.length).split("?")[0];
   if (texto.startsWith(FOTO_ERP)) return texto; // foto colada no cadastro, servida pela rota pública do ERP
   return ""; // hosts de terceiros ficam fora (CSP e direitos de imagem)
@@ -150,7 +154,9 @@ export function construir(exportacao) {
     const precoCents = Number(p.preco) >= 1 ? Math.round(Number(p.preco) * 100) : 0;
     // O site só acompanha o ERP e só diz se tem ou não tem: nenhuma quantidade sai no catálogo público.
     const disp = Number(p.disp) > 0 ? 1 : 0;
-    const foto = fotoPublica(p.foto);
+    const fotoCadastro = fotoPublica(p.foto);
+    const desenho = !!fotoCadastro && DESENHOS.has(String(p.foto || "").trim().split("?")[0]);
+    const foto = desenho ? "" : fotoCadastro;
     const unidade = String(p.unidade || "").trim().toUpperCase();
     const uIdx = unidades.idx(unidade);
     const qmin = Number(p.qmin) > 1 ? Number(p.qmin) : 1;
@@ -170,9 +176,28 @@ export function construir(exportacao) {
     }
     aplicacoes.sort((x, y) => x[0] - y[0] || x[3] - y[3]);
 
-    pecas.push([id, nome, mIdx, gIdx, precoCents, disp, foto, [...resumo.values()].sort((x, y) => x[0] - y[0] || x[1] - y[1]), extPorProduto.get(p.id) || 0, uIdx, qmin]);
+    pecas.push([id, nome, mIdx, gIdx, precoCents, disp, foto, [...resumo.values()].sort((x, y) => x[0] - y[0] || x[1] - y[1]), extPorProduto.get(p.id) || 0, uIdx, qmin, 0]);
     const { linhas, destaques } = limparDescricao(p.descricao);
-    detalhes.set(id, { d: linhas, h: destaques, a: aplicacoes });
+    detalhes.set(id, desenho ? { d: linhas, h: destaques, a: aplicacoes, t: fotoCadastro } : { d: linhas, h: destaques, a: aplicacoes });
+  }
+
+  // Peça sem foto (ou só com desenho) ganha a foto real de outra peça do mesmo grupo, marcada como ilustrativa
+  // (posição 11 = 1). Preferência: peça com estoque e com mais aplicações; empate pelo id, para ser estável.
+  // Primeiro a mesma marca no mesmo grupo (a foto mostra a embalagem certa); depois qualquer marca do grupo.
+  const melhores = new Map();
+  const disputar = (chave, p) => {
+    const nota = (p[5] > 0 ? 100000 : 0) + p[7].length;
+    const atual = melhores.get(chave);
+    if (!atual || nota > atual.nota || (nota === atual.nota && p[0] < atual.id)) melhores.set(chave, { nota, id: p[0], foto: p[6] });
+  };
+  for (const p of pecas) if (p[6]) { disputar(`${p[3]}|${p[2]}`, p); disputar(`${p[3]}`, p); }
+  // Grupo com foto fixa (scripts/catalogo/fotos-ilustrativas.json) não usa a escolha automática.
+  const fixa = new Map();
+  grupos.lista.forEach((g, gIdx) => { const url = FOTO_FIXA[g[0]]; if (url && fotoPublica(url)) fixa.set(gIdx, fotoPublica(url)); });
+  for (const p of pecas) {
+    if (p[6]) continue;
+    const escolhida = fixa.has(p[3]) ? { foto: fixa.get(p[3]) } : (p[2] >= 0 && melhores.get(`${p[3]}|${p[2]}`)) || melhores.get(`${p[3]}`);
+    if (escolhida) { p[6] = escolhida.foto; p[11] = 1; }
   }
 
   // Ordena por nome para o índice ser estável entre exportações.
@@ -184,7 +209,7 @@ export function construir(exportacao) {
     // Capa do departamento: peça com foto, estoque e preço do grupo mais numeroso, com mais aplicações.
     let capa = "";
     for (const g of idxGrupos) {
-      const candidatas = pecas.filter((p) => p[3] === g && p[6] && p[5] > 0 && p[4] > 0).sort((x, y) => y[7].length - x[7].length || x[0].localeCompare(y[0]));
+      const candidatas = pecas.filter((p) => p[3] === g && p[6] && !p[11] && p[5] > 0 && p[4] > 0).sort((x, y) => y[7].length - x[7].length || x[0].localeCompare(y[0]));
       if (candidatas.length) { capa = candidatas[0][6]; break; }
     }
     return { id: d.id, nome: d.nome, resumo: d.resumo, n: idxGrupos.reduce((s, i) => s + grupos.lista[i][2], 0), grupos: idxGrupos, capa };

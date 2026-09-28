@@ -5,7 +5,7 @@ import type { Product } from "@/lib/catalog";
 import { productBenefits } from "./storefront-editorial";
 import { type Catalogo, type Detalhe, type Peca, aplicaAno, carregarDetalhe, faixaAnos, money, normalizeSearch, separarDescricao } from "@/lib/catalogo-site";
 import { type Veiculo, servePara } from "@/lib/garagem";
-import { disponibilidadeDaPeca, fotoDaPeca, precoDaPeca, tituloDaPeca } from "./catalogo-loja";
+import { disponibilidadeDaPeca, fotoDaPeca, fotoIlustrativa, precoDaPeca, tituloDaPeca } from "./catalogo-loja";
 import { unidadeLegivel } from "@/lib/unidades";
 import CalculoFrete from "./calculo-frete";
 import { BASE_URL } from "@/lib/base";
@@ -82,6 +82,8 @@ export default function PecaDetalhe({ peca, catalogo, live, veiculo, onAdicionar
     <>
       <div className="detail-photo"><span className="nl-detail-category">{peca.departamento.nome} · {peca.grupo}</span>
         {foto ? <img src={foto} alt={titulo} onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} /> : <div className="nl-photo-placeholder"><Package size={64} strokeWidth={1} /><small>Foto em breve</small></div>}
+        {foto && fotoIlustrativa(peca, live) && <small className="nl-foto-ilustrativa">Foto ilustrativa · peça do mesmo grupo</small>}
+        {detalhe?.t && <figure className="nl-desenho-tecnico"><img src={detalhe.t.startsWith("http") ? detalhe.t : catalogo.meta.fotoBase + detalhe.t} alt={`Desenho técnico de ${titulo}`} loading="lazy" /><figcaption>Desenho técnico do fabricante</figcaption></figure>}
       </div>
       <div className="nl-detail-content">
         <p className="eyebrow">{peca.marca || "Marca conferida no atendimento"}{unidade ? ` · ${unidade}` : ""}</p>

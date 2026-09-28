@@ -169,3 +169,12 @@ Em 3 dias sem reexportar (25/09 → 28/09), 20 preços mudaram e 27 peças esgot
 - **Limite:** continua sendo uma fotografia (duas ou três por dia), não tempo real. Estoque ao vivo para todas as peças exige um endpoint público de leitura no Nexus (hoje só as sete peças integradas vêm ao vivo pela API do Commerce).
 - **O site só acompanha o ERP (pedido do Luca, 28/09):** a exportação abre transação `SET TRANSACTION READ ONLY` e só faz `SELECT`; o `atualizar.mjs` se recusa a rodar se o `exportar-erp.cjs` perder a transação somente leitura ou ganhar qualquer comando de escrita. Nada do site grava no Nexus: os pedidos online (`PUBLIC_ORDERS_ENABLED`) estão desligados, e é só por eles que o Commerce reservaria estoque no ERP.
 - **Só "tem / não tem":** o catálogo público guarda o estoque como 0 ou 1 (`construir.mjs`) e a API pública (`/api/public/catalog`) devolve `stock` 0 ou 1. A quantidade real não sai do servidor; no carrinho o limite é 20 unidades e a loja confere a quantidade no pedido.
+
+## Fotos ilustrativas e desenho técnico — 28/09/2026
+
+58% das peças com estoque não tinham foto e as pastilhas mostravam o desenho técnico do catálogo do fabricante (medidas), não a peça.
+
+- **Desenho técnico** (`scripts/catalogo/fotos-desenho.json`): hoje só pastilhas. 1.112 das 1.118 fotos de pastilha do cadastro são desenho. A lista foi gerada medindo cada foto (proporção de branco, de traço escuro e de cor; desenho = traço fino sem a massa escura do material de atrito). O desenho sai da vitrine e aparece no detalhe como "Desenho técnico do fabricante" (campo `t` do detalhe). Foto nova de pastilha que chegar do ERP só entra na lista quando a medição for refeita.
+- **Foto ilustrativa** (índice, posição 11 = 1): peça sem foto própria (ou só com desenho) recebe a foto real de outra peça do mesmo grupo, primeiro da mesma marca, com selo "Foto ilustrativa" no cartão e no detalhe. Grupos em que a escolha automática erraria têm foto fixa em `scripts/catalogo/fotos-ilustrativas.json` (pastilhas: foto real da Varga). `_fotoErrada` lista fotos do cadastro que mostram outra peça (ex.: coxim de motor numa pastilha SYL), tratadas como sem foto.
+- **Resultado (com estoque):** 3.689 com foto própria, 3.888 com ilustrativa, 1.844 sem foto (grupos sem nenhuma foto).
+- **Caminho definitivo:** a loja fotografa e cadastra no ERP; a atualização das 7h/13h traz a foto própria e o selo some. Lista priorizada entregue ao Luca em `Octopool/Documentos/Nova Leões - peças com estoque sem foto (2026-09-28).csv` (vault).
