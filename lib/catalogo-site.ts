@@ -173,6 +173,29 @@ export function faixaAnos(inicio: number, fim: number) {
   return "";
 }
 
+// Ano de 2 dígitos do cadastro ("05", "16") para 4 dígitos; "..." = sem limite (0).
+function anoCurto(texto: string) {
+  if (!/^\d+$/.test(texto)) return 0;
+  const n = Number(texto);
+  if (texto.length === 4) return n;
+  return n <= (new Date().getFullYear() % 100) + 1 ? 2000 + n : 1900 + n;
+}
+
+// A descrição do ERP mistura texto com a lista de aplicação ("Palio 1.4 8V FIRE - 05 / 13").
+// Separa: o texto vai para a descrição; os veículos, para a tabela de aplicação.
+const LINHA_VEICULO = /^(.+?)\s+-\s*(\d{2}|\d{4}|\.{2,})\s*\/\s*(\d{2}|\d{4}|\.{2,})\s*$/;
+export type VeiculoDescrito = { nome: string; inicio: number; fim: number };
+export function separarDescricao(linhas: string[]) {
+  const texto: string[] = [];
+  const veiculos: VeiculoDescrito[] = [];
+  for (const linha of linhas) {
+    const m = linha.trim().match(LINHA_VEICULO);
+    if (m) veiculos.push({ nome: m[1].trim(), inicio: anoCurto(m[2]), fim: anoCurto(m[3]) });
+    else if (linha.trim()) texto.push(linha.trim());
+  }
+  return { texto, veiculos };
+}
+
 export function anosDisponiveis(catalogo: Catalogo, modelo: number, montadora: number) {
   const anos = new Set<number>();
   // Anos até o atual: aplicação "em diante" não pode oferecer ano que ainda não existe.

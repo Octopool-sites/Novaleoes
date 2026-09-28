@@ -1,13 +1,13 @@
 import { ArrowRight, CarFront, PackageCheck, ShoppingBag } from "lucide-react";
 import "./storefront-editorial.css";
-import { caminho } from "@/lib/base";
+import { caminho, BASE_URL } from "@/lib/base";
 
 export const productTitles: Record<string, string> = { amortecedor: "Amortecedor traseiro", "filtro-ar": "Filtro de ar", correia: "Correia dentada", bomba: "Bomba d’água", palheta: "Palheta dianteira", "cabo-bateria": "Cabo de bateria 200 A", lampada: "Lâmpada H4 60/55 W" };
 export const productBenefits: Record<string, string> = { amortecedor: "Controle e conforto ao dirigir.", "filtro-ar": "Proteção para o ar que entra no motor.", correia: "Sincronia para o funcionamento do motor.", bomba: "Circulação no sistema de arrefecimento.", palheta: "Visibilidade para os dias de chuva.", "cabo-bateria": "Auxílio para uma partida de emergência.", lampada: "Iluminação para seu próximo caminho." };
 
-export default function StorefrontEditorial() {
+// Seções de "Como comprar" e "Dúvidas": mostradas nas páginas da loja (?pagina=), não na página inicial.
+export function SecaoComoComprar({ onCatalogo }: { onCatalogo: () => void }) {
   return (
-    <div className="nl-editorial">
       <section className="nl-order-guide" id="como-funciona" aria-labelledby="nl-order-guide-title">
         <div className="nl-editorial-heading">
           <div>
@@ -38,10 +38,14 @@ export default function StorefrontEditorial() {
         </ol>
         <div className="nl-order-guide-bottom">
           <p>O pedido chega à loja pelo WhatsApp e só é separado depois da conferência.</p>
-          <a className="nl-editorial-link" href="#catalogo">Escolher minhas peças <ArrowRight size={18} aria-hidden="true" /></a>
+          <a className="nl-editorial-link" href={`${BASE_URL}#catalogo`} onClick={(e) => { e.preventDefault(); onCatalogo(); }}>Escolher minhas peças <ArrowRight size={18} aria-hidden="true" /></a>
         </div>
       </section>
+  );
+}
 
+export function SecaoAplicacao() {
+  return (
       <section className="nl-fitment-guide" aria-labelledby="nl-fitment-title">
         <figure className="nl-fitment-image">
           <div className="nl-fitment-image-heading"><span>O CUIDADO COMEÇA NA ESCOLHA</span><CarFront size={23} strokeWidth={1.4} aria-hidden="true" /></div>
@@ -60,7 +64,11 @@ export default function StorefrontEditorial() {
           <p className="nl-fitment-tip">Tem o código da peça? Inclua também. Ele ajuda a equipe na conferência.</p>
         </div>
       </section>
+  );
+}
 
+export function SecaoDuvidas() {
+  return (
       <section className="nl-questions" id="duvidas" aria-labelledby="nl-questions-title">
         <div className="nl-questions-heading">
           <p className="nl-editorial-eyebrow">TUDO MAIS CLARO</p>
@@ -86,6 +94,5 @@ export default function StorefrontEditorial() {
           </details>
         </div>
       </section>
-    </div>
   );
 }

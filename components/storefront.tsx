@@ -17,9 +17,11 @@ import CatalogoLoja, { tituloDaPeca } from "./catalogo-loja";
 import PecaDetalhe, { linkDaPeca } from "./peca-detalhe";
 import SeletorVeiculo from "./seletor-veiculo";
 import CalculoFrete from "./calculo-frete";
-import { VitrineDepartamentos, VitrineVeiculo } from "./vitrines";
-import StorefrontEditorial, { productTitles, productBenefits } from "./storefront-editorial";
-import { StorefrontInstitucional, RodapeLoja } from "./storefront-institucional";
+import { VitrineDepartamentos } from "./vitrines";
+import { productTitles, productBenefits } from "./storefront-editorial";
+import { RodapeLoja } from "./storefront-institucional";
+import PaginaLoja from "./pagina-loja";
+import { type Pagina, hrefPagina, paginaDaUrl } from "@/lib/paginas";
 import "./storefront-redesign.css";
 import "./storefront-polish.css";
 import "./storefront-loja.css";
@@ -63,6 +65,9 @@ export default function Storefront() {
   const [seletorMontadora, setSeletorMontadora] = useState(-1);
   const [frete, setFrete] = useState<ResultadoFrete | null>(null);
   const [opcaoFrete, setOpcaoFrete] = useState<OpcaoFrete | null>(null);
+  const [pagina, setPaginaEstado] = useState<Pagina | null>(() => paginaDaUrl(window.location.search));
+  const paginaRef = useRef<Pagina | null>(pagina);
+  const rolarAoCatalogo = useRef<"" | "focar" | "rolar">("");
   const [ultimoPedido, setUltimoPedido] = useState<{ link: string; texto: string } | null>(null);
   const [dados, setDados] = useState<Dados>(() => ({ nome: "", telefone: "", email: "", veiculo: "", entrega: "retirada", cep: "", logradouro: "", numero: "", complemento: "", bairro: "", cidade: "", pagamento: LOJA.pagamentos[0], obs: "", ...lerDados() }));
   const attempt = useRef("");
@@ -106,9 +111,10 @@ export default function Storefront() {
   const escreverUrl = useCallback((f: Filtro, peca: string | null) => {
     try {
       const params = new URLSearchParams(location.search);
-      for (const k of [...CHAVES_FILTRO, "peca"]) params.delete(k);
+      for (const k of [...CHAVES_FILTRO, "peca", "pagina"]) params.delete(k);
       for (const [k, v] of filtroParaUrl(f, catalogo?.meta)) params.set(k, v);
       if (peca) params.set("peca", peca);
+      if (paginaRef.current) params.set("pagina", paginaRef.current);
       const query = params.toString();
       history.replaceState(null, "", `${location.pathname}${query ? `?${query}` : ""}${location.hash}`);
     } catch {}
@@ -119,14 +125,49 @@ export default function Storefront() {
   useEffect(() => {
     if (!catalogo) return;
     // Agora que o catálogo existe, resolve os nomes do filtro da URL (link compartilhado).
-    const daUrl = filtroDaUrl(window.location.search, catalogo.meta);
+    let daUrl = filtroDaUrl(window.location.search, catalogo.meta);
+    // Carro lembrado no navegador vale como filtro quando o link não traz outro carro.
+    const lembrado = resolverVeiculo(catalogo, veiculoSalvo);
+    if (lembrado && daUrl.montadora < 0 && daUrl.modelo < 0) daUrl = { ...daUrl, montadora: lembrado.montadora, modelo: lembrado.modelo, ano: lembrado.ano };
     setFiltroEstado(daUrl);
     const params = new URLSearchParams(window.location.search);
     const peca = params.get("peca");
     if (peca && catalogo.porId.has(peca)) { detalheId.current = peca; setDetalheEstado(catalogo.porId.get(peca)!); return; }
-    if (JSON.stringify(daUrl) !== JSON.stringify(FILTRO_VAZIO) && !window.location.hash)
+    if (!lembrado && JSON.stringify(daUrl) !== JSON.stringify(FILTRO_VAZIO) && !window.location.hash && !paginaRef.current)
       document.getElementById("catalogo")?.scrollIntoView({ block: "start" });
   }, [catalogo]);
+
+  // Páginas da loja (?pagina=): entram no histórico, então o "voltar" do navegador funciona.
+  const mudarPagina = useCallback((p: Pagina | null) => {
+    paginaRef.current = p;
+    setPaginaEstado(p);
+    try {
+      const params = new URLSearchParams(location.search);
+      params.delete("pagina");
+      params.delete("peca");
+      if (p) params.set("pagina", p);
+      const query = params.toString();
+      history.pushState(null, "", `${location.pathname}${query ? `?${query}` : ""}`);
+    } catch {}
+  }, []);
+  useEffect(() => {
+    const aoVoltar = () => { const p = paginaDaUrl(location.search); paginaRef.current = p; setPaginaEstado(p); };
+    addEventListener("popstate", aoVoltar);
+    return () => removeEventListener("popstate", aoVoltar);
+  }, []);
+  useEffect(() => {
+    if (pagina) { window.scrollTo({ top: 0 }); return; }
+    const modo = rolarAoCatalogo.current;
+    if (!modo) return;
+    rolarAoCatalogo.current = "";
+    requestAnimationFrame(() => {
+      const el = document.getElementById("catalogo");
+      if (modo === "focar") el?.focus({ preventScroll: true });
+      el?.scrollIntoView({ block: "start" });
+      // A abertura remonta e ainda ajusta a altura; confere a posição de novo.
+      setTimeout(() => el?.scrollIntoView({ block: "start" }), 350);
+    });
+  }, [pagina]);
 
   // Peça integrada que entrou como item do catálogo antes da API responder: vira o produto ao vivo (sem duplicar).
   useEffect(() => {
@@ -204,7 +245,11 @@ export default function Storefront() {
       return next;
     });
   }
-  const irAoCatalogo = (focar = true) => requestAnimationFrame(() => {
+  const irAoCatalogo = (focar = true) => {
+    if (paginaRef.current) { rolarAoCatalogo.current = focar ? "focar" : "rolar"; mudarPagina(null); return; }
+    rolarCatalogo(focar);
+  };
+  const rolarCatalogo = (focar: boolean) => requestAnimationFrame(() => {
     const el = document.getElementById("catalogo");
     if (focar) el?.focus({ preventScroll: true });
     el?.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth", block: "start" });
@@ -214,6 +259,13 @@ export default function Storefront() {
     const alvo = normalizeSearch(nextCategory);
     const dep = catalogo?.meta.departamentos.find((d) => normalizeSearch(d.nome).includes(alvo) || alvo.includes(normalizeSearch(d.nome).split(" ")[0]));
     explorarDepartamento(dep?.id || "");
+  }
+  // Barra do carro no catálogo: ela mesma aplica o filtro; aqui só lembra o carro e preenche o pedido.
+  function lembrarCarro(v: VeiculoSalvo | null) {
+    salvarVeiculo(v);
+    setVeiculoSalvo(v);
+    const resolvido = catalogo && v ? resolverVeiculo(catalogo, v) : null;
+    if (resolvido) atualizarDados({ veiculo: resolvido.rotulo });
   }
   function escolherVeiculo(montadora = -1) { setSeletorMontadora(montadora); setSeletorAberto(true); }
   function salvarCarro(v: VeiculoSalvo | null) {
@@ -323,7 +375,7 @@ export default function Storefront() {
   const precisaEndereco = dados.entrega !== "retirada";
   return (
     <div className={`nl-store${editorialVariant ? " nl-store-editorial" : ""}`}>
-      <a className="nl-skip-link" href="#catalogo">Pular apresentação e ir ao catálogo</a>
+      <a className="nl-skip-link" href="#catalogo" onClick={(e) => { e.preventDefault(); irAoCatalogo(); }}>Pular apresentação e ir ao catálogo</a>
       <header className="store-header wrap">
         <a href={storefrontHref} className="store-brand">
           <img src={caminho("assets/logo.png")} alt="" />
@@ -337,34 +389,41 @@ export default function Storefront() {
         <button type="button" className={`nl-header-carro${veiculo ? " com-carro" : ""}`} onClick={() => escolherVeiculo()} aria-label={veiculo ? `Meu carro: ${veiculo.rotulo}. Trocar` : "Selecionar meu carro"}>
           <CarFront size={19} /><span>{veiculo ? veiculo.rotulo : "Meu carro"}</span>
         </button>
-        <nav className="nl-header-nav" aria-label="Navegação principal"><a href="#catalogo">Peças</a><a href="#entrega">Entrega</a><a href="#quem-somos">Quem somos</a><a href="#contato">Contato</a></nav>
+        <nav className="nl-header-nav" aria-label="Navegação principal">
+          <a href={`${BASE_URL}#catalogo`} onClick={(e) => { e.preventDefault(); irAoCatalogo(false); }}>Peças</a>
+          {([["entrega", "Entrega"], ["quem-somos", "Quem somos"], ["onde-estamos", "Contato"]] as const).map(([p, rotulo]) => (
+            <a key={p} href={hrefPagina(p)} aria-current={pagina === p ? "page" : undefined} onClick={(e) => { e.preventDefault(); mudarPagina(p); }}>{rotulo}</a>
+          ))}
+        </nav>
         <button className="cart-trigger" aria-label={`Meu pedido, ${count} ${count === 1 ? "peça" : "peças"}`} onClick={abrirCarrinho}>
           <ShoppingBag size={23} />
           <span>Meu pedido</span>
           <b>{count}</b>
         </button>
       </header>
-      <ScrollHero products={products} onProduct={abrirProduto} />
-      <div className="nl-value-strip"><div className="wrap"><span><CarFront size={21} /><span><b>A peça certa para o seu carro</b><small>Aplicação conferida pela equipe</small></span></span><span><Truck size={21} /><span><b>Entrega própria em Guarulhos</b><small>Frete calculado pelo CEP</small></span></span><span><ShieldCheck size={21} /><span><b>Desde {LOJA.fundacao} em Guarulhos</b><small>Peças com garantia do fabricante</small></span></span></div></div>
-      <VitrineVeiculo catalogo={catalogo} veiculo={veiculo} onEscolher={() => escolherVeiculo()} onMontadora={(m) => escolherVeiculo(m)}
-        onVerPecas={() => { if (veiculo) { setFiltro({ ...FILTRO_VAZIO, montadora: veiculo.montadora, modelo: veiculo.modelo, ano: veiculo.ano }); irAoCatalogo(); } }} />
-      <main className="wrap">
-        {editorialVariant && <Suspense fallback={null}><StorefrontEditorialVariant products={products} onExplore={exploreCategory} /></Suspense>}
-        <VitrineDepartamentos catalogo={catalogo} onDepartamento={explorarDepartamento} />
-        <section id="catalogo" className="catalog-section" tabIndex={-1}>
-          <div className="section-heading">
-            <div><p className="nl-kicker"><span /> {editorialVariant ? "DO CUIDADO À PEÇA" : "CATÁLOGO COMPLETO"}</p><h2>{editorialVariant ? <>Agora, encontre<br /><em>a sua peça.</em></> : <>Todas as peças<br /><em>da loja, aqui.</em></>}</h2></div>
-            <p className="nl-catalog-intro">{catalogo ? <>{catalogo.meta.total.toLocaleString("pt-BR")} itens da Nova Leões, por departamento, marca ou carro.<br />A aplicação é conferida com você antes de separar a peça.</> : <>O catálogo da loja, por departamento, marca ou carro.<br />A aplicação é conferida com você antes de separar a peça.</>}</p>
-          </div>
-          <CatalogoLoja
-            catalogo={catalogo} carregando={catalogoCarregando} erro={catalogoErro} live={live} filtro={filtro} veiculo={veiculo} onFiltro={setFiltro}
-            onSelecionar={setDetalhe} onAdicionar={adicionarPeca} onTentarNovamente={carregar} onEscolherVeiculo={() => escolherVeiculo()}
-          />
-        </section>
-        <StorefrontEditorial />
-        <StorefrontInstitucional totalPecas={catalogo?.meta.total || 0} />
-      </main>
-      <RodapeLoja storefrontHref={storefrontHref} departamentos={catalogo?.meta.departamentos.filter((d) => d.n > 0) || []} onDepartamento={explorarDepartamento} />
+      {pagina ? (
+        <main className="wrap"><PaginaLoja pagina={pagina} totalPecas={catalogo?.meta.total || 0} onPagina={mudarPagina} onCatalogo={() => irAoCatalogo()} /></main>
+      ) : (
+        <>
+          <ScrollHero products={products} onProduct={abrirProduto} />
+          <main className="wrap">
+            {editorialVariant && <Suspense fallback={null}><StorefrontEditorialVariant products={products} onExplore={exploreCategory} /></Suspense>}
+            <section id="catalogo" className="catalog-section" tabIndex={-1}>
+              <div className="section-heading">
+                <div><p className="nl-kicker"><span /> {editorialVariant ? "DO CUIDADO À PEÇA" : "CATÁLOGO COMPLETO"}</p><h2>{editorialVariant ? <>Agora, encontre<br /><em>a sua peça.</em></> : <>Todas as peças<br /><em>da loja, aqui.</em></>}</h2></div>
+                <p className="nl-catalog-intro">{catalogo ? <>{catalogo.meta.total.toLocaleString("pt-BR")} itens da Nova Leões, por departamento, marca ou carro.<br />A aplicação é conferida com você antes de separar a peça.</> : <>O catálogo da loja, por departamento, marca ou carro.<br />A aplicação é conferida com você antes de separar a peça.</>}</p>
+              </div>
+              <CatalogoLoja
+                catalogo={catalogo} carregando={catalogoCarregando} erro={catalogoErro} live={live} filtro={filtro} veiculo={veiculo} onFiltro={setFiltro}
+                onSelecionar={setDetalhe} onAdicionar={adicionarPeca} onTentarNovamente={carregar} onVeiculo={lembrarCarro}
+              />
+            </section>
+            <VitrineDepartamentos catalogo={catalogo} onDepartamento={explorarDepartamento} />
+          </main>
+          <div className="nl-value-strip"><div className="wrap"><span><CarFront size={21} /><span><b>A peça certa para o seu carro</b><small>Aplicação conferida pela equipe</small></span></span><span><Truck size={21} /><span><b>Entrega própria em Guarulhos</b><small>Frete calculado pelo CEP</small></span></span><span><ShieldCheck size={21} /><span><b>Desde {LOJA.fundacao} em Guarulhos</b><small>Peças com garantia do fabricante</small></span></span></div></div>
+        </>
+      )}
+      <RodapeLoja storefrontHref={storefrontHref} departamentos={catalogo?.meta.departamentos.filter((d) => d.n > 0) || []} onDepartamento={explorarDepartamento} onPagina={mudarPagina} />
 
       <a className={`nl-whats-flutuante${cartOpen || detalhe ? " oculto" : ""}`} href={contatoWhats} target="_blank" rel="noopener noreferrer" aria-label="Falar com a loja no WhatsApp">
         <MessageCircle size={24} /><span>Fale com a loja</span>
@@ -487,7 +546,7 @@ export default function Storefront() {
                     <ShoppingBag size={40} />
                     <h3>Seu pedido está vazio.</h3>
                     <p>Escolha uma peça para começar.</p>
-                    <a className="nl-empty-link" href="#catalogo" onClick={() => setCartOpen(false)}>Explorar peças <ArrowRight size={16} /></a>
+                    <a className="nl-empty-link" href="#catalogo" onClick={(e) => { e.preventDefault(); setCartOpen(false); irAoCatalogo(false); }}>Explorar peças <ArrowRight size={16} /></a>
                   </div>
                 )}
               </div>

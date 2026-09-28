@@ -1,14 +1,18 @@
 import { useEffect, useState } from "react";
-import { CarFront, Check, Link2, MessageCircle, Package, Share2, ShoppingBag, TriangleAlert } from "lucide-react";
+import { CarFront, Check, ChevronDown, Link2, MessageCircle, Package, Share2, ShoppingBag, TriangleAlert } from "lucide-react";
 import { DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import type { Product } from "@/lib/catalog";
 import { productBenefits } from "./storefront-editorial";
-import { type Catalogo, type Detalhe, type Peca, aplicaAno, carregarDetalhe, faixaAnos, money } from "@/lib/catalogo-site";
+import { type Catalogo, type Detalhe, type Peca, aplicaAno, carregarDetalhe, faixaAnos, money, normalizeSearch, separarDescricao } from "@/lib/catalogo-site";
 import { type Veiculo, servePara } from "@/lib/garagem";
 import { disponibilidadeDaPeca, fotoDaPeca, precoDaPeca, tituloDaPeca } from "./catalogo-loja";
 import { unidadeLegivel } from "@/lib/unidades";
 import CalculoFrete from "./calculo-frete";
 import { BASE_URL } from "@/lib/base";
+
+// Até ~180 caracteres de texto do cadastro à vista; o resto fica em "Mais informações".
+const LIMITE_TEXTO = 180;
+const VEICULOS_A_VISTA = 8;
 
 export function linkDaPeca(peca: Peca) {
   return `${location.origin}${BASE_URL}?peca=${peca.id}`;
@@ -20,9 +24,11 @@ export default function PecaDetalhe({ peca, catalogo, live, veiculo, onAdicionar
 }) {
   const [detalhe, setDetalhe] = useState<Detalhe | null | undefined>(undefined);
   const [copiado, setCopiado] = useState(false);
+  const [todosVeiculos, setTodosVeiculos] = useState(false);
   useEffect(() => {
     let ativo = true;
     setDetalhe(undefined);
+    setTodosVeiculos(false);
     carregarDetalhe(catalogo, peca.id).then((d) => ativo && setDetalhe(d)).catch(() => ativo && setDetalhe(null));
     return () => { ativo = false; };
   }, [catalogo, peca.id]);
@@ -37,6 +43,18 @@ export default function PecaDetalhe({ peca, catalogo, live, veiculo, onAdicionar
   const aplicacoes = detalhe?.a ?? [];
   const serve = servePara(peca, veiculo);
   const ordenadas = veiculo ? [...aplicacoes].sort((x, y) => Number(y[0] === veiculo.modelo) - Number(x[0] === veiculo.modelo)) : aplicacoes;
+  const { texto, veiculos: descritos } = separarDescricao(detalhe?.d ?? []);
+  const aVista: string[] = [];
+  for (const t of texto) { if (aVista.length && [...aVista, t].join(" · ").length > LIMITE_TEXTO) break; aVista.push(t); }
+  const maisTexto = texto.slice(aVista.length);
+  // A lista da descrição costuma ser mais completa que a tabela estruturada; usa a que tiver mais veículos.
+  const usarDescritos = descritos.length > aplicacoes.length;
+  const modeloDoCarro = veiculo ? normalizeSearch(meta.modelos[veiculo.modelo][1]) : "";
+  const descritoDoCarro = (d: { nome: string; inicio: number; fim: number }) =>
+    !!veiculo && normalizeSearch(d.nome).startsWith(modeloDoCarro) && aplicaAno([0, d.inicio, d.fim], veiculo.ano);
+  const listaDescritos = [...descritos].sort((x, y) => Number(descritoDoCarro(y)) - Number(descritoDoCarro(x)) || x.nome.localeCompare(y.nome, "pt-BR"));
+  const totalVeiculos = usarDescritos ? descritos.length : aplicacoes.length;
+  const limite = todosVeiculos ? Infinity : VEICULOS_A_VISTA;
 
   async function compartilhar() {
     const url = linkDaPeca(peca);
@@ -60,8 +78,9 @@ export default function PecaDetalhe({ peca, catalogo, live, veiculo, onAdicionar
           : <p className="nl-detail-nao-serve"><TriangleAlert size={16} /> Sem aplicação cadastrada para o seu {veiculo.rotulo}. Confirme com a loja.</p>)}
         <DialogDescription className="detail-description">
           {beneficio ? `${beneficio} ` : ""}
-          {detalhe === undefined ? "Carregando informações da peça…" : detalhe?.d.length ? detalhe.d.join(" · ") : "Descrição conforme o cadastro da loja."}
+          {detalhe === undefined ? "Carregando informações da peça…" : aVista.length ? aVista.join(" · ") : beneficio ? "" : totalVeiculos ? "Confira abaixo os veículos em que a peça é aplicada." : "Descrição conforme o cadastro da loja."}
         </DialogDescription>
+        {maisTexto.length > 0 && <details className="nl-detail-mais"><summary>Mais informações do cadastro <ChevronDown size={14} /></summary><p>{maisTexto.join(" · ")}</p></details>}
         {detalhe?.h.length ? <ul className="nl-detail-destaques">{detalhe.h.map((h) => <li key={h}>{h}</li>)}</ul> : null}
 
         <strong className="detail-price">{preco > 0 ? money(preco) : "Preço sob consulta"}</strong>
@@ -77,13 +96,23 @@ export default function PecaDetalhe({ peca, catalogo, live, veiculo, onAdicionar
         <CalculoFrete titulo="Frete para o seu endereço" />
 
         <div className="nl-detail-aplicacoes">
-          <p className="nl-detail-subtitulo"><CarFront size={17} /> {aplicacoes.length ? `Aplicação · ${aplicacoes.length} ${aplicacoes.length === 1 ? "veículo" : "veículos"}` : "Aplicação"}
+          <p className="nl-detail-subtitulo"><CarFront size={17} /> {totalVeiculos ? `Aplicação · ${totalVeiculos} ${totalVeiculos === 1 ? "veículo" : "veículos"}` : "Aplicação"}
             {!veiculo && <button type="button" onClick={onEscolherVeiculo}>Conferir no meu carro</button>}</p>
-          {aplicacoes.length ? (
+          {usarDescritos ? (
+            <table className="nl-aplic-descritos">
+              <thead><tr><th>Veículo</th><th>Anos</th></tr></thead>
+              <tbody>
+                {listaDescritos.slice(0, limite).map((d, i) => {
+                  const doCarro = descritoDoCarro(d);
+                  return <tr key={i} className={doCarro ? "nl-aplic-carro" : ""}><td>{d.nome}{doCarro && <small>seu carro</small>}</td><td>{faixaAnos(d.inicio, d.fim) || "Todos"}</td></tr>;
+                })}
+              </tbody>
+            </table>
+          ) : aplicacoes.length ? (
             <table>
               <thead><tr><th>Veículo</th><th>Versão / motor</th><th>Anos</th></tr></thead>
               <tbody>
-                {ordenadas.slice(0, 60).map((a, i) => {
+                {ordenadas.slice(0, limite).map((a, i) => {
                   const doCarro = !!veiculo && a[0] === veiculo.modelo && aplicaAno([a[0], a[3], a[4]], veiculo.ano);
                   return (
                     <tr key={i} className={doCarro ? "nl-aplic-carro" : ""}>
@@ -96,7 +125,11 @@ export default function PecaDetalhe({ peca, catalogo, live, veiculo, onAdicionar
               </tbody>
             </table>
           ) : <p className="subtle">{detalhe === undefined ? "Conferindo os veículos…" : "Sem tabela de aplicação no cadastro. Informe seu carro no pedido: a equipe confere antes de aprovar."}</p>}
-          {aplicacoes.length > 60 && <p className="subtle">E mais {aplicacoes.length - 60} veículos. Informe o seu no pedido.</p>}
+          {totalVeiculos > VEICULOS_A_VISTA && (
+            <button type="button" className="nl-aplic-mais" aria-expanded={todosVeiculos} onClick={() => setTodosVeiculos((v) => !v)}>
+              {todosVeiculos ? "Mostrar menos" : `Ver todos os ${totalVeiculos} veículos`} <ChevronDown size={14} />
+            </button>
+          )}
         </div>
         <div className="compatibility-note">
           <CarFront size={21} />
