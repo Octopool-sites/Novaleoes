@@ -59,6 +59,8 @@ export default function CarroInterativo({ catalogo, live, veiculo, onSelecionar,
         const el = pinos.current.get(p.id);
         if (!el) continue;
         el.style.transform = `translate(${p.x.toFixed(1)}px, ${p.y.toFixed(1)}px)`;
+        // Perto da borda direita, o nome vai para a esquerda do ponto (senão corta).
+        el.dataset.lado = p.x > (palco.current?.clientWidth ?? 0) - 170 ? "esq" : "";
         el.dataset.visivel = p.visivel ? "1" : "0";
         el.tabIndex = p.visivel ? 0 : -1;
       }
