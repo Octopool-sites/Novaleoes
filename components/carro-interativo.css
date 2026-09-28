@@ -34,7 +34,7 @@
 .nl-carro-peca-vazia { height: 82px; border-radius: 12px; background: linear-gradient(90deg, #f3f1ea, #faf9f5, #f3f1ea); background-size: 200% 100%; animation: nl-carro-brilho 1.2s linear infinite; }
 .nl-carro-ver-todas.nl-button { width: 100%; margin-top: 14px; gap: 10px; }
 
-.nl-carro-palco-area { position: relative; height: 100%; min-height: 420px; }
+.nl-carro-palco-area { position: relative; height: 100%; min-height: 420px; overflow: hidden; }
 .nl-carro-palco-area { cursor: grab; }
 .nl-carro-palco-area[data-arrastando] { cursor: grabbing; }
 .nl-carro-palco-area[data-arrastando] .nl-pino { pointer-events: none; }

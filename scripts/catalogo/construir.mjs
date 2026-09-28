@@ -148,7 +148,8 @@ export function construir(exportacao) {
     const mIdx = marca ? marcas.idx(marca) : -1;
     if (marca) contagemMarca.set(mIdx, (contagemMarca.get(mIdx) || 0) + 1);
     const precoCents = Number(p.preco) >= 1 ? Math.round(Number(p.preco) * 100) : 0;
-    const disp = Math.max(0, Math.floor(Number(p.disp) || 0));
+    // O site só acompanha o ERP e só diz se tem ou não tem: nenhuma quantidade sai no catálogo público.
+    const disp = Number(p.disp) > 0 ? 1 : 0;
     const foto = fotoPublica(p.foto);
     const unidade = String(p.unidade || "").trim().toUpperCase();
     const uIdx = unidades.idx(unidade);

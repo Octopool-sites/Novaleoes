@@ -36,7 +36,14 @@ git("pull", "--ff-only", "origin", "main");
 // 2. exportação só leitura
 const tarefa = rodar("aws", ["ecs", "list-tasks", "--cluster", "octopool-prod", "--service-name", "octopool-web", ...AWS, "--query", "taskArns[0]", "--output", "text"]).stdout.trim();
 if (!tarefa.startsWith("arn:")) throw new Error(`tarefa do ECS não encontrada: ${tarefa}`);
-const script = readFileSync(join(RAIZ, "scripts/catalogo/exportar-erp.cjs")).toString("base64");
+// Trava: o site só acompanha o ERP. A exportação precisa abrir transação somente leitura e não pode ter
+// nenhum comando de escrita; se alguém mudar o script, a atualização para aqui.
+const fonte = readFileSync(join(RAIZ, "scripts/catalogo/exportar-erp.cjs"), "utf8");
+const semComentarios = fonte.replace(/\/\/.*$/gm, "");
+if (!semComentarios.includes('SET TRANSACTION READ ONLY')) throw new Error("exportação sem transação somente leitura; não rodo");
+if (/\b(INSERT|UPDATE|DELETE|UPSERT|TRUNCATE|ALTER|DROP|CREATE)\b|\.(create|update|upsert|delete)(Many)?\(|\$executeRaw(?!Unsafe\("SET TRANSACTION READ ONLY"\))/i.test(semComentarios))
+  throw new Error("exportação com comando de escrita; não rodo");
+const script = Buffer.from(fonte).toString("base64");
 log("exportando do ERP (somente leitura)…");
 const saida = rodar("aws", ["ecs", "execute-command", "--cluster", "octopool-prod", "--task", tarefa, "--container", "web", "--interactive", ...AWS,
   "--command", `sh -c 'echo ${script} | base64 -d > /tmp/nl-export.js && NODE_PATH=/app/node_modules node /tmp/nl-export.js'`], { timeout: 280000 }).stdout;

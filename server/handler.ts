@@ -93,7 +93,8 @@ export async function handleApi(originalRequest: Request): Promise<Response> {
       if (pathname === "/api/public/catalog" && method === "GET") {
         if (process.env.COMMERCE_READ_ONLY !== "1") await inventory.refreshCatalog(ctx);
         return Response.json({
-          products: (await store.listProducts(ctx)).filter(p => p.published), requiresApproval: true,
+          // Público vê só se tem ou não tem; a quantidade real fica no servidor e é conferida no pedido.
+          products: (await store.listProducts(ctx)).filter(p => p.published).map(p => ({ ...p, stock: p.stock > 0 ? 1 : 0 })), requiresApproval: true,
           ordersEnabled: await intakeEnabled(ctx),
         });
       }

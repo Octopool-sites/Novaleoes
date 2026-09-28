@@ -145,3 +145,11 @@ test("descrição: separa a lista de veículos do texto e converte anos de 2 dí
     { nome: "Opala 4.1", inicio: 1985, fim: 1992 },
   ]);
 });
+
+test("estoque público: o catálogo só diz se tem ou não tem, nunca a quantidade", () => {
+  const { indice } = construir({ prods: [
+    { id: "a", nome: "PASTILHA", marca: "COBREQ", grupo: "PASTILHA FREIO", descricao: "", preco: 10, disp: 37, foto: null, unidade: "PC", qmin: 1 },
+    { id: "b", nome: "DISCO", marca: "FREMAX", grupo: "DISCO FREIO", descricao: "", preco: 10, disp: 0, foto: null, unidade: "PC", qmin: 1 },
+  ], apl: [], bind: [] });
+  assert.deepEqual(indice.pecas.map((l) => l[5]).sort(), [0, 1]);
+});
