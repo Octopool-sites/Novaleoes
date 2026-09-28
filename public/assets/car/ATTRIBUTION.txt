@@ -1,22 +1,23 @@
-Nova Leoes illustrative concept car
+Nova Leoes illustrative car
 
-Based on "Car Concept", copyright 2024 Darmstadt Graphics Group GmbH.
-Model and textures by Eric Chadwick.
+Based on "UNO MILLE SMART 2001 - RIGGED MODEL" by bruno_sales (https://sketchfab.com/bruno_sales).
 Licensed under Creative Commons Attribution 4.0 International (CC BY 4.0).
 https://creativecommons.org/licenses/by/4.0/
 
 Source:
-https://github.com/KhronosGroup/glTF-Sample-Assets/tree/main/Models/CarConcept
-Original model asset:
-https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/CarConcept/GLB/CarConcept.glb
+https://sketchfab.com/3d-models/uno-mille-smart-2001-rigged-model-ede3d69de2be4993ad58be4910590df2
 
 Modifications by Octopool, September 2026:
-- Removed all source texture maps, logos, material variants and UV/tangent attributes.
-- Removed steering emblem and license plate geometry.
-- Quantized normal vectors to signed normalized 16-bit values.
-- Repacked geometry as a texture-free GLB preserving separate component nodes.
-- Applied new neutral graphite studio materials, lighting and scroll-driven transforms.
+- Removed the spare wheel and the author's door animation.
+- Resized textures to at most 1024 px and converted them to WebP.
+- Simplified and quantized the meshes (tires more than the rest) for web delivery.
+- Hid the manufacturer emblem, the badges and the license plates.
+- Replaced the untextured engine block material with a dark metal finish.
+- Added scroll-driven exploded view and interactive part markers.
 
-This is an illustrative concept vehicle. It does not identify a make/model or
-guarantee compatibility between any listed auto part and a vehicle.
-No endorsement by the original authors or Khronos is implied.
+This is an illustrative vehicle. It does not guarantee compatibility between any
+listed auto part and a vehicle, and implies no endorsement by the manufacturer,
+the original author or Sketchfab.
+
+Earlier versions of this site used "Car Concept" (Khronos glTF Sample Assets,
+copyright 2024 Darmstadt Graphics Group GmbH, model by Eric Chadwick, CC BY 4.0).

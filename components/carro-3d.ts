@@ -2,12 +2,10 @@ import {
   ACESFilmicToneMapping,
   Box3,
   DirectionalLight,
-  DoubleSide,
   Group,
   HemisphereLight,
   Material,
   Mesh,
-  MeshPhysicalMaterial,
   MeshStandardMaterial,
   Object3D,
   OrthographicCamera,
@@ -26,11 +24,42 @@ import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { caminho } from "@/lib/base";
 
-// Carro ilustrativo que abre peça por peça. Modelo: "Car Concept" (CC BY 4.0), créditos em /assets/car/ATTRIBUTION.txt.
+// Carro ilustrativo que abre peça por peça. Modelo: "UNO MILLE SMART 2001" de bruno_sales (Sketchfab, CC BY 4.0),
+// otimizado e sem emblema/adesivos da montadora; créditos em /assets/car/ATTRIBUTION.txt.
 // As peças são os nós reais do modelo: montado, tudo encaixa; aberto, cada parte se afasta na sua direção.
 // Renderiza sob demanda: só enquanto a abertura, o giro ou o foco estão em movimento.
 
-export const ARQUIVO_CARRO = "assets/car/nova-leoes-carro-v2.glb";
+export const ARQUIVO_CARRO = "assets/car/nova-leoes-uno-v1.glb";
+
+// Nomes dos nós como estão no modelo. O carregador tira espaços e pontos, e o arquivo veio com os acentos
+// corrompidos ("CAPÔ" virou "CAP" + dois caracteres inválidos): achar() compara só letras e números.
+// Também as placas: podem ser de um carro de verdade.
+const OCULTAR = ["CORPO_METAL.001_0", "PORTA MALAS_ADESIVOS_0", "CORPO.003", "PORTA MALAS_PLACA MERCOSUL_0"];
+// [nó, deslocamento no mundo em metros (x = lado do motorista, y = cima, z = frente), início na abertura 0..1]
+const MOVIMENTOS: [string, [number, number, number], number][] = [
+  ["CAP", [0, 0.78, 0.25], 0], // capô
+  ["MOTOR_MOTOR_0", [0, 0.36, 0.05], 0.18],
+  ["PORTA MOTORISTA", [0.72, 0.02, 0], 0.04],
+  ["PORTA SAPO", [-0.72, 0.02, 0], 0.04],
+  ["PORTA MALAS", [0, 0.42, -0.38], 0.06],
+  ["RODA DIANTEIRA ESQ.", [0.58, 0, 0.05], 0.1],
+  ["RODA DIANTEIRA DIR.", [-0.58, 0, 0.05], 0.1],
+  ["RODA TRASEIRA ESQ.", [0.58, 0, -0.05], 0.12],
+  ["RODA TRASEIRA DIR.", [-0.58, 0, -0.05], 0.12],
+  ["LANTERNAS_LANTERNA TRASEIRA_0", [0, 0, -0.28], 0.14],
+  ["LANTERNAS_LANTERNA_0", [0, 0, 0.3], 0.14],
+  ["LANTERNAS_SETA_0", [0, 0, 0.3], 0.14],
+  ["LANTERNAS_METAL_0", [0, 0, 0.3], 0.14],
+  ["CORPO.002_GRADE_0", [0, 0, 0.3], 0.14],
+  ["CORPO.001", [0, 0, 0.3], 0.14],
+];
+const normalizarNome = (s: string) => s.normalize("NFD").replace(/\p{M}/gu, "").replace(/[^A-Za-z0-9]/g, "").toUpperCase();
+function achar(raiz: Object3D, nome: string) {
+  const alvo = normalizarNome(nome);
+  let achado: Object3D | undefined;
+  raiz.traverse((o) => { if (!achado && normalizarNome(o.name) === alvo) achado = o; });
+  return achado;
+}
 
 export async function baixarCarro(signal?: AbortSignal) {
   const resposta = await fetch(caminho(ARQUIVO_CARRO), { signal, cache: "force-cache" });
@@ -46,6 +75,8 @@ export type PinoCarro = {
   desloca?: [number, number, number];
   /** Direção para onde a parte "olha"; o pino some quando essa face está de costas para a câmera. */
   face?: [number, number, number] | null;
+  /** Ponto dentro da caixa da peça, de -1 a 1 por eixo, em vez do centro. */
+  canto?: [number, number, number];
 };
 
 export type PosicaoPino = { id: string; x: number; y: number; visivel: boolean };
@@ -55,6 +86,8 @@ export type Carro3D = {
   abrir(quanto: number): void;
   /** Gira o carro até a face do pino ficar de frente; null só solta o foco. */
   focar(id: string | null): void;
+  /** Gira o carro (botões de seta), em radianos. */
+  girar(delta: number): void;
   dispose(): void;
 };
 
@@ -104,6 +137,7 @@ export async function montarCarro3D(host: HTMLElement, opcoes: {
   const partes: ParteMovel[] = [];
   const ancoras: Ancora[] = [];
   let raioMontado = 2.3, raioAberto = 3;
+  const centroAberto = new Vector3(), alvoCamera = new Vector3();
 
   // Estado animado
   let abertura = 0, aberturaAlvo = 0;
@@ -153,8 +187,10 @@ export async function montarCarro3D(host: HTMLElement, opcoes: {
     const meiaAltura = Math.max((raio * (largura < 700 ? 0.7 : 0.94)) / aspecto, raio * 0.56);
     camera.left = -meiaAltura * aspecto; camera.right = meiaAltura * aspecto;
     camera.top = meiaAltura; camera.bottom = -meiaAltura;
-    camera.position.set(0, Math.sin(pitch) * 20, Math.cos(pitch) * 20);
-    camera.lookAt(0, 0, 0);
+    // Aberto, o capô e o porta-malas sobem: a câmera acompanha o centro do carro aberto.
+    alvoCamera.copy(centroAberto).multiplyScalar(suave(abertura)).applyAxisAngle(giroGrupo.up, yaw);
+    camera.position.set(alvoCamera.x, alvoCamera.y + Math.sin(pitch) * 20, alvoCamera.z + Math.cos(pitch) * 20);
+    camera.lookAt(alvoCamera);
     camera.updateProjectionMatrix();
     camera.updateMatrixWorld(true);
     dirCamera.copy(camera.position).normalize();
@@ -225,6 +261,13 @@ export async function montarCarro3D(host: HTMLElement, opcoes: {
       velYaw = 0;
       agendar();
     },
+    girar(delta) {
+      if (descartado) return;
+      yawAlvo = (yawAlvo ?? yaw) + delta;
+      velYaw = 0;
+      if (!girouAlguma) { girouAlguma = true; opcoes.onGirou?.(); }
+      agendar();
+    },
     dispose() {
       if (descartado) return;
       descartado = true;
@@ -264,60 +307,32 @@ export async function montarCarro3D(host: HTMLElement, opcoes: {
     const gltf = await new GLTFLoader().parseAsync(dados, "");
     if (descartado) { liberar(gltf.scene); return handle; }
 
-    const mat = {
-      pintura: new MeshPhysicalMaterial({ color: "#3c4344", metalness: 0.78, roughness: 0.27, clearcoat: 1, clearcoatRoughness: 0.12, side: DoubleSide }),
-      acabamento: new MeshStandardMaterial({ color: "#222826", metalness: 0.62, roughness: 0.34, side: DoubleSide }),
-      cromado: new MeshStandardMaterial({ color: "#bbc0bb", metalness: 0.91, roughness: 0.23, side: DoubleSide }),
-      borracha: new MeshStandardMaterial({ color: "#171b1a", metalness: 0.03, roughness: 0.86, side: DoubleSide }),
-      interior: new MeshStandardMaterial({ color: "#514c43", metalness: 0.06, roughness: 0.7, side: DoubleSide }),
-      interiorEscuro: new MeshStandardMaterial({ color: "#252a28", metalness: 0.12, roughness: 0.6, side: DoubleSide }),
-      mecanica: new MeshStandardMaterial({ color: "#6b7370", metalness: 0.8, roughness: 0.38, side: DoubleSide }),
-      vidro: new MeshPhysicalMaterial({ color: "#a8b4b0", metalness: 0.14, roughness: 0.12, transparent: true, opacity: 0.32, depthWrite: false, side: DoubleSide }),
-      farol: new MeshStandardMaterial({ color: "#faf3d9", emissive: "#e9d8a4", emissiveIntensity: 0.35, metalness: 0.15, roughness: 0.24 }),
-      lanterna: new MeshStandardMaterial({ color: "#a33b2a", emissive: "#6c1f12", emissiveIntensity: 0.2, metalness: 0.1, roughness: 0.25 }),
-      freio: new MeshStandardMaterial({ color: "#b99951", metalness: 0.7, roughness: 0.36 }),
-    };
-    const escolher = (nome: string): Material => {
-      if (/Tireside|Tiretread|Floormat/i.test(nome)) return mat.borracha;
-      if (/Glass/i.test(nome)) return mat.vidro;
-      if (/Headlight|Signallight/i.test(nome)) return mat.farol;
-      if (/Brakelight/i.test(nome)) return mat.lanterna;
-      if (/Rim1|Disc|Mirror/i.test(nome)) return mat.cromado;
-      if (/Brake/i.test(nome)) return mat.freio;
-      if (/Paint 1|Panel Sides/i.test(nome)) return mat.pintura;
-      if (/Interior 3|Interior 1/i.test(nome)) return mat.interior;
-      if (/Interior|Dashboard/i.test(nome)) return mat.interiorEscuro;
-      if (/Mechanical|Hardware/i.test(nome)) return mat.mecanica;
-      return mat.acabamento;
-    };
-    const antigos = new Set<Material>();
+    // Materiais e texturas originais do modelo (é o que o deixa com cara de carro de verdade); só realça o reflexo.
     gltf.scene.traverse((o) => {
       if (!(o instanceof Mesh)) return;
-      const originais = Array.isArray(o.material) ? o.material : [o.material];
-      originais.forEach((m) => antigos.add(m));
-      o.material = Array.isArray(o.material) ? originais.map((m) => escolher(m.name)) : escolher(originais[0].name);
+      for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
+        if (!(m instanceof MeshStandardMaterial)) continue;
+        m.envMapIntensity = 1.1;
+        // O bloco do motor veio sem textura (branco chapado): vira metal fundido escuro.
+        if (/^MOTOR$/i.test(m.name) && !m.map) { m.color.set("#4b5053"); m.metalness = 0.75; m.roughness = 0.42; }
+      }
     });
-    antigos.forEach((m) => m.dispose());
     centralizador.add(gltf.scene);
 
-    // Deslocamentos no espaço local de cada nó (o modelo é Z para cima; o pai converte para Y para cima).
-    const mover = (nome: string, desvio: [number, number, number], eixo: Vector3 | null = null, angulo = 0, inicio = 0) => {
-      const o = gltf.scene.getObjectByName(nome);
-      if (!o) return;
-      partes.push({ objeto: o, posicao: o.position.clone(), rotacao: o.quaternion.clone(), desvio: new Vector3(...desvio), giro: eixo ? new Quaternion().setFromAxisAngle(eixo, angulo) : new Quaternion(), inicio });
-    };
-    mover("BodyHood", [0, -0.35, 1.05], new Vector3(1, 0, 0), 0.22, 0.02);
-    mover("BodyRoofPanel", [0, 0.05, 1.25], null, 0, 0.06);
-    for (const n of ["BodyWindshield", "BodyWindshieldGasket", "BodyWindshieldWipers", "BodyWindshieldWipersBase"]) mover(n, [0, -0.18, 0.7], null, 0, 0.05);
-    mover("BodyDoorLColor1", [0.95, -0.02, 0.18], new Vector3(0, 0, 1), -0.16, 0.03);
-    mover("BodyDoorRColor1", [-0.95, -0.02, 0.18], new Vector3(0, 0, 1), 0.16, 0.03);
-    mover("BodyRearPanelsColor1", [0, 0.42, 0.62], new Vector3(1, 0, 0), -0.1, 0.07);
-    mover("BodyPanelsColor2", [0, 0, 0.16], null, 0, 0.07);
-    mover("WheelFrontL", [1.1, -0.1, 0], null, 0, 0.09);
-    mover("WheelFrontR", [-1.1, -0.1, 0], null, 0, 0.09);
-    mover("WheelRearL", [1.05, 0.12, 0], null, 0, 0.11);
-    mover("WheelRearR", [-1.05, 0.12, 0], null, 0, 0.11);
-    mover("Engine", [0, -0.1, 0.95], null, 0, 0.14);
+    // Emblema e adesivos da montadora saem: o carro é ilustrativo, o site não é propaganda da marca.
+    for (const nome of OCULTAR) { const o = achar(gltf.scene, nome); if (o) o.visible = false; }
+
+    // Deslocamentos em coordenadas do mundo (Y para cima, frente = +Z, lado do motorista = +X), convertidos
+    // para o espaço do pai de cada nó: montado, tudo volta exatamente ao lugar.
+    const alvo = new Vector3();
+    for (const [nome, desvio, inicio] of MOVIMENTOS) {
+      const o = achar(gltf.scene, nome);
+      if (!o?.parent) continue;
+      o.updateWorldMatrix(true, false);
+      o.getWorldPosition(alvo).add(new Vector3(...desvio));
+      const local = o.parent.worldToLocal(alvo.clone());
+      partes.push({ objeto: o, posicao: o.position.clone(), rotacao: o.quaternion.clone(), desvio: local.sub(o.position), giro: new Quaternion(), inicio });
+    }
 
     // Centro e raio do carro montado e aberto: a câmera enquadra pela esfera, então girar não muda o zoom.
     const caixa = new Box3(), esfera = new Sphere();
@@ -328,14 +343,19 @@ export async function montarCarro3D(host: HTMLElement, opcoes: {
     centralizador.updateMatrixWorld(true);
     raioMontado = caixa.setFromObject(gltf.scene).getBoundingSphere(esfera).radius;
     aplicarAbertura(1); centralizador.updateMatrixWorld(true);
-    raioAberto = caixa.setFromObject(gltf.scene).getBoundingSphere(esfera).radius;
+    caixa.setFromObject(gltf.scene);
+    raioAberto = caixa.getBoundingSphere(esfera).radius;
+    caixa.getCenter(centroAberto);
 
     // Âncoras: centro de cada nó guardado no espaço do próprio nó, para acompanhar a peça.
     for (const pino of opcoes.pinos) {
-      const objeto = gltf.scene.getObjectByName(pino.no);
+      const objeto = achar(gltf.scene, pino.no);
       if (!objeto) continue;
       caixa.setFromObject(objeto);
       const centroMundo = caixa.getCenter(new Vector3());
+      // canto: ponto dentro da caixa da peça, de -1 a 1 em cada eixo (ex.: o amortecedor dianteiro esquerdo
+      // dentro da malha que tem os quatro).
+      if (pino.canto) centroMundo.add(caixa.getSize(new Vector3()).multiplyScalar(0.5).multiply(new Vector3(...pino.canto)));
       const centroLocal = objeto.worldToLocal(centroMundo.clone());
       const face = pino.face === null ? null : pino.face ? new Vector3(...pino.face).normalize() : centroMundo.clone().setY(0).normalize();
       ancoras.push({ pino, objeto, centroLocal, face });
