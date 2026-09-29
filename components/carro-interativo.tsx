@@ -57,10 +57,18 @@ export default function CarroInterativo({ catalogo, live, veiculo, onSelecionar,
     return () => m.removeEventListener("change", aplicar);
   }, []);
 
-  // Monta o 3D assim que a abertura entra na tela (ela é a primeira coisa da página).
+  // O 3D (1,6 MB de modelo + Three.js) espera o catálogo chegar, ou 2,5 s: no 4G fraco as peças com preço
+  // aparecem primeiro, e a foto do carro fica na tela enquanto isso.
+  const [liberado, setLiberado] = useState(false);
+  useEffect(() => {
+    if (catalogo) { setLiberado(true); return; }
+    const t = setTimeout(() => setLiberado(true), 2500);
+    return () => clearTimeout(t);
+  }, [catalogo]);
+
   useEffect(() => {
     const alvo = palco.current;
-    if (!alvo) return;
+    if (!alvo || !liberado) return;
     let descartado = false;
     const posicionar = (lista: PosicaoPino[]) => {
       for (const p of lista) {
@@ -87,7 +95,7 @@ export default function CarroInterativo({ catalogo, live, veiculo, onSelecionar,
     baixarModelo().catch(() => {});
     return () => { descartado = true; clearTimeout(espera); carro.current?.dispose(); carro.current = null; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [liberado]);
 
   // Rolagem abre o carro. Com movimento reduzido, ele já começa aberto.
   function atualizarRolagem() {
@@ -201,7 +209,7 @@ export default function CarroInterativo({ catalogo, live, veiculo, onSelecionar,
               <p className="nl-kicker"><span /> COMPRE PELA PARTE DO CARRO</p>
               <h2 className="nl-carro-titulo">{aberto ? <>Toque num número <em>e veja as peças.</em></> : <>Role para abrir <em>o carro.</em></>}</h2>
             </div>
-            {!pronto && <div className="nl-carro-carregando">{semCarro ? <><CarFront size={64} strokeWidth={0.8} /><span>Escolha a parte do carro na lista abaixo</span></> : <><img src={caminho("assets/car/nova-leoes-uno-poster.jpg")} alt="" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} /><span className="nl-carro-barra-carga" /></>}</div>}
+            {!pronto && <div className="nl-carro-carregando">{semCarro ? <><CarFront size={64} strokeWidth={0.8} /><span>Escolha a parte do carro na lista abaixo</span></> : <><img src={caminho("assets/car/nova-leoes-uno-poster.jpg")} alt="" fetchPriority="high" decoding="async" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} /><span className="nl-carro-barra-carga" /></>}</div>}
             <div className="nl-carro-controles" data-sem-giro>
               {pronto && (
                 <div className="nl-carro-girar" role="group" aria-label="Girar o carro">
@@ -219,9 +227,9 @@ export default function CarroInterativo({ catalogo, live, veiculo, onSelecionar,
       </section>
       <div className="nl-carro-partes wrap">
         <p className="nl-carro-partes-rotulo">{catalogo ? `${catalogo.meta.total.toLocaleString("pt-BR")} peças com preço e estoque. ` : ""}Escolha a parte do carro:</p>
-        <div className="nl-carro-zonas" role="list" aria-label="Partes do carro">
-          {ZONAS.map((z, i) => <button type="button" role="listitem" key={z.id} className={zona === z.id ? "ativo" : ""} onClick={() => { escolher(z.id); secao.current?.scrollIntoView({ block: "end", behavior: reduzido ? "instant" : "smooth" }); }}><b>{i + 1}</b>{z.nome}</button>)}
-        </div>
+        <ul className="nl-carro-zonas" aria-label="Partes do carro">
+          {ZONAS.map((z, i) => <li key={z.id}><button type="button" className={zona === z.id ? "ativo" : ""} aria-pressed={zona === z.id} onClick={() => { escolher(z.id); secao.current?.scrollIntoView({ block: "end", behavior: reduzido ? "instant" : "smooth" }); }}><b>{i + 1}</b>{z.nome}</button></li>)}
+        </ul>
         <a className="nl-carro-direto" href="#catalogo">Ir direto ao catálogo <ArrowUpRight size={15} /></a>
       </div>
     </>

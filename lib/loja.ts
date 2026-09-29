@@ -14,8 +14,9 @@ export const LOJA = {
     uf: "SP",
     cep: "07080-000",
   },
-  // Coordenadas do CEP da loja (AwesomeAPI CEP, 25/09/2026). Base do cálculo de distância do frete.
-  coordenadas: { lat: -23.4379981, lng: -46.5476991 },
+  // Posição do nº 444 no OpenStreetMap (28/09/2026). Base do cálculo de distância do frete.
+  // O centro do CEP 07080-000 (-23.4379981, -46.5476991) fica ~900 m ao norte da loja e mudava a faixa de alguns bairros.
+  coordenadas: { lat: -23.4459205, lng: -46.5476205 },
   telefone: "(11) 2452-8939",
   // CONFIRMAR COM A LOJA: número que tem WhatsApp (DDI + DDD + número, só dígitos).
   whatsapp: "551124528939",

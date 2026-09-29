@@ -1,7 +1,7 @@
 "use client";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  ShoppingBag, ArrowRight, ShieldCheck, PackageCheck, CarFront, Plus, Minus, Trash2, Check, LoaderCircle, Package, MessageCircle, Search, Truck,
+  ShoppingBag, ArrowRight, ShieldCheck, PackageCheck, CarFront, Plus, Minus, Trash2, Check, LoaderCircle, Package, MessageCircle, Search, Truck, Copy, Menu, Phone,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -10,7 +10,7 @@ import { normalizeSearch, type Order } from "@/lib/commerce-contracts";
 import { type Catalogo, type Filtro, type Peca, CHAVES_FILTRO, FILTRO_VAZIO, carregarCatalogo, filtroDaUrl, filtroParaUrl, filtrar, urlFoto } from "@/lib/catalogo-site";
 import { type Veiculo, type VeiculoSalvo, lerVeiculoSalvo, resolverVeiculo, salvarVeiculo } from "@/lib/garagem";
 import type { OpcaoFrete, ResultadoFrete } from "@/lib/frete";
-import { LOJA, whatsappUrl } from "@/lib/loja";
+import { LOJA, telefoneHref, whatsappUrl } from "@/lib/loja";
 import { mensagemPedido } from "@/lib/pedido";
 import CarroInterativo from "./carro-interativo";
 import CatalogoLoja, { tituloDaPeca } from "./catalogo-loja";
@@ -21,10 +21,11 @@ import { VitrineDepartamentos } from "./vitrines";
 import { productTitles, productBenefits } from "./storefront-editorial";
 import { RodapeLoja } from "./storefront-institucional";
 import PaginaLoja from "./pagina-loja";
-import { type Pagina, hrefPagina, paginaDaUrl } from "@/lib/paginas";
+import { type Pagina, PAGINAS, hrefPagina, paginaDaUrl } from "@/lib/paginas";
 import "./storefront-redesign.css";
 import "./storefront-polish.css";
 import "./storefront-loja.css";
+import "./storefront-entrega.css";
 import { caminho, BASE_URL } from "@/lib/base";
 const StorefrontEditorialVariant = lazy(() => import("./storefront-editorial-variant"));
 
@@ -35,6 +36,14 @@ export type Dados = { nome: string; telefone: string; email: string; veiculo: st
 const CHAVE_CATALOGO = "c:";
 const CHAVE_CARRINHO = "octopool-commerce-live-cart-v1";
 const CHAVE_DADOS = "nl-dados-cliente-v1";
+const CHAVE_ULTIMO = "nl-ultimo-pedido-v1";
+
+function lerUltimoPedido(): { link: string; texto: string } | null {
+  try {
+    const u = JSON.parse(localStorage.getItem(CHAVE_ULTIMO) || "null");
+    return u && typeof u.link === "string" && u.link.startsWith("https://wa.me/") && typeof u.texto === "string" ? u : null;
+  } catch { return null; }
+}
 
 function lerDados(): Partial<Dados> {
   try { const d = JSON.parse(localStorage.getItem(CHAVE_DADOS) || "{}"); return d && typeof d === "object" ? d : {}; } catch { return {}; }
@@ -68,9 +77,16 @@ export default function Storefront() {
   const [pagina, setPaginaEstado] = useState<Pagina | null>(() => paginaDaUrl(window.location.search));
   const paginaRef = useRef<Pagina | null>(pagina);
   const rolarAoCatalogo = useRef<"" | "focar" | "rolar">("");
-  const [ultimoPedido, setUltimoPedido] = useState<{ link: string; texto: string } | null>(null);
+  const [ultimoPedido, setUltimoPedido] = useState<{ link: string; texto: string } | null>(() => lerUltimoPedido());
+  const [copiado, setCopiado] = useState(false);
+  const [menuAberto, setMenuAberto] = useState(false);
+  const [buscaAberta, setBuscaAberta] = useState(false);
+  const buscaTopo = useRef<HTMLInputElement>(null);
+  // Carro que o site preencheu no checkout: trocar o carro só sobrescreve o campo se o cliente não o editou.
+  const veiculoAuto = useRef("");
   const [dados, setDados] = useState<Dados>(() => ({ nome: "", telefone: "", email: "", veiculo: "", entrega: "retirada", cep: "", logradouro: "", numero: "", complemento: "", bairro: "", cidade: "", pagamento: LOJA.pagamentos[0], obs: "", ...lerDados() }));
   const attempt = useRef("");
+  const ultimoCep = useRef(dados.cep || "");
   const detalheId = useRef<string | null>(null);
   const escolhaEntrega = useRef<OpcaoFrete["tipo"] | null>(null);
   const live = useMemo(() => new Map(products.map((p) => [p.id, p])), [products]);
@@ -105,22 +121,38 @@ export default function Storefront() {
     carregar();
   }, [carregar]);
   useEffect(() => { if (hydrated) try { localStorage.setItem(CHAVE_CARRINHO, JSON.stringify(cart)); } catch {} }, [cart, hydrated]);
+  // Fechou o carrinho na tela "pedido pronto no WhatsApp": o pedido foi entregue ao WhatsApp, começa um novo.
+  useEffect(() => { if (!cartOpen && step === "enviado") { setCart({}); setStep("cart"); } }, [cartOpen, step]);
+  useEffect(() => { if (buscaAberta) buscaTopo.current?.focus(); }, [buscaAberta]);
 
   // URL: filtro do catálogo e peça aberta (?peca=), para compartilhar. Preserva ?visual=editorial.
   // Mexe só nas chaves do filtro e em ?peca=; preserva utm_*, gclid, fbclid e ?visual=editorial.
-  const escreverUrl = useCallback((f: Filtro, peca: string | null) => {
-    try {
-      const params = new URLSearchParams(location.search);
-      for (const k of [...CHAVES_FILTRO, "peca", "pagina"]) params.delete(k);
-      for (const [k, v] of filtroParaUrl(f, catalogo?.meta)) params.set(k, v);
-      if (peca) params.set("peca", peca);
-      if (paginaRef.current) params.set("pagina", paginaRef.current);
-      const query = params.toString();
-      history.replaceState(null, "", `${location.pathname}${query ? `?${query}` : ""}${location.hash}`);
-    } catch {}
+  const urlCom = useCallback((f: Filtro, peca: string | null) => {
+    const params = new URLSearchParams(location.search);
+    for (const k of [...CHAVES_FILTRO, "peca", "pagina"]) params.delete(k);
+    for (const [k, v] of filtroParaUrl(f, catalogo?.meta)) params.set(k, v);
+    if (peca) params.set("peca", peca);
+    if (paginaRef.current) params.set("pagina", paginaRef.current);
+    const query = params.toString();
+    return `${location.pathname}${query ? `?${query}` : ""}${location.hash}`;
   }, [catalogo]);
+  const escreverUrl = useCallback((f: Filtro, peca: string | null) => {
+    try { history.replaceState(history.state, "", urlCom(f, peca)); } catch {}
+  }, [urlCom]);
   const setFiltro = useCallback((proximo: Filtro) => { setFiltroEstado(proximo); escreverUrl(proximo, detalheId.current); }, [escreverUrl]);
-  const setDetalhe = useCallback((p: Peca | null) => { detalheId.current = p?.id || null; setDetalheEstado(p); escreverUrl(filtro, detalheId.current); }, [escreverUrl, filtro]);
+  // Abrir uma peça entra no histórico: o "voltar" do celular fecha a peça em vez de sair da loja.
+  const setDetalhe = useCallback((p: Peca | null) => {
+    const antes = detalheId.current;
+    detalheId.current = p?.id || null;
+    setDetalheEstado(p);
+    try {
+      if (p && !antes) history.pushState({ nlPeca: p.id }, "", urlCom(filtro, p.id));
+      else if (!p && antes && history.state?.nlPeca) history.back();
+      else history.replaceState(history.state, "", urlCom(filtro, detalheId.current));
+    } catch {}
+  }, [urlCom, filtro]);
+  const catalogoRef = useRef(catalogo);
+  catalogoRef.current = catalogo;
 
   useEffect(() => {
     if (!catalogo) return;
@@ -152,7 +184,18 @@ export default function Storefront() {
     } catch {}
   }, []);
   useEffect(() => {
-    const aoVoltar = () => { const p = paginaDaUrl(location.search); paginaRef.current = p; setPaginaEstado(p); };
+    const aoVoltar = (e: PopStateEvent) => {
+      const p = paginaDaUrl(location.search);
+      paginaRef.current = p;
+      setPaginaEstado(p);
+      // Peça e carrinho seguem o histórico: voltar fecha, avançar reabre.
+      setCartOpen(!!e.state?.nlCarrinho);
+      const id = new URLSearchParams(location.search).get("peca");
+      const peca = (id && catalogoRef.current?.porId.get(id)) || null;
+      detalheId.current = peca?.id || null;
+      setDetalheEstado(peca);
+      if (!peca) setDetalheLive(null);
+    };
     addEventListener("popstate", aoVoltar);
     return () => removeEventListener("popstate", aoVoltar);
   }, []);
@@ -179,11 +222,10 @@ export default function Storefront() {
       for (const [id, q] of Object.entries(prev)) {
         const ext = id.startsWith(CHAVE_CATALOGO) ? catalogo.porId.get(id.slice(CHAVE_CATALOGO.length))?.externalId : null;
         const produto = ext ? live.get(ext) : null;
-        if (produto) {
+        if (produto && produto.stock > 0) {
           mudou = true;
-          const total = produto.stock > 0 ? Math.min(20, (next[produto.id] || 0) + q) : 0;
-          if (total > 0) next[produto.id] = total;
-        } else next[id] = (next[id] || 0) + q;
+          next[produto.id] = Math.min(20, (next[produto.id] || 0) + q);
+        } else next[id] = (next[id] || 0) + q; // sem estoque online: continua como peça do catálogo (a loja confirma pelo WhatsApp)
       }
       return mudou ? next : prev;
     });
@@ -192,14 +234,16 @@ export default function Storefront() {
   const linhas: Linha[] = useMemo(() => Object.entries(cart).map(([id, quantity]) => {
     if (id.startsWith(CHAVE_CATALOGO)) {
       const peca = catalogo?.porId.get(id.slice(CHAVE_CATALOGO.length));
-      if (!peca) return { valida: false, minimo: 1, id, quantity, nome: catalogo ? "Peça que saiu do catálogo" : "Carregando peça…", marca: "", image: "", priceCents: 0, stock: 0, integrado: false, link: "" };
+      if (!peca) return { valida: false, minimo: 1, id, quantity, nome: catalogo ? "Peça que saiu do catálogo" : catalogoErro ? "Peça do pedido" : "Carregando peça…", marca: "", image: "", priceCents: 0, stock: 0, integrado: false, link: "" };
       return { valida: true, minimo: Math.max(1, Math.round(peca.quantidadeMinima) || 1), id, quantity, nome: tituloDaPeca(peca), marca: peca.marca, image: urlFoto(catalogo!.meta, peca.foto), priceCents: peca.precoCents, stock: peca.disponivel, integrado: false, link: linkDaPeca(peca), peca };
     }
     const product = live.get(id);
     const peca = catalogo?.porExternalId.get(id);
-    if (!product) return { valida: false, minimo: 1, id, quantity, nome: catalogLoading ? "Carregando peça…" : "Peça indisponível no momento", marca: "", image: "", priceCents: 0, stock: 0, integrado: true, link: "" };
+    // Estoque ao vivo fora do ar: a peça continua no catálogo do site e segue pelo WhatsApp.
+    if (!product && peca && catalogError) return { valida: true, minimo: 1, id, quantity, nome: tituloDaPeca(peca), marca: peca.marca, image: urlFoto(catalogo!.meta, peca.foto), priceCents: peca.precoCents, stock: peca.disponivel, integrado: false, link: linkDaPeca(peca), peca };
+    if (!product) return { valida: false, minimo: 1, id, quantity, nome: catalogLoading || (!catalogo && !catalogoErro) ? "Carregando peça…" : "Peça indisponível no momento", marca: "", image: "", priceCents: 0, stock: 0, integrado: true, link: "" };
     return { valida: true, minimo: 1, id, quantity, nome: productTitles[id] || product.name, marca: product.brand, image: product.image, priceCents: product.priceCents, stock: product.stock, integrado: true, link: peca ? linkDaPeca(peca) : "", product };
-  }), [cart, catalogo, live, catalogLoading]);
+  }), [cart, catalogo, live, catalogLoading, catalogError, catalogoErro]);
   const linhasInvalidas = linhas.filter((l) => !l.valida);
   const subtotal = linhas.reduce((s, l) => s + l.priceCents * l.quantity, 0);
   const valorFrete = dados.entrega === "entrega" && opcaoFrete?.tipo === "entrega" ? opcaoFrete.valorCents : 0;
@@ -218,21 +262,38 @@ export default function Storefront() {
       return next;
     });
   }
-  function abrirCarrinho() { setStep("cart"); setError(""); setCartOpen(true); }
+  // O carrinho aberto também entra no histórico (o "voltar" do celular fecha o carrinho).
+  function abrirCarrinho() {
+    setStep("cart"); setError(""); setCartOpen(true);
+    try {
+      if (history.state?.nlCarrinho) return;
+      // Vindo do detalhe da peça: o carrinho ocupa o lugar dele no histórico.
+      if (detalheId.current && history.state?.nlPeca) history.replaceState({ nlCarrinho: true }, "", urlCom(filtro, null));
+      else history.pushState({ nlCarrinho: true }, "", location.href);
+    } catch {}
+  }
+  function fecharCarrinho(voltar = true) {
+    setCartOpen(false);
+    try {
+      if (!history.state?.nlCarrinho) return;
+      if (voltar) history.back(); else history.replaceState(null, "", location.href);
+    } catch {}
+  }
+  // Tira a peça da tela sem mexer no histórico (o carrinho que abre em seguida assume o lugar dela).
+  function fecharDetalheSemHistorico() { detalheId.current = null; setDetalheEstado(null); setDetalheLive(null); }
   function adicionarPeca(peca: Peca) {
     const atual = peca.externalId ? live.get(peca.externalId) : undefined;
-    if (atual) { addLive(atual); return; }
+    if (atual && atual.stock > 0) { addLive(atual); return; }
     const id = CHAVE_CATALOGO + peca.id;
     change(id, (cart[id] || 0) + Math.max(1, Math.round(peca.quantidadeMinima) || 1));
-    setDetalhe(null);
     abrirCarrinho();
+    fecharDetalheSemHistorico();
   }
   function addLive(p: Product) {
     if (p.stock <= 0) return;
     change(p.id, Math.min((cart[p.id] || 0) + 1, 20));
-    setDetalhe(null);
-    setDetalheLive(null);
     abrirCarrinho();
+    fecharDetalheSemHistorico();
   }
   function abrirProduto(p: Product) {
     const peca = catalogo?.porExternalId.get(p.id);
@@ -254,6 +315,8 @@ export default function Storefront() {
     const el = document.getElementById("catalogo");
     if (focar) el?.focus({ preventScroll: true });
     el?.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth", block: "start" });
+    // A rolagem suave às vezes é interrompida (o catálogo muda de altura ao filtrar): confere e completa.
+    setTimeout(() => { if (el && Math.abs(el.getBoundingClientRect().top) > 120) el.scrollIntoView({ behavior: "instant", block: "start" }); }, 900);
   });
   function explorarDepartamento(id: string) { setFiltro({ ...FILTRO_VAZIO, departamento: id }); irAoCatalogo(); }
   function exploreCategory(nextCategory: string) {
@@ -262,13 +325,19 @@ export default function Storefront() {
     explorarDepartamento(dep?.id || "");
   }
   // Barra do carro no catálogo: ela mesma aplica o filtro; aqui só lembra o carro e preenche o pedido.
+  // O campo "Carro" do pedido acompanha o carro escolhido, a não ser que o cliente tenha escrito outra coisa nele.
+  function preencherVeiculo(rotulo: string) {
+    if (dados.veiculo && dados.veiculo !== veiculo?.rotulo && dados.veiculo !== veiculoAuto.current) return;
+    veiculoAuto.current = rotulo;
+    atualizarDados({ veiculo: rotulo });
+  }
   function lembrarCarro(v: VeiculoSalvo | null) {
     salvarVeiculo(v);
     setVeiculoSalvo(v);
     const resolvido = catalogo && v ? resolverVeiculo(catalogo, v) : null;
-    if (resolvido) atualizarDados({ veiculo: resolvido.rotulo });
+    if (resolvido) preencherVeiculo(resolvido.rotulo);
   }
-  function escolherVeiculo(montadora = -1) { setSeletorMontadora(montadora); setSeletorAberto(true); }
+  function escolherVeiculo(montadora = -1) { if (!catalogo) return; setSeletorMontadora(montadora); setSeletorAberto(true); }
   function salvarCarro(v: VeiculoSalvo | null) {
     salvarVeiculo(v);
     setVeiculoSalvo(v);
@@ -276,7 +345,7 @@ export default function Storefront() {
     const resolvido = resolverVeiculo(catalogo, v);
     if (resolvido) {
       setFiltro({ ...filtro, montadora: resolvido.montadora, modelo: resolvido.modelo, ano: resolvido.ano });
-      atualizarDados({ veiculo: resolvido.rotulo });
+      preencherVeiculo(resolvido.rotulo);
       if (!detalhe) irAoCatalogo();
     } else setFiltro({ ...filtro, montadora: -1, modelo: -1, ano: 0 });
   }
@@ -291,8 +360,16 @@ export default function Storefront() {
     const e = r.endereco;
     const escolhida = r.opcoes.find((o) => o.tipo === escolhaEntrega.current) || r.opcoes[0];
     setOpcaoFrete(escolhida);
+    const cep = e.cep.replace(/^(\d{5})(\d{3})$/, "$1-$2");
+    // CEP diferente do último: o endereço anterior (rua, número, complemento) não vale mais.
+    const outroCep = !!ultimoCep.current && ultimoCep.current !== cep;
+    ultimoCep.current = cep;
     setDados((prev) => {
-      const next = { ...prev, cep: e.cep.replace(/^(\d{5})(\d{3})$/, "$1-$2"), logradouro: e.logradouro || prev.logradouro, bairro: e.bairro || prev.bairro, cidade: `${e.cidade}/${e.uf}`, entrega: escolhida.tipo };
+      const next = {
+        ...prev, cep, cidade: `${e.cidade}/${e.uf}`, entrega: escolhida.tipo,
+        logradouro: e.logradouro || (outroCep ? "" : prev.logradouro), bairro: e.bairro || (outroCep ? "" : prev.bairro),
+        numero: outroCep ? "" : prev.numero, complemento: outroCep ? "" : prev.complemento,
+      };
       try { const { obs: _o, ...salvar } = next; localStorage.setItem(CHAVE_DADOS, JSON.stringify(salvar)); } catch {}
       return next;
     });
@@ -308,13 +385,24 @@ export default function Storefront() {
   function enviarWhatsApp(e?: React.FormEvent) {
     e?.preventDefault();
     if (linhasInvalidas.length) { setStep("cart"); return; }
-    const texto = mensagemPedido(linhas, dados, dados.entrega === "retirada" ? null : opcaoFrete, frete?.distanciaKm ?? null);
-    const link = whatsappUrl(texto);
+    const opcao = dados.entrega === "retirada" ? null : opcaoFrete;
+    let texto = mensagemPedido(linhas, dados, opcao, frete?.distanciaKm ?? null);
+    let link = whatsappUrl(texto);
+    // Pedido grande: sem os links das peças, para o texto caber no endereço do WhatsApp.
+    if (link.length > 4000) { texto = mensagemPedido(linhas.map((l) => ({ ...l, link: "" })), dados, opcao, frete?.distanciaKm ?? null); link = whatsappUrl(texto); }
     window.open(link, "_blank", "noopener");
-    setUltimoPedido({ link, texto });
-    setCart({});
+    const pedido = { link, texto };
+    setUltimoPedido(pedido);
+    try { localStorage.setItem(CHAVE_ULTIMO, JSON.stringify(pedido)); } catch {}
+    setCopiado(false);
+    // O carrinho só esvazia quando o cliente confirma o envio ou fecha esta tela: se o WhatsApp não abriu, nada se perde.
     setStep("enviado");
   }
+  async function copiarPedido() {
+    if (!ultimoPedido) return;
+    try { await navigator.clipboard.writeText(ultimoPedido.texto); setCopiado(true); } catch { setCopiado(false); }
+  }
+  function concluirEnvio() { setCart({}); setStep("cart"); fecharCarrinho(); }
   async function submitOnline() {
     if (loading || !pedidoOnline) return;
     const formEl = document.getElementById("checkout-form") as HTMLFormElement | null;
@@ -376,18 +464,28 @@ export default function Storefront() {
   const precisaEndereco = dados.entrega !== "retirada";
   return (
     <div className={`nl-store${editorialVariant ? " nl-store-editorial" : ""}`}>
-      <a className="nl-skip-link" href="#catalogo" onClick={(e) => { e.preventDefault(); irAoCatalogo(); }}>Pular apresentação e ir ao catálogo</a>
+      <a className="nl-skip-link" href="#catalogo" onClick={(e) => {
+        e.preventDefault();
+        if (paginaRef.current) { irAoCatalogo(); return; }
+        // Pulo imediato (sem animação): a rolagem suave podia ser interrompida e o atalho não saía do lugar.
+        const el = document.getElementById("catalogo");
+        el?.focus({ preventScroll: true });
+        el?.scrollIntoView({ behavior: "instant", block: "start" });
+      }}>Pular apresentação e ir ao catálogo</a>
       <header className="store-header wrap">
         <a href={storefrontHref} className="store-brand">
-          <img src={caminho("assets/logo.png")} alt="" />
+          <img src={caminho("assets/logo.png")} alt="" width={37} height={40} />
           <span>NOVA LEÕES<small>AUTOPEÇAS</small></span>
         </a>
-        <form className="nl-header-busca" role="search" onSubmit={(e) => { e.preventDefault(); irAoCatalogo(false); }}>
+        <form className={`nl-header-busca${buscaAberta ? " aberta" : ""}`} role="search" onSubmit={(e) => { e.preventDefault(); buscaTopo.current?.blur(); irAoCatalogo(false); }}>
           <Search size={17} />
-          <input aria-label="Buscar peça" placeholder="Buscar peça, marca ou carro" maxLength={120} value={filtro.q}
+          <input ref={buscaTopo} type="search" enterKeyHint="search" aria-label="Buscar peça" placeholder="Buscar peça, marca ou carro" maxLength={120} value={filtro.q}
             onChange={(e) => setFiltro({ ...filtro, q: e.target.value })} onFocus={() => { if (!filtro.q) irAoCatalogo(false); }} />
         </form>
-        <button type="button" className={`nl-header-carro${veiculo ? " com-carro" : ""}`} onClick={() => escolherVeiculo()} aria-label={veiculo ? `Meu carro: ${veiculo.rotulo}. Trocar` : "Selecionar meu carro"}>
+        <button type="button" className={`nl-header-lupa${buscaAberta ? " ativo" : ""}`} aria-label={buscaAberta ? "Fechar a busca" : "Buscar peça"} aria-expanded={buscaAberta} onClick={() => setBuscaAberta((v) => !v)}>
+          <Search size={20} />
+        </button>
+        <button type="button" className={`nl-header-carro${veiculo ? " com-carro" : ""}`} onClick={() => escolherVeiculo()} disabled={!catalogo} aria-busy={!catalogo} aria-label={veiculo ? `Meu carro: ${veiculo.rotulo}. Trocar` : "Selecionar meu carro"}>
           <CarFront size={19} /><span>{veiculo ? veiculo.rotulo : "Meu carro"}</span>
         </button>
         <nav className="nl-header-nav" aria-label="Navegação principal">
@@ -401,7 +499,30 @@ export default function Storefront() {
           <span>Meu pedido</span>
           <b>{count}</b>
         </button>
+        <button type="button" className="nl-header-menu" aria-label="Abrir o menu da loja" aria-expanded={menuAberto} onClick={() => setMenuAberto(true)}>
+          <Menu size={22} />
+        </button>
       </header>
+
+      <Sheet open={menuAberto} onOpenChange={setMenuAberto}>
+        <SheetContent side="right" className="nl-menu-sheet">
+          <SheetHeader>
+            <SheetTitle>{LOJA.nome}</SheetTitle>
+            <SheetDescription>{LOJA.endereco.logradouro}, {LOJA.endereco.numero} · {LOJA.endereco.bairro} · {LOJA.endereco.cidade}</SheetDescription>
+          </SheetHeader>
+          <nav className="nl-menu-links" aria-label="Menu da loja">
+            <a href={`${BASE_URL}#catalogo`} onClick={(e) => { e.preventDefault(); setMenuAberto(false); irAoCatalogo(false); }}><b>Todas as peças</b><small>{catalogo ? `${catalogo.meta.total.toLocaleString("pt-BR")} itens com preço` : "Catálogo da loja"}</small></a>
+            <button type="button" disabled={!catalogo} onClick={() => { setMenuAberto(false); escolherVeiculo(); }}><b>{veiculo ? `Meu carro: ${veiculo.rotulo}` : "Escolher meu carro"}</b><small>Mostra só as peças que servem nele</small></button>
+            {PAGINAS.map((p) => (
+              <a key={p.id} href={hrefPagina(p.id)} aria-current={pagina === p.id ? "page" : undefined} onClick={(e) => { e.preventDefault(); setMenuAberto(false); mudarPagina(p.id); }}><b>{p.titulo}</b><small>{p.resumo}</small></a>
+            ))}
+          </nav>
+          <div className="nl-menu-contato">
+            <a className="primary-button wide" href={contatoWhats} target="_blank" rel="noopener noreferrer"><MessageCircle size={18} /> Falar no WhatsApp</a>
+            <a className="nl-menu-telefone" href={telefoneHref}><Phone size={16} /> {LOJA.telefone}</a>
+          </div>
+        </SheetContent>
+      </Sheet>
       {pagina ? (
         <main className="wrap"><PaginaLoja pagina={pagina} totalPecas={catalogo?.meta.total || 0} onPagina={mudarPagina} onCatalogo={() => irAoCatalogo()} /></main>
       ) : (
@@ -454,7 +575,7 @@ export default function Storefront() {
         </DialogContent>
       </Dialog>
 
-      <Sheet open={cartOpen} onOpenChange={setCartOpen}>
+      <Sheet open={cartOpen} onOpenChange={(aberto) => { if (aberto) setCartOpen(true); else fecharCarrinho(); }}>
         <SheetContent className="cart-sheet nl-cart-sheet sm:max-w-[560px] w-full">
           <SheetHeader>
             <p className="nl-cart-eyebrow">{step === "cart" ? "1 · PEÇAS E FRETE" : step === "checkout" ? "2 · SEUS DADOS E ENTREGA" : "3 · PEDIDO ENVIADO"}</p>
@@ -469,7 +590,7 @@ export default function Storefront() {
               <p>Seu pedido <strong>{order.number}</strong> foi salvo.</p>
               <div className="receipt-row"><span>Total solicitado</span><strong>{money(order.totalCents)}</strong></div>
               <p className="subtle">A loja confere aplicação, valor e disponibilidade antes de aprovar. Aguarde o contato da equipe.</p>
-              <button className="text-button" onClick={() => setCartOpen(false)}>Continuar explorando a loja</button>
+              <button className="text-button" onClick={() => fecharCarrinho()}>Continuar explorando a loja</button>
             </div>
           ) : step === "enviado" && ultimoPedido ? (
             <div className="order-success nl-enviado">
@@ -477,8 +598,11 @@ export default function Storefront() {
               <h2>Pedido pronto no WhatsApp{dados.nome ? `, ${dados.nome.split(" ")[0]}` : ""}.</h2>
               <p>Abrimos a conversa com a loja com o pedido completo. É só tocar em <b>enviar</b> no WhatsApp.</p>
               <a className="primary-button wide" href={ultimoPedido.link} target="_blank" rel="noopener noreferrer"><MessageCircle size={18} /> Abrir o WhatsApp de novo</a>
+              <button type="button" className="nl-button nl-copiar" onClick={copiarPedido}>{copiado ? <><Check size={17} /> Pedido copiado</> : <><Copy size={17} /> Copiar o texto do pedido</>}</button>
+              <p className="subtle">O WhatsApp não abriu? Copie o texto e mande para {LOJA.telefone}, ou ligue para a loja.</p>
               <details className="nl-enviado-texto"><summary>Ver o texto do pedido</summary><pre>{ultimoPedido.texto}</pre></details>
-              <button className="text-button" onClick={() => { setStep("cart"); setCartOpen(false); }}>Continuar comprando</button>
+              <button className="text-button nl-enviado-pronto" onClick={concluirEnvio}><Check size={16} /> Pronto, já enviei</button>
+              <button className="text-button" onClick={() => setStep("cart")}>Voltar ao pedido</button>
             </div>
           ) : (
             <>
@@ -492,7 +616,7 @@ export default function Storefront() {
                           <h3>{l.nome}</h3>
                           <p>{l.marca || ""}</p>
                           <strong>{l.priceCents > 0 ? money(l.priceCents * l.quantity) : "Preço sob consulta"}</strong>
-                          {!l.valida ? <small className="nl-cart-line-obs nl-cart-line-erro">Não está mais disponível no site. Remova para continuar.</small> : !l.integrado && <small className="nl-cart-line-obs">{l.stock > 0 ? "Em estoque na loja" : "Sob encomenda · a loja confirma o prazo"}{l.minimo > 1 ? ` · venda mínima de ${l.minimo}` : ""}</small>}
+                          {!l.valida ? <small className="nl-cart-line-obs nl-cart-line-erro">{!catalogo && catalogoErro ? "Sem conexão com o catálogo agora." : !catalogo || catalogLoading ? "Carregando…" : "Não está mais disponível no site. Remova para continuar."}</small> : !l.integrado && <small className="nl-cart-line-obs">{l.stock > 0 ? "Em estoque na loja" : "Sob encomenda · a loja confirma o prazo"}{l.minimo > 1 ? ` · venda mínima de ${l.minimo}` : ""}</small>}
                           <div className="quantity">
                             <button aria-label={`Diminuir ${l.nome}`} disabled={l.quantity <= l.minimo} onClick={() => change(l.id, l.quantity - 1)}><Minus size={15} /></button>
                             <span>{l.quantity}</span>
@@ -547,7 +671,8 @@ export default function Storefront() {
                     <ShoppingBag size={40} />
                     <h3>Seu pedido está vazio.</h3>
                     <p>Escolha uma peça para começar.</p>
-                    <a className="nl-empty-link" href="#catalogo" onClick={(e) => { e.preventDefault(); setCartOpen(false); irAoCatalogo(false); }}>Explorar peças <ArrowRight size={16} /></a>
+                    <a className="nl-empty-link" href="#catalogo" onClick={(e) => { e.preventDefault(); fecharCarrinho(false); irAoCatalogo(false); }}>Explorar peças <ArrowRight size={16} /></a>
+                    {ultimoPedido && <a className="nl-ultimo-pedido" href={ultimoPedido.link} target="_blank" rel="noopener noreferrer"><MessageCircle size={15} /> Reabrir o último pedido no WhatsApp</a>}
                   </div>
                 )}
               </div>
@@ -562,7 +687,7 @@ export default function Storefront() {
                   {error && <p role="alert" className="inline-error">{error}</p>}
                   {step === "cart" ? (
                     <>
-                      {linhasInvalidas.length > 0 && <p role="alert" className="inline-error">{catalogoCarregando || catalogLoading ? "Carregando as peças do pedido…" : "Há peça que não está mais disponível no site. Remova-a para finalizar."}</p>}
+                      {linhasInvalidas.length > 0 && <p role="alert" className="inline-error">{catalogoCarregando || catalogLoading ? "Carregando as peças do pedido…" : catalogoErro ? <>Não conseguimos carregar o catálogo. Confira a internet. <button type="button" className="nl-link-botao" onClick={carregar}>Tentar de novo</button></> : "Há peça que não está mais disponível no site. Remova-a para finalizar."}</p>}
                       <button className="primary-button wide" disabled={linhasInvalidas.length > 0} onClick={() => { setError(""); setStep("checkout"); }}>Finalizar pedido <ArrowRight size={18} /></button>
                     </>
                   ) : (

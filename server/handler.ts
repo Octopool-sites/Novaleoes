@@ -94,7 +94,8 @@ export async function handleApi(originalRequest: Request): Promise<Response> {
         if (process.env.COMMERCE_READ_ONLY !== "1") await inventory.refreshCatalog(ctx);
         return Response.json({
           // Público vê só se tem ou não tem; a quantidade real fica no servidor e é conferida no pedido.
-          products: (await store.listProducts(ctx)).filter(p => p.published).map(p => ({ ...p, stock: p.stock > 0 ? 1 : 0 })), requiresApproval: true,
+          // O código interno do ERP (sku) não sai para o site (AGENTS.md).
+          products: (await store.listProducts(ctx)).filter(p => p.published).map(p => ({ ...p, sku: "", stock: p.stock > 0 ? 1 : 0 })), requiresApproval: true,
           ordersEnabled: await intakeEnabled(ctx),
         });
       }

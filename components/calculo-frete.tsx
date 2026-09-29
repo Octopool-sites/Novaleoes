@@ -38,8 +38,19 @@ export default function CalculoFrete({ selecionada, onResultado, onSelecionar, t
       setErro(e instanceof Error ? e.message : "Não foi possível calcular agora.");
     } finally { if (meu === pedido.current) setCarregando(false); }
   }
-  // CEP já salvo de uma visita anterior: calcula sozinho.
-  useEffect(() => { if (limparCep(cep).length === 8) void calcular(cep); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
+  // CEP já salvo de uma visita anterior: calcula sozinho. Ao sair da tela, uma resposta atrasada não vale mais.
+  useEffect(() => {
+    if (limparCep(cep).length === 8) void calcular(cep);
+    return () => { pedido.current++; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  // CEP editado: o frete e o endereço do CEP anterior deixam de valer até o novo ser calculado.
+  function editar(valor: string) {
+    const v = formatarCep(valor);
+    setCep(v);
+    if (limparCep(v).length === 8) { void calcular(v); return; }
+    if (resultado || carregando) { pedido.current++; setCarregando(false); setResultado(null); onResultado?.(null); }
+  }
 
   return (
     <div className="nl-frete">
@@ -48,7 +59,7 @@ export default function CalculoFrete({ selecionada, onResultado, onSelecionar, t
       <div className="nl-frete-form" role="group" aria-label="Calcular frete">
         <input inputMode="numeric" autoComplete="postal-code" aria-label="CEP de entrega" placeholder="00000-000" maxLength={9} value={cep}
           onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void calcular(); } }}
-          onChange={(e) => { const v = formatarCep(e.target.value); setCep(v); if (limparCep(v).length === 8) void calcular(v); }} />
+          onChange={(e) => editar(e.target.value)} />
         <button type="button" disabled={carregando} onClick={() => void calcular()}>{carregando ? <LoaderCircle className="animate-spin" size={16} /> : "Calcular"}</button>
       </div>
       <a className="nl-frete-nao-sei" href="https://buscacepinter.correios.com.br/app/endereco/index.php" target="_blank" rel="noopener noreferrer">Não sei meu CEP</a>

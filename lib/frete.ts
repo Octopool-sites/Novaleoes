@@ -39,9 +39,14 @@ export function opcoesPorDistancia(km: number | null, mesmaCidade: boolean): Opc
 }
 
 async function buscarJson(url: string): Promise<any> {
-  const r = await fetch(url, { signal: AbortSignal.timeout(8000) });
-  if (!r.ok) throw new Error(String(r.status));
-  return r.json();
+  // AbortController + setTimeout em vez de AbortSignal.timeout, que não existe no Safari antes do iOS 16.
+  const controle = new AbortController();
+  const limite = setTimeout(() => controle.abort(), 8000);
+  try {
+    const r = await fetch(url, { signal: controle.signal });
+    if (!r.ok) throw new Error(String(r.status));
+    return await r.json();
+  } finally { clearTimeout(limite); }
 }
 
 export async function consultarCep(valor: string): Promise<Endereco> {
@@ -61,8 +66,16 @@ export async function consultarCep(valor: string): Promise<Endereco> {
   throw new Error("Não encontramos esse CEP. Confira os números.");
 }
 
+// Mesmo CEP na mesma visita (carrinho, checkout, página da peça): consulta uma vez só.
+const consultas = new Map<string, Promise<Endereco>>();
+function consultarCepUmaVez(valor: string) {
+  const cep = limparCep(valor);
+  if (!consultas.has(cep)) consultas.set(cep, consultarCep(cep).catch((e) => { consultas.delete(cep); throw e; }));
+  return consultas.get(cep)!;
+}
+
 export async function calcularFrete(valor: string): Promise<ResultadoFrete> {
-  const endereco = await consultarCep(valor);
+  const endereco = await consultarCepUmaVez(valor);
   const km = endereco.lat !== null && endereco.lng !== null ? distanciaKm(LOJA.coordenadas, { lat: endereco.lat, lng: endereco.lng }) * LOJA.frete.fatorRota : null;
   const mesmaCidade = endereco.cidade.toLowerCase() === LOJA.endereco.cidade.toLowerCase();
   return { endereco, distanciaKm: km, opcoes: opcoesPorDistancia(km, mesmaCidade) };

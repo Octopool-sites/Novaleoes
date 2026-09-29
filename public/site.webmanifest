@@ -1,0 +1,14 @@
+{
+  "name": "Nova Leões Autopeças",
+  "short_name": "Nova Leões",
+  "description": "Peças para o seu carro em Guarulhos, desde 1993.",
+  "lang": "pt-BR",
+  "start_url": "/",
+  "display": "browser",
+  "background_color": "#f5f3ee",
+  "theme_color": "#283025",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { limparNome, limparGrupo, limparDescricao, unidadeLegivel, VAZAMENTO_CODIGO } from "../scripts/catalogo/nomes.mjs";
 import { classificar, DEPARTAMENTOS, normalizarTexto } from "../scripts/catalogo/taxonomia.mjs";
 import { construir, vazamentos, grupoDerivado, limparMarca, nomeModelo, chaveModelo, idCurto, bucketDe, normalizarAno, BUCKETS } from "../scripts/catalogo/construir.mjs";
-import { filtrar, montarCatalogo, filtroDaUrl, filtroParaUrl, FILTRO_VAZIO, resumoAplicacoes, faixaAnos, separarDescricao } from "../lib/catalogo-site.ts";
+import { filtrar, montarCatalogo, filtroDaUrl, filtroParaUrl, FILTRO_VAZIO, resumoAplicacoes, faixaAnos, separarDescricao, termosDe, textoBusca } from "../lib/catalogo-site.ts";
 
 test("nomes: expande abreviações do balcão, restaura acentos e remove código de fabricante do fim", () => {
   assert.equal(limparNome("AMORT DT LE"), "Amortecedor Dianteiro Lado Esquerdo");
@@ -14,6 +14,12 @@ test("nomes: expande abreviações do balcão, restaura acentos e remove código
   assert.equal(limparNome("CORREIA DENT 129 X 220 / 488"), "Correia Dentada 129 X 220");
   assert.equal(limparNome("DISCO FREIO DT SOL 4F 240 ( 31 )"), "Disco Freio Dianteiro Sólido 4 furos 240");
   assert.equal(limparNome("PAST FREIO DT ( 4213 )"), "Pastilha Freio Dianteiro");
+  // DIR é o lado em peça de lado e a direção nas outras; adjetivo concorda com o nome feminino.
+  assert.equal(limparNome("LANTERNA TS DIR"), "Lanterna Traseira Direita");
+  assert.equal(limparNome("FAROL PRINC BIODO DIR"), "Farol Princ Biodo Direito");
+  assert.equal(limparNome("CAIXA DIR HIDR"), "Caixa Direção Hidráulica");
+  assert.equal(limparNome("BANDEJA COMPLETO DT LD"), "Bandeja Completa Dianteira Lado Direito");
+  assert.equal(limparNome("AMORT DT LE"), "Amortecedor Dianteiro Lado Esquerdo");
   assert.equal(normalizarAno(2106), 2006);
   assert.equal(normalizarAno(2208), 2008);
   assert.equal(normalizarAno(120), 0);
@@ -152,4 +158,37 @@ test("estoque público: o catálogo só diz se tem ou não tem, nunca a quantida
     { id: "b", nome: "DISCO", marca: "FREMAX", grupo: "DISCO FREIO", descricao: "", preco: 10, disp: 0, foto: null, unidade: "PC", qmin: 1 },
   ], apl: [], bind: [] });
   assert.deepEqual(indice.pecas.map((l) => l[5]).sort(), [0, 1]);
+});
+
+test("busca: tolera pontuação, plural, feminino, preposições, siglas do balcão e sinônimos", () => {
+  const dep = (id, nome) => ({ id, nome, resumo: "", n: 1, grupos: [], capa: "" });
+  const meta = {
+    versao: 1, exportadoEm: null, geradoEm: "", empresa: "", total: 5, comEstoque: 5, comFoto: 0, fotoBase: "", buckets: 1,
+    departamentos: [dep("freios", "Freios"), dep("arrefecimento", "Arrefecimento"), dep("lubrificantes", "Lubrificantes e fluidos"), dep("suspensao", "Suspensão")],
+    grupos: [["Pastilha Freio", 0, 1], ["Bomba d'Água", 1, 1], ["5W30", 2, 1], ["Amortecedor", 3, 1], ["Fluido Freio", 2, 1]],
+    marcas: [["Cobreq", 1]], montadoras: ["Volkswagen", "Honda"], modelos: [[0, "Gol", 1], [1, "HR-V", 1]], unidades: [""],
+  };
+  const linha = (id, nome, grupo, aplic = []) => [id, nome, 0, grupo, 1000, 1, "", aplic, 0, 0, 1];
+  const c = montarCatalogo(meta, [
+    linha("a", "Pastilha Freio Dianteiro", 0, [[0, 2008, 2014]]),
+    linha("b", "Bomba D´agua", 1, [[1, 2016, 0]]),
+    linha("c", "5W30 Sintético API SN 1 L", 2),
+    linha("d", "Amortecedor Traseiro", 3, [[0, 2008, 2014]]),
+    linha("e", "Fluido de Freio DOT 4", 4),
+  ]);
+  const ids = (q) => filtrar(c, { ...FILTRO_VAZIO, q }).map((p) => p.id).sort().join("");
+  assert.equal(textoBusca("Bomba D´água HR-V (S-10)"), "bomba dagua hrv s10");
+  assert.equal(ids("bomba dagua"), "b");
+  assert.equal(ids("bomba d'água"), "b");
+  assert.equal(ids("hrv"), "b");
+  assert.equal(ids("pastilhas"), "a");
+  assert.equal(ids("pastilha dianteira"), "a");
+  assert.equal(ids("pastilha de freio para gol"), "a");
+  assert.equal(ids("vw gol"), "ad");
+  assert.equal(ids("amortecedores"), "d");
+  assert.equal(ids("amort ts"), "d");
+  assert.equal(ids("óleo 5w-30"), "c", "óleo de motor vem em grupo pela viscosidade");
+  assert.equal(ids("oleo"), "c", "fluido de freio não é óleo");
+  assert.equal(ids("kits"), "", "sigla solta não casa com pedaço de palavra");
+  assert.deepEqual(termosDe("ts"), [["traseir"]]);
 });
