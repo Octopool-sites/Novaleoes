@@ -4,7 +4,7 @@
 // Convenção do arquivo: metros, Y para cima, +Z frente, +X lado do motorista, chão em y = 0. Cada peça que se
 // move é um nó NL_* com a origem na dobradiça (capô, portas) ou no cubo (rodas).
 
-export const ARQUIVO_CARRO = "assets/car/nova-leoes-hatch-v2.glb";
+export const ARQUIVO_CARRO = "assets/car/nova-leoes-hatch-v3.glb";
 export const POSTER_CARRO = "assets/car/nova-leoes-hatch-poster.webp";
 /** Foto do carro aberto tirada do próprio 3D (fabrica-3d/6-conferir/foto-aberto.mjs): reserva sem WebGL ou com
  * economia de dados. A da Higgsfield (nova-leoes-exploded.webp) tinha teto levantado e placa na grade. */

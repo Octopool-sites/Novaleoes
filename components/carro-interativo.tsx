@@ -26,22 +26,40 @@ function baixarModelo() {
 
 // Números visíveis a menos de DIST px um do outro são empurrados para longe (no celular o carro é pequeno e
 // motor, farol, amortecedor, disco, volante e câmbio caíam quase no mesmo ponto). Ficam dentro do palco.
-const DIST = 34;
-function afastarPinos(lista: PosicaoPino[], largura: number, altura: number): PosicaoPino[] {
+// Com os nomes à mostra (telas largas), o nome de um número também não pode cobrir outro número: no computador o
+// "Câmbio e embreagem" tapava o 5 (Direção) e o clique no 5 abria o câmbio. Aí os dois se afastam na vertical.
+const DIST = 34, MEIA_ALTURA_NOME = 15, RAIO = 15, VAO_NOME = 22;
+function afastarPinos(lista: PosicaoPino[], largura: number, altura: number, nomes?: Map<string, number>): PosicaoPino[] {
   const pts = lista.map((p) => ({ ...p }));
   const vis = pts.filter((p) => p.visivel);
+  // faixa horizontal ocupada pelo nome (à direita do ponto, ou à esquerda perto da borda direita)
+  const faixaNome = (p: PosicaoPino) => {
+    const w = nomes?.get(p.id) ?? 0;
+    if (!w) return null;
+    return p.x > largura - 170 ? [p.x - VAO_NOME - w, p.x - VAO_NOME] : [p.x + VAO_NOME, p.x + VAO_NOME + w];
+  };
   for (let volta = 0; volta < 8; volta++) {
     let mexeu = false;
     for (let i = 0; i < vis.length; i++) for (let j = i + 1; j < vis.length; j++) {
       const a = vis[i], b = vis[j];
       let dx = b.x - a.x, dy = b.y - a.y;
       let d = Math.hypot(dx, dy);
-      if (d >= DIST) continue;
-      if (d < 0.01) { dx = 1; dy = 0; d = 1; }
-      const empurra = (DIST - d) / 2;
-      a.x -= (dx / d) * empurra; a.y -= (dy / d) * empurra;
-      b.x += (dx / d) * empurra; b.y += (dy / d) * empurra;
-      mexeu = true;
+      if (d < DIST) {
+        if (d < 0.01) { dx = 1; dy = 0; d = 1; }
+        const empurra = (DIST - d) / 2;
+        a.x -= (dx / d) * empurra; a.y -= (dy / d) * empurra;
+        b.x += (dx / d) * empurra; b.y += (dy / d) * empurra;
+        mexeu = true;
+        continue;
+      }
+      for (const [dono, outro] of [[a, b], [b, a]] as const) {
+        const faixa = faixaNome(dono);
+        const vy = outro.y - dono.y, minimo = MEIA_ALTURA_NOME + RAIO;
+        if (!faixa || Math.abs(vy) >= minimo || outro.x + RAIO <= faixa[0] || outro.x - RAIO >= faixa[1]) continue;
+        const sinal = vy >= 0 ? 1 : -1, empurra = (minimo - Math.abs(vy)) / 2;
+        dono.y -= sinal * empurra; outro.y += sinal * empurra;
+        mexeu = true;
+      }
     }
     if (!mexeu) break;
   }
@@ -94,7 +112,10 @@ export default function CarroInterativo({ catalogo, live, veiculo, onSelecionar,
     if (!alvo || !liberado || sem3d) return;
     let descartado = false;
     const posicionar = (bruta: PosicaoPino[]) => {
-      const lista = afastarPinos(bruta, palco.current?.clientWidth ?? 0, palco.current?.clientHeight ?? 0);
+      // largura de cada nome visível (0 quando o CSS esconde os nomes, abaixo de 1100 px)
+      const nomes = new Map<string, number>();
+      for (const [id, el] of pinos.current) nomes.set(id, (el.querySelector(".nl-pino-nome") as HTMLElement | null)?.offsetWidth ?? 0);
+      const lista = afastarPinos(bruta, palco.current?.clientWidth ?? 0, palco.current?.clientHeight ?? 0, nomes);
       for (const p of lista) {
         const el = pinos.current.get(p.id);
         if (!el) continue;
