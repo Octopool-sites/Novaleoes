@@ -8,11 +8,14 @@ Source:
 https://sketchfab.com/3d-models/2020-hyundai-i20-n-line-6c267be59fb94253bff935616eddcc99
 
 Modifications by Octopool, September 2026:
-- Removed the manufacturer emblems, badges, wheel center logos and license plates.
+- Removed the manufacturer emblems, badges, wheel center logos, license plates and the front plate holder;
+  the front grille pattern was completed where the emblem used to be.
 - Replaced all materials and textures with plain colors (grey paint, satin black trims, glass, alloy wheels).
-- Separated the hood, roof, driver-side doors, driver-side wheels and front fender into hinged parts.
+- Separated the hood, driver-side doors, driver-side wheels and front fender into hinged parts.
 - Added an engine with timing belt and pulleys, an air filter and a front shock absorber with coil spring.
-- Simplified and quantized the meshes for web delivery.
+- Added an engine bay (splash shield, inner fenders, strut towers, firewall, radiator, battery, reservoirs),
+  door trim panels on the driver-side doors and a cabin floor.
+- Simplified and quantized the meshes for web delivery (the painted body keeps the original mesh and normals).
 - Added a scroll-driven exploded view and interactive part markers.
 
 This is an illustrative vehicle. It does not guarantee compatibility between any
@@ -22,4 +25,5 @@ the original author or Sketchfab.
 Earlier versions of this site used "UNO MILLE SMART 2001 - RIGGED MODEL" by bruno_sales
 (CC BY 4.0) and "Car Concept" (Khronos glTF Sample Assets, copyright 2024 Darmstadt
 Graphics Group GmbH, model by Eric Chadwick, CC BY 4.0). The exploded photo used as a
-fallback without 3D was generated for Octopool on Higgsfield (22 September 2026).
+fallback without 3D is a render of this adapted model (nova-leoes-aberto-3d.webp); the earlier
+exploded photo (nova-leoes-exploded.webp) was generated for Octopool on Higgsfield (22 September 2026).

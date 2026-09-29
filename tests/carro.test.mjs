@@ -28,6 +28,14 @@ test("GLB do carro: todos os nós de movimento e dos números existem, com nome 
   }
 });
 
+test("GLB do carro: o forro de cada porta que abre é filho da porta (abre junto, não fica tampando os bancos)", () => {
+  for (const porta of MOVIMENTOS.map((m) => m.no).filter((n) => /^NL_PORTA_/.test(n))) {
+    const forro = nomes.indexOf(`${porta}_FORRO`);
+    assert.ok(forro >= 0, `${porta}_FORRO`);
+    assert.ok((glb.nodes[nomes.indexOf(porta)].children ?? []).includes(forro), `${porta}_FORRO dentro de ${porta}`);
+  }
+});
+
 test("GLB do carro: sem decodificador WASM (CSP sem wasm-unsafe-eval) e sem imagem embutida", () => {
   const exigidas = glb.extensionsRequired ?? [];
   for (const e of exigidas) assert.ok(["KHR_mesh_quantization"].includes(e), `extensão exigida ${e}`);

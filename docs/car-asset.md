@@ -1,6 +1,19 @@
 # Carro ilustrativo da vitrine Nova Leões
 
-## Atual: hatch cinza "da Higgsfield" em 3D (29/09/2026)
+## Atual: v2, carro inteiro e com detalhe (29/09/2026, tarde)
+
+O Luca apontou na v1: lataria com cara de amassada, placa e emblema na grade, teto subindo e "flutuando", uma placa preta tampando os bancos com a porta aberta, um "porta-objetos" descolado da porta e o chão aparecendo pelo vão do motor. O que mudou em `scripts/carro/montar-hatch.mjs` (gera `public/assets/car/nova-leoes-hatch-v2.glb`, 3,9 MB, 219 mil triângulos, 15 materiais):
+
+- **Lataria lisa:** o autor gravou uma normal por canto de face (ponderada); é isso que deixa a chapa lisa com poucos vértices. A v1 simplificava a pintura para 34% e recalculava as normais, e o reflexo ondulava. Agora a `PINTURA` fica com a malha e as normais do autor, só soldadas (`soldarComNormal`, 15°). O peso saiu de peças escuras e pequenas (lentes internas dos faróis, cromados, lanternas, plásticos pretos).
+- **Grade 100%:** sem o suporte de placa (381) e o fundo do emblema (359/360) o desenho da grade já continua atrás da placa; só o vão do emblema é completado com o desenho da faixa ao lado (`GRADE`). A grade (`NL_GRADE`) não é simplificada.
+- **Teto no lugar:** saiu `NL_TETO` (o teto voltou para a carroceria) e o movimento dele.
+- **Portas:** 325/337 e 330/335 eram a lateral e o pé dos **bancos**, não porta-objetos, e iam com a porta. Voltaram para a carroceria. O trecho da "banheira" do interior (M38) atrás de cada porta do motorista sai, e cada porta ganha um forro próprio (`NL_PORTA_DE_FORRO`, `NL_PORTA_TE_FORRO`, nós filhos da porta): placa com o contorno da chapa, batente pintado, friso, apoio de braço, porta-objetos, maçaneta, alto-falante.
+- **Cofre fechado** (`NL_COFRE`): protetor de cárter, caixas de roda internas com a torre do amortecedor, prateleira sob os faróis, corta-fogo, travessa com radiador, mangueira, servo-freio, reservatórios, bateria, caixa de fusíveis. Tudo abaixo da face de baixo do capô, medida ponto a ponto.
+- **Cabine** (`NL_CABINE`): assoalho em y = 0,299 (onde terminam os pés dos bancos) e soleiras.
+- **Foto de espera e reserva** tiradas do próprio 3D: `nova-leoes-hatch-poster.webp` e `nova-leoes-aberto-3d.webp` (carro aberto; os números da reserva vêm da projeção do 3D). A foto da Higgsfield (`nova-leoes-exploded.webp`) segue só na variante editorial.
+- `tests/carro.test.mjs` passou a conferir que o forro de cada porta que abre é filho da porta.
+
+## v1: hatch cinza "da Higgsfield" em 3D (29/09/2026, manhã)
 
 O Luca pediu de volta o carro do começo (o hatch cinza das imagens da Higgsfield de 22/09, `nova-leoes-assembled.webp` e `nova-leoes-exploded.webp`), agora em 3D com giro e os 9 números.
 
