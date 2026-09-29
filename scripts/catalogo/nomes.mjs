@@ -293,16 +293,24 @@ export function limparGrupo(grupo) {
 // C180, CG125, TITAN150) e ano com marca (97VW).
 const TOKEN_PECA = /(?<![\w.\-])(?:[A-Z]{1,5}-?\d{3,}[A-Z0-9-]*|\d{2,}[A-Z]{2,}[A-Z0-9-]*|\d{3,}[A-Z]\d[A-Z0-9-]*|\d{5,}[A-Z0-9-]*|\d{3,}-[A-Z]{1,2})(?![\w.\-])/gi;
 const TOKEN_LEGITIMO = /^(?:\d+(?:MM|CM|CC|CV|HP|AH|MAH|ML|KG|MT|LT|KM|RPM|BAR|PSI|W|V|A|L|G)|\d+X\d+[A-Z]{0,2}|(?:EA|AE|AP|EP|EC|EB|EF)-?\d{3,4}|F-?\d{2,4}|[ABCDGHKLMQRSTWX]\d{2,4}|(?:CG|FAN|TITAN|NXR|YBR|CB|CBX|XRE|XR|NX|BIZ|POP|PCX|TWISTER|FAZER|FACTOR|BROS|CRYPTON|LEAD|GX|BR|ECO)-?\d{2,3}|\d{2,4}VW)$/i;
+const PONTILHADO = /(?<![\w.,])(?:[A-Z]{2,5}\.)?\d{1,4}(?:\.\d{1,4}){1,4}(?:-[0-9A-Z]{1,3}|[A-Z])?(?![\w.,]|\s*KM\b)/gi;
+function codigoPontilhado(t) {
+  const s = t.replace(/^[A-Z]+\./i, "");
+  if (/^\d{1,2}\.(?:19|20)?\d{2}$/.test(s)) return false; // mês/ano
+  const digitos = s.replace(/\D/g, "").length, pontos = (s.match(/\./g) || []).length;
+  return /^[A-Z]/i.test(t) || /(?:-[0-9A-Z]{1,3}|[A-Z])$/i.test(s) || pontos >= 2 || digitos >= 6;
+}
 const NUMERO_LONGO = /(?<![\d,])\d{5,}(?:\/\d{2,})*(?!\d|,\d{1,2}\b|\s*(?:MM|CM|KM|ML|RPM)\b)/gi;
 export function temCodigoDePeca(texto) {
   const t = String(texto || "");
   for (const m of t.matchAll(TOKEN_PECA)) if (!TOKEN_LEGITIMO.test(m[0])) return true;
+  for (const m of t.matchAll(PONTILHADO)) if (codigoPontilhado(m[0])) return true;
   return new RegExp(NUMERO_LONGO.source, "i").test(t);
 }
 export function removerCodigosDePeca(texto) {
   // Duas passadas: tirar um código pode deixar outro solto ("NºFORD327/96283/2" → "FORD327" → "").
   let t = String(texto || "");
-  for (let i = 0; i < 2; i++) t = t.replace(NUMERO_LONGO, " ").replace(TOKEN_PECA, (x) => (TOKEN_LEGITIMO.test(x) ? x : " "));
+  for (let i = 0; i < 2; i++) t = t.replace(PONTILHADO, (x) => (codigoPontilhado(x) ? " " : x)).replace(NUMERO_LONGO, " ").replace(TOKEN_PECA, (x) => (TOKEN_LEGITIMO.test(x) ? x : " "));
   return t
     .replace(/\(\s*(?:[A-Za-z]{1,3}\s*){0,2}[\/\-,;\s]*\)/g, " ") // parênteses vazios ou só com sigla
     .replace(/(?:\s*\/\s*){2,}/g, " / ")
@@ -329,7 +337,7 @@ function arrumarAspas(linha) {
   const l = linha.replace(/"{2,}/g, '"');
   return (l.match(/"/g) || []).length % 2 ? l.replace(/"/g, "") : l;
 }
-const FORNECEDOR_DA_LOJA = /\s*\bFORN(?:E[CS]\w*)?\b\s*[:.\-]?.*$/i;
+const FORNECEDOR_DA_LOJA = /\s*\bFORN(?:E[CS]\w*)?\b\s*[:.\-]?.*$|\s*(?:\bP\/\s*)?\bPRE[CÇ]O\s+(?:DE\s+)?CUSTO\b.*$|\s*\bCUSTO\b.*$|\s*\bIMPOSTO\b.*$|\s*\bMULTIPLIC\w*\b.*$|\s*\bMARK-?UP\b.*$/i;
 const RECADO_BALCAO = /\bVENDER\b|\bVENDIDO POR\b|\bPROBLEMA NA VENDA\b|\bANTIGO CADASTRO\b/i;
 const AVISO_EMBALAGEM = /\bN[AÃ]O VENDER SEPARADAMENTE\b|\bVENDER SEMPRE O (?:PAR|KIT|JOGO)\b/i;
 const CODIGO_3_RE = new RegExp(CODIGO_3, "i");

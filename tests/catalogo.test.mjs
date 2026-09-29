@@ -273,3 +273,13 @@ test("29/09: catálogo publicado passa na trava inteira (nome, descrição, apli
   assert.equal(indice.pecas.some((p) => /^d{4}.d{3}/.test(p[6] || "")), false);
   assert.equal(indice.pecas.some((p) => /Arquivo Aco|Gondola|Nobreak|Saco Lixo/i.test(p[1])), false);
 });
+
+test("29/09: custo e imposto da loja e código com pontos não saem na descrição", () => {
+  const { linhas } = limparDescricao("ADITIVO ROSA RADCOOL IMPOSTO: VT PRODUTOS / QT X 1,065\nP/ PRECO CUSTO > IMPOSTO > MULTIPLICAR = 1,08\nBICO 0.280.155.929\nPOLO 2003 032.115.611-H\nVERONA 1989 / 10.1991\nCARROS COM MAIS DE 80.000 KM");
+  const tudo = linhas.join(" | ");
+  assert.doesNotMatch(tudo, /custo|imposto|multiplic|1,065|0\.280|032\.115/i);
+  assert.match(tudo, /10\.1991/);
+  assert.match(tudo, /80\.000 KM/i);
+  for (const c of ["90.501.168", "0.280.155.929", "BRO.01.10.006", "032.115.611-H", "228.109-02"]) assert.equal(temCodigoDePeca(c), true, c);
+  for (const ok of ["1.6", "2.0", "10.1991", "11.08", "1.250"]) assert.equal(temCodigoDePeca(ok), false, ok);
+});

@@ -79,7 +79,7 @@
 .nl-carro-atalhos button:focus-visible { outline: 2px solid var(--carro-chumbo); outline-offset: 2px; }
 
 /* Painel de peças: por cima do carro, à direita */
-.nl-carro-painel { position: absolute; right: max(24px, calc((100% - 1320px) / 2)); top: 24px; max-height: calc(100% - 48px); z-index: 4; width: min(380px, calc(100% - 48px)); overflow-y: auto; padding: 20px; border: 1px solid var(--carro-linha); border-radius: 12px; background: #fffffff7; box-shadow: 0 24px 60px -30px #2f2e2e66; cursor: default; animation: nl-carro-entra .28s ease-out; }
+.nl-carro-painel { position: absolute; right: max(24px, calc((100% - 1320px) / 2)); top: 24px; max-height: calc(100% - 112px); /* livre embaixo: botão "Fale com a loja" */ z-index: 4; width: min(380px, calc(100% - 48px)); overflow-y: auto; padding: 20px; border: 1px solid var(--carro-linha); border-radius: 12px; background: #fffffff7; box-shadow: 0 24px 60px -30px #2f2e2e66; cursor: default; animation: nl-carro-entra .28s ease-out; }
 @keyframes nl-carro-entra { from { opacity: 0; transform: translateX(14px); } to { opacity: 1; transform: none; } }
 .nl-carro-painel-topo { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .nl-carro-fechar { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; color: var(--carro-chumbo); }
@@ -98,6 +98,7 @@
 .nl-carro-peca-info small { overflow: hidden; color: var(--carro-muted); font-size: 11px; white-space: nowrap; text-overflow: ellipsis; }
 .nl-carro-peca-info strong { margin-top: 3px; color: var(--carro-chumbo); font-size: 15px; font-weight: 700; }
 .nl-carro-disp { font-size: 11px; }
+.nl-carro-peca-info .nl-carro-minima { color: var(--carro-muted); font-size: 11px; }
 .nl-carro-add { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; background: var(--carro-laranja); color: var(--carro-chumbo); }
 .nl-carro-add:hover { background: var(--carro-laranja-forte); }
 .nl-carro-peca-vazia { height: 78px; border-radius: 10px; background: linear-gradient(90deg, #f4ede2, #fbf8f3, #f4ede2); background-size: 200% 100%; animation: nl-carro-brilho 1.2s linear infinite; }

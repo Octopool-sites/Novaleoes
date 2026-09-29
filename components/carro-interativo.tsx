@@ -7,6 +7,7 @@ import { disponibilidadeDaPeca, fotoDaPeca, precoDaPeca, tituloDaPeca } from "./
 import type { Carro3D, PosicaoPino } from "./carro-3d";
 import { ARQUIVO_CARRO, FOTO_ABERTO, POSTER_CARRO, ZONAS } from "./carro-modelo";
 import { caminho } from "@/lib/base";
+import { compraMinima } from "@/lib/unidades";
 import "./carro-interativo.css";
 
 export { ZONAS };
@@ -114,13 +115,13 @@ export default function CarroInterativo({ catalogo, live, veiculo, onSelecionar,
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reduzido, zona, pronto]);
 
-  // No celular o painel é uma folha fixa embaixo: some quando a pessoa sai do carro e rola para o catálogo.
+  // No celular o painel é uma folha fixa embaixo: fecha quando a pessoa rola para o catálogo (o fim da abertura
+  // passa da metade da tela), senão ele cobre as peças.
   useEffect(() => {
-    const el = secao.current;
-    if (!el || !zona) return;
-    const obs = new IntersectionObserver(([e]) => { if (!e.isIntersecting) escolher(null); }, { threshold: 0 });
-    obs.observe(el);
-    return () => obs.disconnect();
+    if (!zona) return;
+    const conferir = () => { const r = secao.current?.getBoundingClientRect(); if (r && r.bottom < innerHeight * 0.55) escolher(null); };
+    addEventListener("scroll", conferir, { passive: true });
+    return () => removeEventListener("scroll", conferir);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [zona]);
 
@@ -184,12 +185,14 @@ export default function CarroInterativo({ catalogo, live, veiculo, onSelecionar,
         {catalogo && vitrine.map((p) => {
           const foto = fotoDaPeca(p, catalogo, live);
           const preco = precoDaPeca(p, live);
+          // Mesmo valor que entra no pedido pelo "+": com venda mínima, o total da compra mínima.
+          const minima = compraMinima(preco, p.quantidadeMinima);
           const disp = disponibilidadeDaPeca(p, live);
           return (
             <li key={p.id}>
               <button type="button" className="nl-carro-peca" onClick={() => onSelecionar(p)}>
                 <span className="nl-carro-peca-foto">{foto ? <img src={foto} alt="" loading="lazy" decoding="async" /> : <Package size={26} strokeWidth={1.2} />}</span>
-                <span className="nl-carro-peca-info"><b>{tituloDaPeca(p)}</b><small>{p.marca || p.grupo}{servePara(p, veiculo) ? " · serve no seu carro" : ""}</small><strong>{money(preco)}</strong><span className={`nl-carro-disp ${disp.classe}`}>{disp.texto}</span></span>
+                <span className="nl-carro-peca-info"><b>{tituloDaPeca(p)}</b><small>{p.marca || p.grupo}{servePara(p, veiculo) ? " · serve no seu carro" : ""}</small><strong>{money(minima.totalCents)}</strong>{minima.detalhe && <small className="nl-carro-minima">{minima.detalhe}</small>}<span className={`nl-carro-disp ${disp.classe}`}>{disp.texto}</span></span>
               </button>
               <button type="button" className="nl-carro-add" aria-label={`Adicionar ${tituloDaPeca(p)} ao pedido`} onClick={() => onAdicionar(p)}><Plus size={17} /></button>
             </li>
