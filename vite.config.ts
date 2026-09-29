@@ -2,6 +2,7 @@ import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 import { fileURLToPath } from "node:url";
 import { LOJA } from "./lib/loja";
+import { placaLocal } from "./server/placa-local";
 
 // Endereço público do site, para og:image/og:url/canonical (o WhatsApp só mostra a prévia com URL absoluta).
 // SITE_URL manda; na Vercel vale o domínio de produção do projeto (vira o domínio próprio quando ele for ligado).
@@ -37,4 +38,4 @@ const paginaInicial = (): Plugin => ({
 });
 
 // VITE_BASE: subpasta de publicação (ex.: "/Novaleoes/" na prévia do GitHub Pages). Padrão "/" (Vercel).
-export default defineConfig({ base: process.env.VITE_BASE || "/", plugins: [react(), paginaInicial()], resolve: { alias: { "@": fileURLToPath(new URL(".", import.meta.url)) } }, build: { outDir: "dist/client", sourcemap: false }, server: { host: "127.0.0.1" } });
+export default defineConfig({ base: process.env.VITE_BASE || "/", plugins: [react(), paginaInicial(), placaLocal()], resolve: { alias: { "@": fileURLToPath(new URL(".", import.meta.url)) } }, build: { outDir: "dist/client", sourcemap: false }, server: { host: "127.0.0.1" } });
