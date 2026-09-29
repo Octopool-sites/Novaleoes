@@ -9,6 +9,7 @@ import { orderInput, productInput } from "../lib/commerce-contracts.js";
 import { createStoreContext, createRateLimiter } from "./firestore.js";
 import * as store from "./store.js";
 import * as inventory from "./inventory.js";
+import * as placa from "./placa.js";
 import type { StoreContext } from "./types.js";
 
 export function runtimeEnv(): RuntimeEnv {
@@ -115,6 +116,9 @@ export async function handleApi(originalRequest: Request): Promise<Response> {
         const result = await store.submitOrder(ctx, orderInput.parse(await readJson(request)));
         return Response.json({ ...result, message: "Pedido recebido. A loja vai conferir e aprovar sua solicitação antes de reservar as peças." }, { status: result.replayed ? 200 : 201 });
       }
+      // Busca por placa: pública, antes do login. Placa só no corpo do POST (nunca na URL nem em log).
+      if (pathname === "/api/public/placa" && method === "GET") return placa.statusPlaca();
+      if (pathname === "/api/public/placa" && method === "POST") return placa.consultarPlaca(request, { limiter: createRateLimiter(ctx, "placa", 5) });
       const actor = await operator();
       if (!actor) throw new HttpError(401, "Entre com seu login da equipe para continuar.");
       if (pathname === "/api/session" && method === "GET") return Response.json({ name: actor.displayName, email: actor.email, role: "APPROVER", environment: ctx.environment });

@@ -3,6 +3,7 @@ import { ArrowLeft, CarFront, Check, Search } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { type Catalogo, anosDisponiveis, normalizeSearch } from "@/lib/catalogo-site";
 import type { Veiculo, VeiculoSalvo } from "@/lib/garagem";
+import BuscaPlaca, { usePlacaAtiva } from "./busca-placa";
 
 type Passo = "montadora" | "modelo" | "ano";
 
@@ -15,6 +16,7 @@ export default function SeletorVeiculo({ catalogo, aberto, inicial, montadoraIni
   const [montadora, setMontadora] = useState(-1);
   const [modelo, setModelo] = useState(-1);
   const [busca, setBusca] = useState("");
+  const placaAtiva = usePlacaAtiva();
 
   useEffect(() => {
     if (!aberto) return;
@@ -57,6 +59,13 @@ export default function SeletorVeiculo({ catalogo, aberto, inicial, montadoraIni
             <DialogDescription className="nl-seletor-desc">Com o carro escolhido, o catálogo mostra só as peças com aplicação cadastrada para ele.</DialogDescription>
           </div>
         </div>
+
+        {passo === "montadora" && placaAtiva && (
+          <>
+            <BuscaPlaca catalogo={catalogo} manual="abaixo" onUsar={(v) => { onSalvar(v); onFechar(); }} />
+            <p className="nl-placa-divisor"><span>ou escolha a montadora</span></p>
+          </>
+        )}
 
         {passo === "montadora" && (
           <div className="nl-seletor-grade">

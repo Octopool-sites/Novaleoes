@@ -1,7 +1,7 @@
 import { handleApi } from "../server/handler.js";
 
 const ROUTE_PARAMETER = "__commerce_route";
-const routePattern = /^\/api\/(?:auth\/(?:status|login|logout|recover|activate)|public\/(?:catalog|orders)|maintenance|session|orders(?:\/[a-zA-Z0-9-]+(?:\/(?:approve|export))?)?|manage\/catalog(?:\/[a-zA-Z0-9-]+)?|integration(?:\/reconcile)?)$/;
+const routePattern = /^\/api\/(?:auth\/(?:status|login|logout|recover|activate)|public\/(?:catalog|orders|placa)|maintenance|session|orders(?:\/[a-zA-Z0-9-]+(?:\/(?:approve|export))?)?|manage\/catalog(?:\/[a-zA-Z0-9-]+)?|integration(?:\/reconcile)?)$/;
 
 export function commerceRequest(request: Request): Request | null {
   const url = new URL(request.url);

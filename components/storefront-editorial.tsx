@@ -1,6 +1,7 @@
 import { ArrowRight, CarFront, PackageCheck, ShoppingBag } from "lucide-react";
 import "./storefront-editorial.css";
 import { caminho, BASE_URL } from "@/lib/base";
+import { usePlacaAtiva } from "./busca-placa";
 
 export const productTitles: Record<string, string> = { amortecedor: "Amortecedor traseiro", "filtro-ar": "Filtro de ar", correia: "Correia dentada", bomba: "Bomba d’água", palheta: "Palheta dianteira", "cabo-bateria": "Cabo de bateria 200 A", lampada: "Lâmpada H4 60/55 W" };
 export const productBenefits: Record<string, string> = { amortecedor: "Controle e conforto ao dirigir.", "filtro-ar": "Proteção para o ar que entra no motor.", correia: "Sincronia para o funcionamento do motor.", bomba: "Circulação no sistema de arrefecimento.", palheta: "Visibilidade para os dias de chuva.", "cabo-bateria": "Auxílio para uma partida de emergência.", lampada: "Iluminação para seu próximo caminho." };
@@ -68,6 +69,7 @@ export function SecaoAplicacao() {
 }
 
 export function SecaoDuvidas() {
+  const placaAtiva = usePlacaAtiva();
   return (
       <section className="nl-questions" id="duvidas" aria-labelledby="nl-questions-title">
         <div className="nl-questions-heading">
@@ -78,7 +80,7 @@ export function SecaoDuvidas() {
         <div className="nl-questions-list">
           <details>
             <summary><span className="nl-question-number" aria-hidden="true">01</span><span>Como saber se a peça serve no meu carro?</span><span className="nl-question-toggle" aria-hidden="true" /></summary>
-            <p>Selecione seu carro no topo do site: as peças com aplicação cadastrada para ele aparecem marcadas com "Serve no seu carro". Informe também o motor no pedido. A equipe confirma a aplicação antes de separar. O carro da apresentação é ilustrativo.</p>
+            <p>Selecione seu carro no topo do site: as peças com aplicação cadastrada para ele aparecem marcadas com "Serve no seu carro". Informe também o motor no pedido. A equipe confirma a aplicação antes de separar. O carro da apresentação é ilustrativo.{placaAtiva && " Se preferir, busque pela placa: ela é consultada num serviço de dados de veículos só para identificar o modelo e não fica salva no site."}</p>
           </details>
           <details>
             <summary><span className="nl-question-number" aria-hidden="true">02</span><span>Meu pedido está confirmado quando envio?</span><span className="nl-question-toggle" aria-hidden="true" /></summary>
