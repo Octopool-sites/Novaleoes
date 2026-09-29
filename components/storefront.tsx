@@ -1,7 +1,7 @@
 "use client";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  ShoppingBag, ArrowRight, ShieldCheck, PackageCheck, CarFront, Plus, Minus, Trash2, Check, LoaderCircle, Package, MessageCircle, Search, Truck, Copy, Menu, Phone,
+  ShoppingBag, ArrowRight, Store, PackageCheck, CarFront, Plus, Minus, Trash2, Check, LoaderCircle, Package, MessageCircle, Search, Truck, Copy, Menu, Phone,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -473,9 +473,9 @@ export default function Storefront() {
         el?.scrollIntoView({ behavior: "instant", block: "start" });
       }}>Pular apresentação e ir ao catálogo</a>
       <header className="store-header wrap">
-        <a href={storefrontHref} className="store-brand">
-          <img src={caminho("assets/logo.png")} alt="" width={37} height={40} />
-          <span>NOVA LEÕES<small>AUTOPEÇAS</small></span>
+        <a href={storefrontHref} className="store-brand" aria-label={`${LOJA.nome}, desde ${LOJA.fundacao}. Início`}>
+          <img src={caminho("assets/logo.png")} alt="" width={42} height={46} />
+          <span>NOVA LEÕES<small>AUTOPEÇAS</small><small className="nl-desde">DESDE {LOJA.fundacao}</small></span>
         </a>
         <form className={`nl-header-busca${buscaAberta ? " aberta" : ""}`} role="search" onSubmit={(e) => { e.preventDefault(); buscaTopo.current?.blur(); irAoCatalogo(false); }}>
           <Search size={17} />
@@ -494,6 +494,10 @@ export default function Storefront() {
             <a key={p} href={hrefPagina(p)} aria-current={pagina === p ? "page" : undefined} onClick={(e) => { e.preventDefault(); mudarPagina(p); }}>{rotulo}</a>
           ))}
         </nav>
+        <div className="nl-header-contato">
+          <a href={telefoneHref} aria-label={`Ligar para a loja: ${LOJA.telefone}`}><Phone size={15} aria-hidden="true" /> {LOJA.telefone}</a>
+          <a href={contatoWhats} target="_blank" rel="noopener noreferrer" aria-label="Falar com a loja no WhatsApp"><MessageCircle size={15} aria-hidden="true" /> WhatsApp</a>
+        </div>
         <button className="cart-trigger" aria-label={`Meu pedido ${count} ${count === 1 ? "peça" : "peças"}`} onClick={abrirCarrinho}>
           <ShoppingBag size={23} />
           <span>Meu pedido</span>
@@ -542,7 +546,11 @@ export default function Storefront() {
             </section>
             <VitrineDepartamentos catalogo={catalogo} onDepartamento={explorarDepartamento} />
           </main>
-          <div className="nl-value-strip"><div className="wrap"><span><CarFront size={21} /><span><b>A peça certa para o seu carro</b><small>Aplicação conferida pela equipe</small></span></span><span><Truck size={21} /><span><b>Entrega própria em Guarulhos</b><small>Frete calculado pelo CEP</small></span></span><span><ShieldCheck size={21} /><span><b>Desde {LOJA.fundacao} em Guarulhos</b><small>Peças com garantia do fabricante</small></span></span></div></div>
+          <div className="nl-value-strip"><div className="wrap">
+            <span><Store size={22} aria-hidden="true" /><span><b>Desde {LOJA.fundacao} em {LOJA.endereco.cidade}</b><small>{LOJA.endereco.logradouro}, {LOJA.endereco.numero} · {LOJA.endereco.bairro}</small></span></span>
+            <span><Truck size={22} aria-hidden="true" /><span><b>Entrega própria</b><small>Motoboy da loja · frete pelo CEP</small></span></span>
+            <span><Package size={22} aria-hidden="true" /><span><b>{catalogo ? `Mais de ${Math.floor(catalogo.meta.total / 1000)} mil peças` : "Catálogo completo da loja"}</b><small>Busque pela peça, pela marca ou pelo carro</small></span></span>
+          </div></div>
         </>
       )}
       <RodapeLoja storefrontHref={storefrontHref} departamentos={catalogo?.meta.departamentos.filter((d) => d.n > 0) || []} onDepartamento={explorarDepartamento} onPagina={mudarPagina} />
