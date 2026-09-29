@@ -16,6 +16,7 @@ import { mkdirSync, readFileSync, writeFileSync, rmSync, existsSync, statSync, r
 import { dirname, join, resolve } from "node:path";
 import { limparNome, limparGrupo, limparDescricao, removerCodigos, cortarCodigos, removerCodigosDePeca, temCodigoDePeca, VAZAMENTO_CODIGO } from "./nomes.mjs";
 import { classificar, DEPARTAMENTOS, GRUPOS_BALDE } from "./taxonomia.mjs";
+import { nomePublico, NOME_PUBLICO } from "./fotos-publicas.mjs";
 
 // Itens que o legado deixou em baldes ("LUBRIFICANTES", "DIVERSOS") ganham um grupo derivado
 // do próprio nome: a primeira palavra, ou as duas primeiras quando começa com Kit/Jogo/Conjunto.
@@ -135,10 +136,15 @@ const DESENHOS = new Set(existsSync("scripts/catalogo/fotos-desenho.json") ? JSO
 const FOTO_FIXA = existsSync("scripts/catalogo/fotos-ilustrativas.json") ? JSON.parse(readFileSync("scripts/catalogo/fotos-ilustrativas.json", "utf8")) : {};
 const FOTOS_QUEBRADAS = new Set(existsSync("outputs/fotos-quebradas.json") ? JSON.parse(readFileSync("outputs/fotos-quebradas.json", "utf8")) : []);
 
+// Nome publicado da foto do bucket. No bucket ela se chama pelo código da peça (9019.580.jpg): o site publica a cópia
+// site/<hash>.jpg (scripts/catalogo/fotos-publicas.mjs). A montagem pela linha de comando liga o nome público com
+// definirNomeDasFotos(); sem isso (testes com dados de exemplo) o nome passa como está.
+let nomeDaFoto = (chave) => chave;
+export function definirNomeDasFotos(fn) { nomeDaFoto = fn; }
 function fotoPublica(url) {
   const texto = String(url || "").trim();
   if (!texto || FOTOS_QUEBRADAS.has(texto) || (FOTO_FIXA._fotoErrada || []).includes(texto.split("?")[0])) return "";
-  if (texto.startsWith(FOTO_BASE)) return texto.slice(FOTO_BASE.length).split("?")[0];
+  if (texto.startsWith(FOTO_BASE)) return nomeDaFoto(decodeURIComponent(texto.slice(FOTO_BASE.length).split("?")[0]));
   if (texto.startsWith(FOTO_ERP)) return texto; // foto colada no cadastro, servida pela rota pública do ERP
   return ""; // hosts de terceiros ficam fora (CSP e direitos de imagem)
 }
@@ -318,6 +324,16 @@ export function vazamentos({ meta, indice, detalhes }) {
   return achados;
 }
 
+// Trava das fotos: nome publicado tem que ser o nome sem código (site/<hash>) ou a rota pública do ERP.
+export function fotosComCodigo({ meta, indice, detalhes }) {
+  const ruins = [];
+  const conferir = (foto) => { if (foto && !foto.startsWith(FOTO_ERP) && !NOME_PUBLICO.test(foto)) ruins.push(`foto: ${foto}`); };
+  for (const p of indice.pecas) conferir(p[6]);
+  for (const d of detalhes.values()) if (d.t) conferir(d.t);
+  for (const d of meta?.departamentos || []) conferir(d.capa);
+  return ruins;
+}
+
 // Relatório para a loja (outputs/, fora do site): peças com preço a conferir no ERP.
 export function csvPrecosARevisar(revisarPrecos) {
   const campo = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
@@ -347,8 +363,16 @@ if (process.argv[1] && resolve(process.argv[1]) === resolve(new URL(import.meta.
   const entrada = resolve(process.argv[2] || "outputs/catalogo-erp.json");
   const saida = resolve(process.argv[3] || "public/catalogo");
   const exportacao = JSON.parse(readFileSync(entrada, "utf8"));
+  // Fotos sem código no nome: só entra a foto já copiada para site/ (publicar-fotos.mjs grava a lista).
+  const arquivoPublicadas = join(dirname(entrada), "fotos-publicadas.json");
+  if (!existsSync(arquivoPublicadas)) {
+    console.error(`ERRO: falta ${arquivoPublicadas}. Rode antes: node scripts/catalogo/publicar-fotos.mjs (copia as fotos para nomes sem código).`);
+    process.exit(1);
+  }
+  const publicadas = new Set(JSON.parse(readFileSync(arquivoPublicadas, "utf8")));
+  definirNomeDasFotos((chave) => { const nome = nomePublico(chave); return publicadas.has(nome) ? nome : ""; });
   const resultado = construir(exportacao);
-  const achados = vazamentos(resultado);
+  const achados = [...vazamentos(resultado), ...fotosComCodigo(resultado)];
   if (achados.length) {
     console.error(`ERRO: ${achados.length} textos com referência de código. Exemplos:`);
     for (const t of achados.slice(0, 15)) console.error(`- ${t}`);

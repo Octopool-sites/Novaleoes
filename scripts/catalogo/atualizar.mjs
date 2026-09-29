@@ -10,7 +10,7 @@
 //   4. se algo mudou, commita e faz push na main: a Vercel publica sozinha.
 // Agendado no Windows pela tarefa "Nova Leoes estoque do site" (scripts/catalogo/atualizar-agendado.cmd).
 import { spawnSync } from "node:child_process";
-import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { gunzipSync } from "node:zlib";
 import { join } from "node:path";
 
@@ -31,7 +31,12 @@ const git = (...args) => rodar("git", args);
 const ramo = git("rev-parse", "--abbrev-ref", "HEAD").stdout.trim();
 if (ramo !== "main") throw new Error(`clone fora da main (${ramo}); este script só roda no clone dedicado`);
 if (git("status", "--porcelain").stdout.trim()) throw new Error("clone com alterações locais; resolva antes de atualizar");
+const lockAntes = readFileSync(join(RAIZ, "package-lock.json"), "utf8");
 git("pull", "--ff-only", "origin", "main");
+if (readFileSync(join(RAIZ, "package-lock.json"), "utf8") !== lockAntes || !existsSync(join(RAIZ, "node_modules/@aws-sdk/client-s3"))) {
+  log("dependências mudaram: npm ci");
+  rodar(process.platform === "win32" ? "npm.cmd" : "npm", ["ci", "--no-audit", "--no-fund"], { shell: process.platform === "win32", timeout: 600000 });
+}
 
 // 2. exportação só leitura
 const tarefa = rodar("aws", ["ecs", "list-tasks", "--cluster", "octopool-prod", "--service-name", "octopool-web", ...AWS, "--query", "taskArns[0]", "--output", "text"]).stdout.trim();
@@ -58,6 +63,8 @@ if (total < anterior.total * 0.9) throw new Error(`exportação com ${total} pe�
 mkdirSync(join(RAIZ, "outputs"), { recursive: true });
 writeFileSync(join(RAIZ, "outputs/catalogo-erp.json"), JSON.stringify(exportacao));
 log(`exportadas ${total} peças (${exportacao.prods.filter((p) => p.disp > 0).length} com estoque), ${exportacao.apl.length} aplicações`);
+// Fotos com nome sem código: copia para site/ as que ainda não existem (só escreve nesse prefixo do bucket).
+rodar(process.execPath, ["scripts/catalogo/publicar-fotos.mjs"], { timeout: 900000 });
 rodar(process.execPath, ["scripts/catalogo/construir.mjs"]);
 
 // 4. publica se mudou

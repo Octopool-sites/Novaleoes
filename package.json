@@ -49,6 +49,8 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@aws-sdk/client-s3": "^3.1142.0",
+    "@aws-sdk/credential-providers": "^3.1142.0",
     "@cloudflare/workers-types": "5.20260911.1",
     "@tailwindcss/postcss": "4.2.1",
     "@types/node": "22.19.19",

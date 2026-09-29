@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { limparNome, limparGrupo, limparDescricao, unidadeLegivel, VAZAMENTO_CODIGO, removerCodigosDePeca, temCodigoDePeca } from "../scripts/catalogo/nomes.mjs";
 import { classificar, DEPARTAMENTOS, normalizarTexto } from "../scripts/catalogo/taxonomia.mjs";
-import { construir, vazamentos, grupoDerivado, limparMarca, nomeModelo, chaveModelo, idCurto, bucketDe, normalizarAno, BUCKETS, faixaDeAnos, precoPlaceholder, GRUPOS_FORA_DO_SITE } from "../scripts/catalogo/construir.mjs";
+import { construir, vazamentos, grupoDerivado, limparMarca, nomeModelo, chaveModelo, idCurto, bucketDe, normalizarAno, BUCKETS, faixaDeAnos, precoPlaceholder, GRUPOS_FORA_DO_SITE, fotosComCodigo } from "../scripts/catalogo/construir.mjs";
 import { filtrar, montarCatalogo, filtroDaUrl, filtroParaUrl, FILTRO_VAZIO, resumoAplicacoes, faixaAnos, separarDescricao, termosDe, textoBusca } from "../lib/catalogo-site.ts";
 
 test("nomes: expande abreviações do balcão, restaura acentos e remove código de fabricante do fim", () => {
@@ -268,5 +268,8 @@ test("29/09: catálogo publicado passa na trava inteira (nome, descrição, apli
   const detalhes = new Map();
   for (const f of readdirSync("public/catalogo/detalhes")) for (const [id, d] of Object.entries(JSON.parse(readFileSync(`public/catalogo/detalhes/${f}`, "utf8")))) detalhes.set(id, d);
   assert.deepEqual(vazamentos({ meta, indice, detalhes }), []);
+  // Foto publicada só com nome sem código (site/<hash>): o nome no bucket do ERP é o código da peça.
+  assert.deepEqual(fotosComCodigo({ meta, indice, detalhes }), []);
+  assert.equal(indice.pecas.some((p) => /^d{4}.d{3}/.test(p[6] || "")), false);
   assert.equal(indice.pecas.some((p) => /Arquivo Aco|Gondola|Nobreak|Saco Lixo/i.test(p[1])), false);
 });
