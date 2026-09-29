@@ -168,8 +168,10 @@ export function filtrar(catalogo: Catalogo, filtro: Filtro): Peca[] {
 function ordenar(pecas: Peca[], filtro: Filtro, termos: string[][]) {
   const nome = (a: Peca, b: Peca) => a.nome.localeCompare(b.nome, "pt-BR");
   if (filtro.ordem === "nome") return pecas.sort(nome);
-  if (filtro.ordem === "menor-preco") return pecas.sort((a, b) => (a.precoCents || Infinity) - (b.precoCents || Infinity) || nome(a, b));
-  if (filtro.ordem === "maior-preco") return pecas.sort((a, b) => b.precoCents - a.precoCents || nome(a, b));
+  // Ordena pelo valor que o cartão mostra: com venda mínima, o total da compra mínima (4 × R$ 62,00 = R$ 248,00).
+  const valor = (p: Peca) => p.precoCents * Math.max(1, Math.round(p.quantidadeMinima) || 1);
+  if (filtro.ordem === "menor-preco") return pecas.sort((a, b) => (valor(a) || Infinity) - (valor(b) || Infinity) || nome(a, b));
+  if (filtro.ordem === "maior-preco") return pecas.sort((a, b) => valor(b) - valor(a) || nome(a, b));
   // Relevância: com foto e em estoque primeiro; busca pelo nome pesa mais que pela aplicação.
   const pontos = (p: Peca) => {
     let s = 0;
@@ -253,10 +255,16 @@ export function anosDisponiveis(catalogo: Catalogo, modelo: number, montadora: n
 // posição interna: as posições mudam a cada exportação do catálogo e um link antigo apontaria para outro carro.
 export const CHAVES_FILTRO = ["q", "dep", "grupo", "marca", "montadora", "modelo", "ano", "estoque", "ordem"];
 
+// ABC1234 ou ABC1D23, com ou sem hífen/espaço.
+export function pareceplaca(texto: string) {
+  return /^[A-Z]{3}[-\s]?[0-9][A-Z0-9][0-9]{2}$/i.test(String(texto || "").trim());
+}
+
 export function filtroParaUrl(filtro: Filtro, meta?: Meta | null) {
   const p = new URLSearchParams();
   const nome = <T,>(lista: T[] | undefined, i: number, f: (x: T) => string) => (lista && i >= 0 && i < lista.length ? f(lista[i]) : "");
-  if (filtro.q) p.set("q", filtro.q);
+  // Placa digitada na busca geral não vai para o endereço (dado pessoal): a busca vale, o link não guarda.
+  if (filtro.q && !pareceplaca(filtro.q)) p.set("q", filtro.q);
   if (filtro.departamento) p.set("dep", filtro.departamento);
   if (filtro.grupo >= 0 && meta) p.set("grupo", nome(meta.grupos, filtro.grupo, (g) => g[0]));
   if (filtro.marca >= 0 && meta) p.set("marca", nome(meta.marcas, filtro.marca, (m) => m[0]));

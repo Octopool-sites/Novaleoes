@@ -203,3 +203,15 @@ Em 3 dias sem reexportar (25/09 → 28/09), 20 preços mudaram e 27 peças esgot
   Assim o navegador não mostra o estoque do dia anterior.
 - **Pendência:** o nome dos arquivos de foto é o código interno do ERP. Ver
   [entrega de 28/09](entrega-2026-09-28.md#com-o-luca-e-o-trotta).
+
+## Fotos sem código no nome e revisão do catálogo — 29/09/2026
+
+**Fotos.** No bucket `octopool-fotos-produtos` a foto se chama pelo código da peça (`9019.580.jpg` = código interno do ERP, ou o código do fabricante). Publicar esse nome no site expunha o código, e o repositório é público. Agora:
+
+- `scripts/catalogo/publicar-fotos.mjs` copia, dentro do próprio bucket, cada foto que o catálogo usa para `site/<nome>.jpg`, com cache de um ano. Só escreve no prefixo `site/`; os originais não são tocados. Grava `outputs/fotos-publicadas.json` (fora do git).
+- `<nome>` = HMAC-SHA256 do nome original com uma **chave que não está no repositório**: `C:\dev\.nl-foto-segredo` no PC que atualiza o catálogo (ou o caminho em `NL_FOTO_SEGREDO_ARQ`). Sem a chave não dá para ir do nome público ao código, nem o contrário. **Perder a chave** = gerar outra e rodar `publicar-fotos.mjs` de novo (copia tudo com nomes novos).
+- `construir.mjs` pela linha de comando exige a lista de publicadas: foto que não foi copiada fica de fora, e a trava reprova qualquer foto publicada que não esteja no formato `site/<hash>` (ou na rota pública do ERP).
+- A atualização automática (7h e 13h) roda `publicar-fotos.mjs` antes do `construir.mjs` e faz `npm ci` sozinha quando o `package-lock.json` muda.
+- Fotos antigas com o código continuam no histórico do repositório e no bucket (o ERP usa). O site deixou de apontar para elas.
+
+**Texto.** A trava do construtor passou a reprovar também: código solto no fim ("/ BB1092"), entre parênteses, número de 5+ dígitos, "Rótulo: código", "Leoes NNNN", linha de fornecedor da loja ("Forn:", "Fornecedor ..."), recados internos ("Pedir Foto", "Pedir Amostra", "Confirmar Sempre") e setas do balcão (`>>`, `<<`). Medida (27MM, 1300CC, 21/5W), motor (EA111) e carro/moto (L200, F-1000, CG125) continuam. Relatório de preços para a loja conferir: `outputs/precos-a-revisar.csv`.

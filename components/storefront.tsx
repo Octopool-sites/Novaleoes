@@ -1,7 +1,7 @@
 "use client";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  ShoppingBag, ArrowRight, ShieldCheck, PackageCheck, CarFront, Plus, Minus, Trash2, Check, LoaderCircle, Package, MessageCircle, Search, Truck, Copy, Menu, Phone,
+  ShoppingBag, ArrowRight, Store, PackageCheck, CarFront, Plus, Minus, Trash2, Check, LoaderCircle, Package, MessageCircle, Search, Truck, Copy, Menu, Phone,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -11,9 +11,10 @@ import { type Catalogo, type Filtro, type Peca, CHAVES_FILTRO, FILTRO_VAZIO, car
 import { type Veiculo, type VeiculoSalvo, lerVeiculoSalvo, resolverVeiculo, salvarVeiculo } from "@/lib/garagem";
 import type { OpcaoFrete, ResultadoFrete } from "@/lib/frete";
 import { LOJA, telefoneHref, whatsappUrl } from "@/lib/loja";
-import { mensagemPedido } from "@/lib/pedido";
+import { type EnvioPedido, formatarTelefone, montarEnvio, observacaoDoItem } from "@/lib/pedido";
+import { minimoDeVenda } from "@/lib/unidades";
 import CarroInterativo from "./carro-interativo";
-import CatalogoLoja, { tituloDaPeca } from "./catalogo-loja";
+import CatalogoLoja, { TEXTO_SEM_ESTOQUE, tituloDaPeca } from "./catalogo-loja";
 import PecaDetalhe, { linkDaPeca } from "./peca-detalhe";
 import SeletorVeiculo from "./seletor-veiculo";
 import CalculoFrete from "./calculo-frete";
@@ -26,6 +27,7 @@ import "./storefront-redesign.css";
 import "./storefront-polish.css";
 import "./storefront-loja.css";
 import "./storefront-entrega.css";
+import "./storefront-vendas.css";
 import { caminho, BASE_URL } from "@/lib/base";
 const StorefrontEditorialVariant = lazy(() => import("./storefront-editorial-variant"));
 
@@ -37,12 +39,33 @@ const CHAVE_CATALOGO = "c:";
 const CHAVE_CARRINHO = "octopool-commerce-live-cart-v1";
 const CHAVE_DADOS = "nl-dados-cliente-v1";
 const CHAVE_ULTIMO = "nl-ultimo-pedido-v1";
+// colar: o pedido não coube no link do WhatsApp; o cliente cola o texto copiado na conversa.
+type UltimoPedido = { link: string; texto: string; colar?: boolean };
 
-function lerUltimoPedido(): { link: string; texto: string } | null {
+function lerUltimoPedido(): UltimoPedido | null {
   try {
     const u = JSON.parse(localStorage.getItem(CHAVE_ULTIMO) || "null");
-    return u && typeof u.link === "string" && u.link.startsWith("https://wa.me/") && typeof u.texto === "string" ? u : null;
+    return u && typeof u.link === "string" && u.link.startsWith("https://wa.me/") && typeof u.texto === "string" ? { link: u.link, texto: u.texto, colar: u.colar === true } : null;
   } catch { return null; }
+}
+
+// Cópia na hora do toque (síncrona): funciona antes de o WhatsApp tirar o foco da página e em navegador embutido.
+// A área de cópia entra dentro da gaveta aberta: fora dela, o foco preso da gaveta tiraria a seleção antes de copiar.
+function copiarNaHora(texto: string) {
+  const antes = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+  try {
+    const area = document.createElement("textarea");
+    area.value = texto;
+    area.setAttribute("readonly", "");
+    area.setAttribute("aria-hidden", "true");
+    area.style.cssText = "position:fixed;top:0;left:0;width:1px;height:1px;opacity:0";
+    (antes?.closest('[role="dialog"]') || document.body).appendChild(area);
+    area.select();
+    area.setSelectionRange(0, texto.length);
+    const ok = document.execCommand("copy");
+    area.remove();
+    return ok;
+  } catch { return false; } finally { antes?.focus({ preventScroll: true }); }
 }
 
 function lerDados(): Partial<Dados> {
@@ -77,7 +100,7 @@ export default function Storefront() {
   const [pagina, setPaginaEstado] = useState<Pagina | null>(() => paginaDaUrl(window.location.search));
   const paginaRef = useRef<Pagina | null>(pagina);
   const rolarAoCatalogo = useRef<"" | "focar" | "rolar">("");
-  const [ultimoPedido, setUltimoPedido] = useState<{ link: string; texto: string } | null>(() => lerUltimoPedido());
+  const [ultimoPedido, setUltimoPedido] = useState<UltimoPedido | null>(() => lerUltimoPedido());
   const [copiado, setCopiado] = useState(false);
   const [menuAberto, setMenuAberto] = useState(false);
   const [buscaAberta, setBuscaAberta] = useState(false);
@@ -230,12 +253,26 @@ export default function Storefront() {
       return mudou ? next : prev;
     });
   }, [catalogo, live]);
+  // Carrinho salvo antes de a peça ganhar venda mínima (ou editado à mão): sobe para o mínimo, nunca fica abaixo.
+  useEffect(() => {
+    if (!catalogo) return;
+    setCart((prev) => {
+      let mudou = false;
+      const next: Cart = { ...prev };
+      for (const [id, q] of Object.entries(prev)) {
+        const peca = id.startsWith(CHAVE_CATALOGO) ? catalogo.porId.get(id.slice(CHAVE_CATALOGO.length)) : null;
+        const minimo = peca ? Math.min(20, minimoDeVenda(peca.quantidadeMinima)) : 1;
+        if (q < minimo) { next[id] = minimo; mudou = true; }
+      }
+      return mudou ? next : prev;
+    });
+  }, [catalogo]);
 
   const linhas: Linha[] = useMemo(() => Object.entries(cart).map(([id, quantity]) => {
     if (id.startsWith(CHAVE_CATALOGO)) {
       const peca = catalogo?.porId.get(id.slice(CHAVE_CATALOGO.length));
       if (!peca) return { valida: false, minimo: 1, id, quantity, nome: catalogo ? "Peça que saiu do catálogo" : catalogoErro ? "Peça do pedido" : "Carregando peça…", marca: "", image: "", priceCents: 0, stock: 0, integrado: false, link: "" };
-      return { valida: true, minimo: Math.max(1, Math.round(peca.quantidadeMinima) || 1), id, quantity, nome: tituloDaPeca(peca), marca: peca.marca, image: urlFoto(catalogo!.meta, peca.foto), priceCents: peca.precoCents, stock: peca.disponivel, integrado: false, link: linkDaPeca(peca), peca };
+      return { valida: true, minimo: minimoDeVenda(peca.quantidadeMinima), id, quantity, nome: tituloDaPeca(peca), marca: peca.marca, image: urlFoto(catalogo!.meta, peca.foto), priceCents: peca.precoCents, stock: peca.disponivel, integrado: false, link: linkDaPeca(peca), peca };
     }
     const product = live.get(id);
     const peca = catalogo?.porExternalId.get(id);
@@ -285,7 +322,7 @@ export default function Storefront() {
     const atual = peca.externalId ? live.get(peca.externalId) : undefined;
     if (atual && atual.stock > 0) { addLive(atual); return; }
     const id = CHAVE_CATALOGO + peca.id;
-    change(id, (cart[id] || 0) + Math.max(1, Math.round(peca.quantidadeMinima) || 1));
+    change(id, (cart[id] || 0) + minimoDeVenda(peca.quantidadeMinima));
     abrirCarrinho();
     fecharDetalheSemHistorico();
   }
@@ -382,25 +419,38 @@ export default function Storefront() {
     atualizarDados({ entrega: opcao?.tipo ?? tipo });
   }
 
+  // Pedido pronto para o WhatsApp. Grande demais para o link (≈1.800 caracteres): o botão vira "Copiar pedido"
+  // e o WhatsApp abre com um aviso curto para o cliente colar o texto.
+  const envio: EnvioPedido | null = useMemo(
+    () => (step === "checkout" && linhas.length && !linhasInvalidas.length ? montarEnvio(linhas, dados, dados.entrega === "retirada" ? null : opcaoFrete, frete?.distanciaKm ?? null) : null),
+    [step, linhas, linhasInvalidas.length, dados, opcaoFrete, frete],
+  );
   function enviarWhatsApp(e?: React.FormEvent) {
     e?.preventDefault();
     if (linhasInvalidas.length) { setStep("cart"); return; }
-    const opcao = dados.entrega === "retirada" ? null : opcaoFrete;
-    let texto = mensagemPedido(linhas, dados, opcao, frete?.distanciaKm ?? null);
-    let link = whatsappUrl(texto);
-    // Pedido grande: sem os links das peças, para o texto caber no endereço do WhatsApp.
-    if (link.length > 4000) { texto = mensagemPedido(linhas.map((l) => ({ ...l, link: "" })), dados, opcao, frete?.distanciaKm ?? null); link = whatsappUrl(texto); }
-    window.open(link, "_blank", "noopener");
-    const pedido = { link, texto };
+    const r = envio || montarEnvio(linhas, dados, dados.entrega === "retirada" ? null : opcaoFrete, frete?.distanciaKm ?? null);
+    const colar = r.modo === "colar";
+    // Copia antes de abrir o WhatsApp: depois a página perde o foco e o navegador pode recusar a cópia.
+    const copiou = colar && copiarNaHora(r.texto);
+    const copia = colar && !copiou ? navigator.clipboard?.writeText(r.texto) : undefined;
+    window.open(r.link, "_blank", "noopener");
+    copia?.then(() => setCopiado(true), () => setCopiado(false));
+    const pedido: UltimoPedido = { link: r.link, texto: r.texto, colar };
     setUltimoPedido(pedido);
     try { localStorage.setItem(CHAVE_ULTIMO, JSON.stringify(pedido)); } catch {}
-    setCopiado(false);
+    setCopiado(copiou);
     // O carrinho só esvazia quando o cliente confirma o envio ou fecha esta tela: se o WhatsApp não abriu, nada se perde.
     setStep("enviado");
   }
   async function copiarPedido() {
     if (!ultimoPedido) return;
-    try { await navigator.clipboard.writeText(ultimoPedido.texto); setCopiado(true); } catch { setCopiado(false); }
+    try { await navigator.clipboard.writeText(ultimoPedido.texto); setCopiado(true); } catch { setCopiado(copiarNaHora(ultimoPedido.texto)); }
+  }
+  // "Calcular pelo CEP" dos totais: leva ao campo do CEP, que no celular pode estar abaixo das peças.
+  function irAoCep() {
+    const el = document.querySelector<HTMLInputElement>(".nl-cart-sheet .cart-scroll .nl-frete input");
+    el?.scrollIntoView({ block: "center", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" });
+    el?.focus({ preventScroll: true });
   }
   function concluirEnvio() { setCart({}); setStep("cart"); fecharCarrinho(); }
   async function submitOnline() {
@@ -473,9 +523,9 @@ export default function Storefront() {
         el?.scrollIntoView({ behavior: "instant", block: "start" });
       }}>Pular apresentação e ir ao catálogo</a>
       <header className="store-header wrap">
-        <a href={storefrontHref} className="store-brand">
-          <img src={caminho("assets/logo.png")} alt="" width={37} height={40} />
-          <span>NOVA LEÕES<small>AUTOPEÇAS</small></span>
+        <a href={storefrontHref} className="store-brand" aria-label={`${LOJA.nome}, desde ${LOJA.fundacao}. Início`}>
+          <img src={caminho("assets/logo.png")} alt="" width={42} height={46} />
+          <span>NOVA LEÕES<small>AUTOPEÇAS</small><small className="nl-desde">DESDE {LOJA.fundacao}</small></span>
         </a>
         <form className={`nl-header-busca${buscaAberta ? " aberta" : ""}`} role="search" onSubmit={(e) => { e.preventDefault(); buscaTopo.current?.blur(); irAoCatalogo(false); }}>
           <Search size={17} />
@@ -494,6 +544,10 @@ export default function Storefront() {
             <a key={p} href={hrefPagina(p)} aria-current={pagina === p ? "page" : undefined} onClick={(e) => { e.preventDefault(); mudarPagina(p); }}>{rotulo}</a>
           ))}
         </nav>
+        <div className="nl-header-contato">
+          <a href={telefoneHref} aria-label={`Ligar para a loja: ${LOJA.telefone}`}><Phone size={15} aria-hidden="true" /> {LOJA.telefone}</a>
+          <a href={contatoWhats} target="_blank" rel="noopener noreferrer" aria-label="Falar com a loja no WhatsApp"><MessageCircle size={15} aria-hidden="true" /> WhatsApp</a>
+        </div>
         <button className="cart-trigger" aria-label={`Meu pedido ${count} ${count === 1 ? "peça" : "peças"}`} onClick={abrirCarrinho}>
           <ShoppingBag size={23} />
           <span>Meu pedido</span>
@@ -542,7 +596,11 @@ export default function Storefront() {
             </section>
             <VitrineDepartamentos catalogo={catalogo} onDepartamento={explorarDepartamento} />
           </main>
-          <div className="nl-value-strip"><div className="wrap"><span><CarFront size={21} /><span><b>A peça certa para o seu carro</b><small>Aplicação conferida pela equipe</small></span></span><span><Truck size={21} /><span><b>Entrega própria em Guarulhos</b><small>Frete calculado pelo CEP</small></span></span><span><ShieldCheck size={21} /><span><b>Desde {LOJA.fundacao} em Guarulhos</b><small>Peças com garantia do fabricante</small></span></span></div></div>
+          <div className="nl-value-strip"><div className="wrap">
+            <span><Store size={22} aria-hidden="true" /><span><b>Desde {LOJA.fundacao} em {LOJA.endereco.cidade}</b><small>{LOJA.endereco.logradouro}, {LOJA.endereco.numero} · {LOJA.endereco.bairro}</small></span></span>
+            <span><Truck size={22} aria-hidden="true" /><span><b>Entrega própria</b><small>Motoboy da loja · frete pelo CEP</small></span></span>
+            <span><Package size={22} aria-hidden="true" /><span><b>{catalogo ? `Mais de ${Math.floor(catalogo.meta.total / 1000)} mil peças` : "Catálogo completo da loja"}</b><small>Busque pela peça, pela marca ou pelo carro</small></span></span>
+          </div></div>
         </>
       )}
       <RodapeLoja storefrontHref={storefrontHref} departamentos={catalogo?.meta.departamentos.filter((d) => d.n > 0) || []} onDepartamento={explorarDepartamento} onPagina={mudarPagina} />
@@ -567,8 +625,10 @@ export default function Storefront() {
                 <DialogTitle className="detail-title">{productTitles[detalheLive.id] || detalheLive.name}</DialogTitle>
                 <DialogDescription className="detail-description">{productBenefits[detalheLive.id]} {detalheLive.description}</DialogDescription>
                 <strong className="detail-price">{money(detalheLive.priceCents)}</strong>
-                <p className="subtle">Valor confirmado pela loja no pedido</p>
-                <button className="primary-button wide" disabled={detalheLive.stock <= 0} onClick={() => addLive(detalheLive)}>{detalheLive.stock > 0 ? "Adicionar ao pedido" : "Indisponível"}<ShoppingBag size={18} /></button>
+                <p className="subtle">{detalheLive.stock > 0 ? "Valor confirmado pela loja no pedido" : TEXTO_SEM_ESTOQUE}</p>
+                {detalheLive.stock > 0
+                  ? <button className="primary-button wide" onClick={() => addLive(detalheLive)}>Adicionar ao pedido<ShoppingBag size={18} /></button>
+                  : <a className="primary-button wide" href={whatsappUrl(`Olá! Tenho interesse nesta peça:\n${productTitles[detalheLive.id] || detalheLive.name}${detalheLive.brand ? ` (${detalheLive.brand})` : ""}\nVocês conseguem para mim?`)} target="_blank" rel="noopener noreferrer"><MessageCircle size={18} /> Consultar no WhatsApp</a>}
               </div>
             </>
           )}
@@ -576,7 +636,7 @@ export default function Storefront() {
       </Dialog>
 
       <Sheet open={cartOpen} onOpenChange={(aberto) => { if (aberto) setCartOpen(true); else fecharCarrinho(); }}>
-        <SheetContent className="cart-sheet nl-cart-sheet sm:max-w-[560px] w-full">
+        <SheetContent className={`cart-sheet nl-cart-sheet nl-passo-${step} sm:max-w-[560px] w-full`}>
           <SheetHeader>
             <p className="nl-cart-eyebrow">{step === "cart" ? "1 · PEÇAS E FRETE" : step === "checkout" ? "2 · SEUS DADOS E ENTREGA" : "3 · PEDIDO ENVIADO"}</p>
             <SheetTitle>{step === "success" ? "Pedido aguardando aprovação" : step === "enviado" ? "Pedido enviado para a loja" : step === "checkout" ? "Finalizar pedido" : "Meu pedido"}</SheetTitle>
@@ -591,6 +651,22 @@ export default function Storefront() {
               <div className="receipt-row"><span>Total solicitado</span><strong>{money(order.totalCents)}</strong></div>
               <p className="subtle">A loja confere aplicação, valor e disponibilidade antes de aprovar. Aguarde o contato da equipe.</p>
               <button className="text-button" onClick={() => fecharCarrinho()}>Continuar explorando a loja</button>
+            </div>
+          ) : step === "enviado" && ultimoPedido?.colar ? (
+            <div className="order-success nl-enviado nl-enviado-colar">
+              <span className="success-circle"><Copy size={28} /></span>
+              <h2>Falta colar o pedido no WhatsApp{dados.nome ? `, ${dados.nome.split(" ")[0]}` : ""}.</h2>
+              <p>O pedido tem muitos itens e não cabe no link do WhatsApp. {copiado ? "Já copiamos o texto para você." : "Copie o texto com o botão abaixo."}</p>
+              <ol className="nl-enviado-passos">
+                <li>Na conversa com a loja, toque no campo de mensagem e escolha <b>Colar</b>.</li>
+                <li>Toque em <b>enviar</b>.</li>
+              </ol>
+              <button type="button" className="primary-button wide nl-copiar" onClick={copiarPedido}>{copiado ? <><Check size={17} /> Pedido copiado · copiar de novo</> : <><Copy size={17} /> Copiar o pedido</>}</button>
+              <a className="nl-whats-button nl-enviado-abrir" href={ultimoPedido.link} target="_blank" rel="noopener noreferrer"><MessageCircle size={18} /> Abrir o WhatsApp da loja</a>
+              <p className="subtle">Não conseguiu? Mande o texto para {LOJA.telefone} ou ligue para a loja.</p>
+              <details className="nl-enviado-texto"><summary>Ver o texto do pedido</summary><pre>{ultimoPedido.texto}</pre></details>
+              <button className="text-button nl-enviado-pronto" onClick={concluirEnvio}><Check size={16} /> Pronto, já enviei</button>
+              <button className="text-button" onClick={() => setStep("cart")}>Voltar ao pedido</button>
             </div>
           ) : step === "enviado" && ultimoPedido ? (
             <div className="order-success nl-enviado">
@@ -616,7 +692,9 @@ export default function Storefront() {
                           <h3>{l.nome}</h3>
                           <p>{l.marca || ""}</p>
                           <strong>{l.priceCents > 0 ? money(l.priceCents * l.quantity) : "Preço sob consulta"}</strong>
-                          {!l.valida ? <small className="nl-cart-line-obs nl-cart-line-erro">{!catalogo && catalogoErro ? "Sem conexão com o catálogo agora." : !catalogo || catalogLoading ? "Carregando…" : "Não está mais disponível no site. Remova para continuar."}</small> : !l.integrado && <small className="nl-cart-line-obs">{l.stock > 0 ? "Em estoque na loja" : "Sob encomenda · a loja confirma o prazo"}{l.minimo > 1 ? ` · venda mínima de ${l.minimo}` : ""}</small>}
+                          {l.priceCents > 0 && l.quantity > 1 && <small className="nl-cart-unit">{l.quantity} un. × {money(l.priceCents)}</small>}
+                          {!l.valida ? <small className="nl-cart-line-obs nl-cart-line-erro">{!catalogo && catalogoErro ? "Sem conexão com o catálogo agora." : !catalogo || catalogLoading ? "Carregando…" : "Não está mais disponível no site. Remova para continuar."}</small>
+                            : <small className="nl-cart-line-obs">{observacaoDoItem(l)}</small>}
                           <div className="quantity">
                             <button aria-label={`Diminuir ${l.nome}`} disabled={l.quantity <= l.minimo} onClick={() => change(l.id, l.quantity - 1)}><Minus size={15} /></button>
                             <span>{l.quantity}</span>
@@ -634,7 +712,8 @@ export default function Storefront() {
                         <h3>Seus dados</h3>
                         <label>Nome completo<input autoComplete="name" required minLength={3} maxLength={100} value={dados.nome} onChange={(e) => atualizarDados({ nome: e.target.value })} placeholder="Seu nome" /></label>
                         <div className="form-two">
-                          <label>WhatsApp / telefone<input type="tel" autoComplete="tel" required pattern="[0-9 \(\)\+\-]{10,22}" maxLength={22} value={dados.telefone} onChange={(e) => atualizarDados({ telefone: e.target.value })} placeholder="(11) 99999-9999" /></label>
+                          <label>WhatsApp / telefone<input type="tel" inputMode="tel" autoComplete="tel" required pattern="[\s\(\)\+\-\.]*(?:[0-9][\s\(\)\+\-\.]*){10,13}" title="DDD e número, por exemplo (11) 99999-9999" maxLength={22} value={dados.telefone}
+                            onChange={(e) => atualizarDados({ telefone: e.target.value })} onBlur={(e) => { const t = formatarTelefone(e.target.value); if (t !== e.target.value) atualizarDados({ telefone: t }); }} placeholder="(11) 99999-9999" /></label>
                           <label>Carro <span>modelo, ano e motor</span><input maxLength={150} value={dados.veiculo} onChange={(e) => atualizarDados({ veiculo: e.target.value })} placeholder="Ex.: Uno 2010 1.0 Fire" /></label>
                         </div>
                         {pedidoOnline && <label>E-mail <span>para o pedido online</span><input type="email" autoComplete="email" maxLength={150} value={dados.email} onChange={(e) => atualizarDados({ email: e.target.value })} placeholder="voce@exemplo.com" /></label>}
@@ -672,7 +751,9 @@ export default function Storefront() {
                     <h3>Seu pedido está vazio.</h3>
                     <p>Escolha uma peça para começar.</p>
                     <a className="nl-empty-link" href="#catalogo" onClick={(e) => { e.preventDefault(); fecharCarrinho(false); irAoCatalogo(false); }}>Explorar peças <ArrowRight size={16} /></a>
-                    {ultimoPedido && <a className="nl-ultimo-pedido" href={ultimoPedido.link} target="_blank" rel="noopener noreferrer"><MessageCircle size={15} /> Reabrir o último pedido no WhatsApp</a>}
+                    {ultimoPedido && (ultimoPedido.colar
+                      ? <button type="button" className="nl-ultimo-pedido nl-link-botao" onClick={copiarPedido}><Copy size={15} /> {copiado ? "Último pedido copiado" : "Copiar o texto do último pedido"}</button>
+                      : <a className="nl-ultimo-pedido" href={ultimoPedido.link} target="_blank" rel="noopener noreferrer"><MessageCircle size={15} /> Reabrir o último pedido no WhatsApp</a>)}
                   </div>
                 )}
               </div>
@@ -680,7 +761,7 @@ export default function Storefront() {
                 <div className="cart-footer">
                   <div className="nl-totais">
                     <div><span>Subtotal ({count} {count === 1 ? "item" : "itens"})</span><strong>{money(subtotal)}</strong></div>
-                    <div><span>Frete</span><strong>{dados.entrega === "retirada" ? "Grátis (retirada)" : valorFrete ? money(valorFrete) : "A combinar"}</strong></div>
+                    <div><span>Frete{step === "cart" && !frete && <> · <button type="button" className="nl-link-botao nl-totais-cep" onClick={irAoCep}>calcular pelo CEP</button></>}</span><strong>{dados.entrega === "retirada" ? "Grátis (retirada)" : valorFrete ? money(valorFrete) : "A combinar"}</strong></div>
                     <div className="nl-total"><span>Total{semPreco ? " parcial" : ""}</span><strong>{money(subtotal + valorFrete)}</strong></div>
                   </div>
                   {semPreco && <p className="subtle">Itens sem preço no site entram como "a consultar".</p>}
@@ -688,11 +769,15 @@ export default function Storefront() {
                   {step === "cart" ? (
                     <>
                       {linhasInvalidas.length > 0 && <p role="alert" className="inline-error">{catalogoCarregando || catalogLoading ? "Carregando as peças do pedido…" : catalogoErro ? <>Não conseguimos carregar o catálogo. Confira a internet. <button type="button" className="nl-link-botao" onClick={carregar}>Tentar de novo</button></> : "Há peça que não está mais disponível no site. Remova-a para finalizar."}</p>}
-                      <button className="primary-button wide" disabled={linhasInvalidas.length > 0} onClick={() => { setError(""); setStep("checkout"); }}>Finalizar pedido <ArrowRight size={18} /></button>
+                      {/* key: o botão "Finalizar" não pode virar o de envio no mesmo clique (o navegador enviaria o formulário recém-aberto) */}
+                      <button key="finalizar" type="button" className="primary-button wide" disabled={linhasInvalidas.length > 0} onClick={() => { setError(""); setStep("checkout"); }}>Finalizar pedido <ArrowRight size={18} /></button>
                     </>
                   ) : (
                     <>
-                      <button type="submit" form="checkout-form" className="primary-button wide nl-botao-whats" disabled={linhasInvalidas.length > 0}><MessageCircle size={18} /> Enviar pedido pelo WhatsApp</button>
+                      {envio?.modo === "colar" && <p className="nl-cart-aviso nl-aviso-colar">Pedido grande: não cabe no link do WhatsApp. Ao tocar no botão, copiamos o pedido e abrimos a conversa com a loja para você colar.</p>}
+                      <button key="enviar" type="submit" form="checkout-form" className="primary-button wide nl-botao-whats" disabled={linhasInvalidas.length > 0}>
+                        {envio?.modo === "colar" ? <><Copy size={18} /> Copiar pedido e abrir o WhatsApp</> : <><MessageCircle size={18} /> Enviar pedido pelo WhatsApp</>}
+                      </button>
                       {pedidoOnline && (
                         <button type="button" className="nl-cart-whats" disabled={loading || linhas.some((l) => !l.product || l.product.stock <= 0)} onClick={submitOnline}>
                           {loading ? <LoaderCircle className="animate-spin" size={17} /> : <PackageCheck size={17} />} {loading ? "Enviando…" : "Enviar pelo site (aprovação online)"}

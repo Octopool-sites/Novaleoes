@@ -1,5 +1,5 @@
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
-import { AlertCircle, ArrowUpRight, CarFront, Check, ChevronDown, Package, Plus, Search, SlidersHorizontal, X } from "lucide-react";
+import { AlertCircle, ArrowUpRight, CarFront, Check, ChevronDown, MessageCircle, Package, Plus, Search, SlidersHorizontal, X } from "lucide-react";
 import type { Product } from "@/lib/catalog";
 import { productTitles } from "./storefront-editorial";
 import {
@@ -7,7 +7,13 @@ import {
 } from "@/lib/catalogo-site";
 import { type Veiculo, type VeiculoSalvo, servePara } from "@/lib/garagem";
 import { whatsappUrl } from "@/lib/loja";
+import { mensagemProcura } from "@/lib/pedido";
+import { compraMinima } from "@/lib/unidades";
 import "./catalogo-loja.css";
+// Busca por placa (só a barra "Qual é o seu carro?" usa).
+import { RectangleHorizontal } from "lucide-react";
+import { resolverVeiculo } from "@/lib/garagem";
+import BuscaPlaca, { usePlacaAtiva } from "./busca-placa";
 
 const PAGINA = 24;
 
@@ -30,11 +36,21 @@ export function precoDaPeca(peca: Peca, live: Map<string, Product>) {
   return atual ? atual.priceCents : peca.precoCents;
 }
 
+// O site só sabe se tem ou não tem (a quantidade não é pública). Sem estoque, a peça continua pedível:
+// o pedido vira consulta e a loja responde se consegue. Não prometer encomenda (a loja não confirmou).
+export const TEXTO_SEM_ESTOQUE = "Sem estoque agora · consulte a loja";
 export function disponibilidadeDaPeca(peca: Peca, live: Map<string, Product>) {
   const atual = peca.externalId ? live.get(peca.externalId) : undefined;
-  if (atual) return atual.stock > 0 ? { texto: "Em estoque na loja", classe: "nl-disp-online", estoque: atual.stock } : { texto: "Indisponível no momento", classe: "nl-disp-fora", estoque: 0 };
-  if (peca.disponivel > 0) return { texto: "Em estoque na loja", classe: "nl-disp-loja", estoque: peca.disponivel };
-  return { texto: "Sob encomenda · consulte", classe: "nl-disp-consulta", estoque: 0 };
+  if (atual ? atual.stock > 0 : peca.disponivel > 0) return { texto: "Em estoque na loja", classe: atual ? "nl-disp-online" : "nl-disp-loja", estoque: 1 };
+  return { texto: TEXTO_SEM_ESTOQUE, classe: "nl-disp-consulta", estoque: 0 };
+}
+
+// Texto do "Não achou?": o que a pessoa digitou, ou o grupo/departamento que ela estava vendo.
+export function descricaoDaProcura(catalogo: Catalogo | null, filtro: Filtro) {
+  const meta = catalogo?.meta;
+  if (filtro.q.trim()) return filtro.q.trim();
+  if (meta && filtro.grupo >= 0 && meta.grupos[filtro.grupo]) return meta.grupos[filtro.grupo][0];
+  return meta?.departamentos.find((d) => d.id === filtro.departamento)?.nome || "";
 }
 
 export function tituloDaPeca(peca: Peca) {
@@ -64,6 +80,8 @@ export function dataEstoque(catalogo: Catalogo | null) {
 export default function CatalogoLoja({ catalogo, carregando, erro, live, filtro, veiculo, onFiltro, onSelecionar, onAdicionar, onTentarNovamente, onVeiculo }: CatalogoLojaProps) {
   const [limite, setLimite] = useState(PAGINA);
   const [filtrosAbertos, setFiltrosAbertos] = useState(false);
+  const placaAtiva = usePlacaAtiva();
+  const [placaAberta, setPlacaAberta] = useState(false);
   const filtroAdiado = useDeferredValue(filtro);
   const resultados = useMemo(() => (catalogo ? filtrar(catalogo, filtroAdiado) : []), [catalogo, filtroAdiado]);
   // Com o carro no filtro, as peças universais (lâmpada, óleo, bateria…) e as sem aplicação cadastrada ficam de fora.
@@ -88,7 +106,11 @@ export default function CatalogoLoja({ catalogo, carregando, erro, live, filtro,
     const comPecas = new Set(meta.modelos.filter((m) => m[2] > 0).map((m) => m[0]));
     return meta.montadoras.map((nome, idx) => ({ idx, nome })).filter((m) => comPecas.has(m.idx)).sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
   }, [meta]);
-  const anos = useMemo(() => (catalogo && filtro.modelo >= 0 ? anosDisponiveis(catalogo, filtro.modelo, -1) : []), [catalogo, filtro.modelo]);
+  // O ano vindo da placa pode não estar nas faixas das aplicações: entra na lista para o select não ficar em branco.
+  const anos = useMemo(() => {
+    const lista = catalogo && filtro.modelo >= 0 ? anosDisponiveis(catalogo, filtro.modelo, -1) : [];
+    return filtro.modelo >= 0 && filtro.ano > 0 && !lista.includes(filtro.ano) ? [...lista, filtro.ano].sort((a, b) => b - a) : lista;
+  }, [catalogo, filtro.modelo, filtro.ano]);
   const marcas = useMemo(() => {
     if (!meta) return [] as { idx: number; nome: string; n: number }[];
     const contagem = new Map<string, number>();
@@ -100,12 +122,21 @@ export default function CatalogoLoja({ catalogo, carregando, erro, live, filtro,
   const rotuloCarro = meta && filtro.modelo >= 0 ? `${meta.montadoras[meta.modelos[filtro.modelo][0]]} ${meta.modelos[filtro.modelo][1]}${filtro.ano ? ` ${filtro.ano}` : ""}` : meta && filtro.montadora >= 0 ? meta.montadoras[filtro.montadora] : "";
 
   const atualizar = (parte: Partial<Filtro>) => onFiltro({ ...filtro, ...parte });
+  const linkProcura = whatsappUrl(mensagemProcura(descricaoDaProcura(catalogo, filtro), rotuloCarro || veiculo?.rotulo || ""));
   // Montadora → modelo → ano, um de cada vez. O carro fica lembrado a partir do modelo.
   const lembrar = (modelo: number, ano: number) => { if (meta) onVeiculo(modelo >= 0 ? { montadora: meta.montadoras[meta.modelos[modelo][0]], modelo: meta.modelos[modelo][1], ano } : null); };
   const escolherMontadora = (montadora: number) => { atualizar({ montadora, modelo: -1, ano: 0 }); lembrar(-1, 0); };
   const escolherModelo = (modelo: number) => { atualizar({ modelo, ano: 0 }); lembrar(modelo, 0); };
   const escolherAno = (ano: number) => { atualizar({ ano }); lembrar(filtro.modelo, ano); };
   const limparCarro = () => { atualizar({ montadora: -1, modelo: -1, ano: 0 }); lembrar(-1, 0); };
+  // Carro confirmado pela placa: mesmo caminho dos selects (filtra o catálogo e lembra o carro).
+  const usarDaPlaca = (v: VeiculoSalvo) => {
+    setPlacaAberta(false);
+    const r = catalogo ? resolverVeiculo(catalogo, v) : null;
+    if (!r) return;
+    atualizar({ montadora: r.montadora, modelo: r.modelo, ano: r.ano });
+    onVeiculo(v);
+  };
   const filtrosAtivos = [filtro.marca >= 0, filtro.somenteEstoque, filtro.ordem !== "relevancia"].filter(Boolean).length;
   const visiveis = resultados.slice(0, limite);
   const estoqueEm = dataEstoque(catalogo);
@@ -127,8 +158,14 @@ export default function CatalogoLoja({ catalogo, carregando, erro, live, filtro,
             <option value={0}>Ano</option>
             {anos.map((a) => <option key={a} value={a}>{a}</option>)}
           </select><ChevronDown size={15} /></span>
+          {placaAtiva && meta && (
+            <button type="button" className="nl-carro-placa" aria-expanded={placaAberta} onClick={() => setPlacaAberta((v) => !v)}>
+              <RectangleHorizontal size={15} aria-hidden="true" /> Buscar pela placa
+            </button>
+          )}
           {(filtro.montadora >= 0 || veiculo) && <button type="button" className="nl-carro-limpar" onClick={limparCarro}><X size={14} /> Limpar</button>}
         </div>
+        {placaAtiva && placaAberta && catalogo && <BuscaPlaca catalogo={catalogo} manual="nos campos acima" autoFocus onUsar={usarDaPlaca} />}
       </div>
 
       <div className="nl-catalog-tools">
@@ -223,10 +260,10 @@ export default function CatalogoLoja({ catalogo, carregando, erro, live, filtro,
           {semCarro > 0
             ? <p>Existem {semCarro.toLocaleString("pt-BR")} {semCarro === 1 ? "peça" : "peças"} para essa busca sem o filtro do carro (peças universais ou sem aplicação cadastrada). A equipe confere se servem no seu carro.</p>
             : <p>Tente outro nome, a marca da peça ou só o modelo do carro. Se preferir, a equipe procura para você pelo WhatsApp.</p>}
+          <a className="primary-button nl-procura-whats" href={linkProcura} target="_blank" rel="noopener noreferrer"><MessageCircle size={18} /> Pedir esta peça no WhatsApp</a>
           <div className="nl-vazio-acoes">
             {semCarro > 0 && <button type="button" onClick={verSemCarro}>Ver as {semCarro.toLocaleString("pt-BR")} sem o filtro do carro</button>}
             <button type="button" onClick={() => onFiltro({ ...FILTRO_VAZIO, q: filtro.q, montadora: filtro.montadora, modelo: filtro.modelo, ano: filtro.ano })}>Limpar os outros filtros</button>
-            <a href={whatsappUrl(`Olá! Procuro esta peça e não achei no site: ${filtro.q || "(descrever)"}${rotuloCarro ? `\nCarro: ${rotuloCarro}` : ""}`)} target="_blank" rel="noopener noreferrer">Pedir para a loja procurar</a>
           </div>
         </div>
       )}
@@ -235,6 +272,12 @@ export default function CatalogoLoja({ catalogo, carregando, erro, live, filtro,
           <span>Mostrando {visiveis.length.toLocaleString("pt-BR")} de {resultados.length.toLocaleString("pt-BR")}</span>
           <button type="button" className="nl-button" onClick={() => setLimite((l) => l + PAGINA * 2)}>Ver mais peças <ChevronDown size={17} /></button>
         </div>
+      )}
+      {catalogo && resultados.length > 0 && !carregando && (
+        <aside className="nl-nao-achou" aria-label="Pedir uma peça para a loja">
+          <p><b>Não achou a peça que procura?</b><span>Mande o nome da peça e o carro: a equipe procura para você e responde pelo WhatsApp.</span></p>
+          <a className="nl-whats-button" href={linkProcura} target="_blank" rel="noopener noreferrer"><MessageCircle size={18} /> Pedir pelo WhatsApp</a>
+        </aside>
       )}
     </div>
   );
@@ -245,8 +288,8 @@ function CartaoPeca({ peca, catalogo, live, veiculo, onSelecionar, onAdicionar }
   const foto = fotoDaPeca(peca, catalogo, live);
   const preco = precoDaPeca(peca, live);
   const disp = disponibilidadeDaPeca(peca, live);
+  const compra = compraMinima(preco, peca.quantidadeMinima);
   const aplicacoes = resumoAplicacoes(catalogo.meta, peca);
-  const indisponivel = !!peca.externalId && disp.estoque <= 0;
   const serve = servePara(peca, veiculo);
   return (
     <article className="product-card nl-product-card">
@@ -264,10 +307,11 @@ function CartaoPeca({ peca, catalogo, live, veiculo, onSelecionar, onAdicionar }
         <p className="application">{aplicacoes ? <><CarFront size={13} aria-hidden="true" /> {aplicacoes}</> : "Aplicação conferida pela equipe."}</p>
         <div className="product-bottom">
           <div>
-            <strong>{preco > 0 ? money(preco) : "Consultar preço"}</strong>
-            <small className={disp.classe}>{disp.texto}{peca.quantidadeMinima > 1 ? ` · mín. ${peca.quantidadeMinima}` : ""}</small>
+            <strong>{preco > 0 ? money(compra.totalCents) : "Consultar preço"}</strong>
+            {compra.detalhe && <small className="nl-compra-minima">{compra.detalhe}</small>}
+            <small className={disp.classe}>{disp.texto}</small>
           </div>
-          <button type="button" disabled={indisponivel} onClick={() => onAdicionar(peca)} aria-label={`${indisponivel ? "Indisponível" : "Adicionar ao pedido"}: ${titulo}`} className="add-button"><Plus size={17} /><span>{indisponivel ? "Indisponível" : "Adicionar ao pedido"}</span></button>
+          <button type="button" onClick={() => onAdicionar(peca)} aria-label={`Adicionar ${compra.quantidade > 1 ? `${compra.quantidade} unidades ` : ""}ao pedido: ${titulo}`} className="add-button"><Plus size={17} /><span>Adicionar ao pedido</span></button>
         </div>
       </div>
     </article>

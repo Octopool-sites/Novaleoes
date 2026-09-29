@@ -1,36 +1,58 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowRight, ArrowUpRight, CarFront, ChevronLeft, ChevronRight, Hand, Package, Plus, X } from "lucide-react";
+import { ArrowRight, ChevronLeft, ChevronRight, Hand, Package, Plus, X } from "lucide-react";
 import type { Product } from "@/lib/catalog";
 import { type Catalogo, type Peca, money } from "@/lib/catalogo-site";
 import { type Veiculo, servePara } from "@/lib/garagem";
 import { disponibilidadeDaPeca, fotoDaPeca, precoDaPeca, tituloDaPeca } from "./catalogo-loja";
-import type { Carro3D, PinoCarro, PosicaoPino } from "./carro-3d";
+import type { Carro3D, PosicaoPino } from "./carro-3d";
+import { ARQUIVO_CARRO, FOTO_ABERTO, POSTER_CARRO, ZONAS } from "./carro-modelo";
 import { caminho } from "@/lib/base";
+import { compraMinima } from "@/lib/unidades";
 import "./carro-interativo.css";
 
-// Compra pela parte do carro, dentro da abertura: o carro abre com a rolagem, cada parte tem um botão
-// e o painel mostra as peças à venda daquela parte.
-type Zona = { id: string; nome: string; deps: string[]; pino: PinoCarro };
-export const ZONAS: Zona[] = [
-  { id: "motor", nome: "Motor", deps: ["motor", "correias", "filtros", "injecao", "arrefecimento", "lubrificantes"], pino: { id: "motor", no: "MOTOR_MOTOR_0", face: null } },
-  { id: "freios", nome: "Freios", deps: ["freios"], pino: { id: "freios", no: "RODA DIANTEIRA ESQ._METAL_0", face: [1, 0, 0.2] } },
-  { id: "suspensao", nome: "Suspensão", deps: ["suspensao"], pino: { id: "suspensao", no: "CORPO_AMORTECEDORES_0", canto: [0.9, 0.2, 0.95], face: [1, 0, 0.3] } },
-  { id: "rodas", nome: "Rodas e pneus", deps: ["rodas"], pino: { id: "rodas", no: "RODA TRASEIRA ESQ.", face: [1, 0, -0.2] } },
-  { id: "direcao", nome: "Direção", deps: ["direcao"], pino: { id: "direcao", no: "INTERNA.002", face: null } },
-  { id: "transmissao", nome: "Câmbio e embreagem", deps: ["transmissao", "cabos"], pino: { id: "transmissao", no: "INTERNA_PRETO_0", canto: [0, -0.4, -0.3], face: null } },
-  { id: "eletrica", nome: "Elétrica e faróis", deps: ["eletrica"], pino: { id: "eletrica", no: "LANTERNAS_LANTERNA_0", canto: [0.75, 0, 0], face: [0, 0, 1] } },
-  { id: "escapamento", nome: "Escapamento", deps: ["escapamento"], pino: { id: "escapamento", no: "CORPO", canto: [-0.4, -0.85, -0.95], face: [0, 0, -1] } },
-  { id: "carroceria", nome: "Carroceria", deps: ["carroceria"], pino: { id: "carroceria", no: "PORTA MOTORISTA", face: [1, 0, 0] } },
-];
+export { ZONAS };
 
+// Compra pela parte do carro, na abertura: o carro abre com a rolagem, cada parte tem um número e o painel mostra
+// as peças à venda daquela parte. Logo abaixo vem o catálogo (sem faixa intermediária).
 const NA_VITRINE = 4;
 
 let downloadModelo: Promise<ArrayBuffer> | null = null;
 function baixarModelo() {
-  downloadModelo ??= fetch(caminho("assets/car/nova-leoes-uno-v1.glb"), { cache: "force-cache" })
+  downloadModelo ??= fetch(caminho(ARQUIVO_CARRO), { cache: "force-cache" })
     .then((r) => { if (!r.ok) throw new Error("modelo"); return r.arrayBuffer(); })
     .catch((e) => { downloadModelo = null; throw e; });
   return downloadModelo;
+}
+
+// Números visíveis a menos de DIST px um do outro são empurrados para longe (no celular o carro é pequeno e
+// motor, farol, amortecedor, disco, volante e câmbio caíam quase no mesmo ponto). Ficam dentro do palco.
+const DIST = 34;
+function afastarPinos(lista: PosicaoPino[], largura: number, altura: number): PosicaoPino[] {
+  const pts = lista.map((p) => ({ ...p }));
+  const vis = pts.filter((p) => p.visivel);
+  for (let volta = 0; volta < 8; volta++) {
+    let mexeu = false;
+    for (let i = 0; i < vis.length; i++) for (let j = i + 1; j < vis.length; j++) {
+      const a = vis[i], b = vis[j];
+      let dx = b.x - a.x, dy = b.y - a.y;
+      let d = Math.hypot(dx, dy);
+      if (d >= DIST) continue;
+      if (d < 0.01) { dx = 1; dy = 0; d = 1; }
+      const empurra = (DIST - d) / 2;
+      a.x -= (dx / d) * empurra; a.y -= (dy / d) * empurra;
+      b.x += (dx / d) * empurra; b.y += (dy / d) * empurra;
+      mexeu = true;
+    }
+    if (!mexeu) break;
+  }
+  if (largura > 0 && altura > 0) for (const p of vis) { p.x = Math.min(largura - 18, Math.max(18, p.x)); p.y = Math.min(altura - 18, Math.max(18, p.y)); }
+  return pts;
+}
+
+// Economia de dados ligada (ou rede 2G): nada de 3D (modelo + Three.js ~1,7 MB); fica a foto do carro aberto.
+function economiaDeDados() {
+  const c = (navigator as Navigator & { connection?: { saveData?: boolean; effectiveType?: string } }).connection;
+  return !!c && (c.saveData === true || /(^|-)2g$/.test(c.effectiveType || ""));
 }
 
 export default function CarroInterativo({ catalogo, live, veiculo, onSelecionar, onAdicionar, onDepartamento }: {
@@ -54,11 +76,12 @@ export default function CarroInterativo({ catalogo, live, veiculo, onSelecionar,
     const m = matchMedia("(prefers-reduced-motion: reduce)");
     const aplicar = () => setReduzido(m.matches);
     aplicar(); m.addEventListener("change", aplicar);
+    if (economiaDeDados()) setSem3d(true);
     return () => m.removeEventListener("change", aplicar);
   }, []);
 
-  // O 3D (1,6 MB de modelo + Three.js) espera o catálogo chegar, ou 2,5 s: no 4G fraco as peças com preço
-  // aparecem primeiro, e a foto do carro fica na tela enquanto isso.
+  // O 3D (modelo + Three.js) espera o catálogo chegar, ou 2,5 s: no 4G fraco as peças com preço aparecem
+  // primeiro, e a foto do carro fica na tela enquanto isso.
   const [liberado, setLiberado] = useState(false);
   useEffect(() => {
     if (catalogo) { setLiberado(true); return; }
@@ -68,9 +91,10 @@ export default function CarroInterativo({ catalogo, live, veiculo, onSelecionar,
 
   useEffect(() => {
     const alvo = palco.current;
-    if (!alvo || !liberado) return;
+    if (!alvo || !liberado || sem3d) return;
     let descartado = false;
-    const posicionar = (lista: PosicaoPino[]) => {
+    const posicionar = (bruta: PosicaoPino[]) => {
+      const lista = afastarPinos(bruta, palco.current?.clientWidth ?? 0, palco.current?.clientHeight ?? 0);
       for (const p of lista) {
         const el = pinos.current.get(p.id);
         if (!el) continue;
@@ -86,8 +110,9 @@ export default function CarroInterativo({ catalogo, live, veiculo, onSelecionar,
     // O modelo começa a baixar junto com o código do 3D, e uma vez só (montar de novo reaproveita o download).
     // A montagem espera um instante: se o componente for desfeito logo em seguida (React monta, desmonta e
     // monta de novo no início), a primeira nem começa e o trabalho pesado não é feito em dobro.
+    const modulo = import("./carro-3d");
     const espera = setTimeout(() => {
-      void import("./carro-3d").then(({ montarCarro3D }) => montarCarro3D(alvo, {
+      void modulo.then(({ montarCarro3D }) => montarCarro3D(alvo, {
         pinos: ZONAS.map((z) => z.pino), onPinos: posicionar, superficie: area.current ?? undefined, dados: baixarModelo(),
         onPronto: () => !descartado && setPronto(true), onErro: () => !descartado && setSem3d(true), onGirou: () => !descartado && setGirou(true),
       })).then((h) => { if (descartado) h.dispose(); else { carro.current = h; atualizarRolagem(); } }).catch(() => !descartado && setSem3d(true));
@@ -95,7 +120,7 @@ export default function CarroInterativo({ catalogo, live, veiculo, onSelecionar,
     baixarModelo().catch(() => {});
     return () => { descartado = true; clearTimeout(espera); carro.current?.dispose(); carro.current = null; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [liberado]);
+  }, [liberado, sem3d]);
 
   // Rolagem abre o carro. Com movimento reduzido, ele já começa aberto.
   function atualizarRolagem() {
@@ -116,6 +141,16 @@ export default function CarroInterativo({ catalogo, live, veiculo, onSelecionar,
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reduzido, zona, pronto]);
 
+  // No celular o painel é uma folha fixa embaixo: fecha quando a pessoa rola para o catálogo (o fim da abertura
+  // passa da metade da tela), senão ele cobre as peças.
+  useEffect(() => {
+    if (!zona) return;
+    const conferir = () => { const r = secao.current?.getBoundingClientRect(); if (r && r.bottom < innerHeight * 0.55) escolher(null); };
+    addEventListener("scroll", conferir, { passive: true });
+    return () => removeEventListener("scroll", conferir);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [zona]);
+
   function escolher(id: string | null) {
     setZona(id);
     const z = ZONAS.find((x) => x.id === id);
@@ -131,6 +166,13 @@ export default function CarroInterativo({ catalogo, live, veiculo, onSelecionar,
     const r = secao.current.getBoundingClientRect();
     const curso = Math.max(1, r.height - innerHeight * 0.85);
     scrollTo({ top: scrollY + r.top - innerHeight * 0.12 + curso * 0.72, behavior: reduzido ? "instant" : "smooth" });
+    // O botão some quando o carro abre: o foco vai para o primeiro número (senão cai no início da página).
+    setTimeout(() => pinos.current.get(ZONAS[0].id)?.focus({ preventScroll: true }), reduzido ? 50 : 900);
+  }
+  // Atalho de teclado/leitor de tela para cada parte: rola até o carro aberto e abre o painel.
+  function escolherPeloAtalho(id: string) {
+    escolher(id);
+    secao.current?.scrollIntoView({ block: "end", behavior: reduzido ? "instant" : "smooth" });
   }
 
   const zonaAtual = ZONAS.find((z) => z.id === zona) || null;
@@ -169,12 +211,14 @@ export default function CarroInterativo({ catalogo, live, veiculo, onSelecionar,
         {catalogo && vitrine.map((p) => {
           const foto = fotoDaPeca(p, catalogo, live);
           const preco = precoDaPeca(p, live);
+          // Mesmo valor que entra no pedido pelo "+": com venda mínima, o total da compra mínima.
+          const minima = compraMinima(preco, p.quantidadeMinima);
           const disp = disponibilidadeDaPeca(p, live);
           return (
             <li key={p.id}>
               <button type="button" className="nl-carro-peca" onClick={() => onSelecionar(p)}>
                 <span className="nl-carro-peca-foto">{foto ? <img src={foto} alt="" loading="lazy" decoding="async" /> : <Package size={26} strokeWidth={1.2} />}</span>
-                <span className="nl-carro-peca-info"><b>{tituloDaPeca(p)}</b><small>{p.marca || p.grupo}{servePara(p, veiculo) ? " · serve no seu carro" : ""}</small><strong>{money(preco)}</strong><span className={`nl-carro-disp ${disp.classe}`}>{disp.texto}</span></span>
+                <span className="nl-carro-peca-info"><b>{tituloDaPeca(p)}</b><small>{p.marca || p.grupo}{servePara(p, veiculo) ? " · serve no seu carro" : ""}</small><strong>{money(minima.totalCents)}</strong>{minima.detalhe && <small className="nl-carro-minima">{minima.detalhe}</small>}<span className={`nl-carro-disp ${disp.classe}`}>{disp.texto}</span></span>
               </button>
               <button type="button" className="nl-carro-add" aria-label={`Adicionar ${tituloDaPeca(p)} ao pedido`} onClick={() => onAdicionar(p)}><Plus size={17} /></button>
             </li>
@@ -183,55 +227,76 @@ export default function CarroInterativo({ catalogo, live, veiculo, onSelecionar,
         {!catalogo && [1, 2, 3].map((i) => <li key={i} className="nl-carro-peca-vazia" />)}
       </ul>
       {departamento && (
-        <button type="button" className="nl-button nl-carro-ver-todas" onClick={() => onDepartamento(departamento.id)}>
+        <button type="button" className="nl-button nl-carro-ver-todas" onClick={() => { escolher(null); onDepartamento(departamento.id); }}>
           Ver todas as {departamento.n.toLocaleString("pt-BR")} peças de {departamento.nome} <ArrowRight size={17} />
         </button>
       )}
     </aside>
   );
-  // Primeiro só o carro, na tela inteira; a lista das partes e o resto ficam logo abaixo.
+  const titulo = semCarro || aberto
+    ? <>Toque num número <em>e veja as peças.</em></>
+    : <>Role para abrir <em>o carro.</em></>;
+  // Só o carro, na tela inteira, e o catálogo logo abaixo.
   return (
-    <>
-      <section ref={secao} className={`nl-carro${reduzido || semCarro ? " nl-carro-estatico" : ""}${girou || zona ? " nl-carro-usado" : ""}`} aria-label="Compre pela parte do carro">
-        <h1 className="sr-only">Nova Leões Autopeças: peças para o seu carro em Guarulhos</h1>
-        <div className="nl-carro-fixo">
-          <div ref={area} className="nl-carro-palco-area">
-            <div ref={palco} className="nl-carro-palco" role="img" aria-label="Carro ilustrativo que abre peça por peça. Arraste ou use as setas para girar; os números sobre o carro abrem as peças de cada parte." />
-            <div className="nl-carro-pinos">
-              {ZONAS.map((z, i) => (
-                <button type="button" key={z.id} ref={(el) => { if (el) pinos.current.set(z.id, el); else pinos.current.delete(z.id); }}
-                  className={`nl-pino${zona === z.id ? " ativo" : ""}`} data-visivel="0" tabIndex={-1} onClick={() => escolher(zona === z.id ? null : z.id)} aria-label={`Peças de ${z.nome}`}>
-                  <span className="nl-pino-ponto">{i + 1}</span><span className="nl-pino-nome">{z.nome}</span>
-                </button>
-              ))}
+    <section ref={secao} className={`nl-carro${reduzido || semCarro ? " nl-carro-estatico" : ""}${girou || zona ? " nl-carro-usado" : ""}`} aria-label="Compre pela parte do carro">
+      <h1 className="sr-only">Nova Leões Autopeças: peças para o seu carro em Guarulhos</h1>
+      <div className="nl-carro-fixo">
+        <div ref={area} className="nl-carro-palco-area">
+          {semCarro ? (
+            // Sem WebGL ou com economia de dados: a foto do carro aberto, com os mesmos números por cima.
+            <div className="nl-carro-foto" role="img" aria-label="Carro ilustrativo aberto, com os números das partes">
+              <div className="nl-carro-foto-quadro">
+                <img src={caminho(FOTO_ABERTO)} alt="" decoding="async" />
+                {ZONAS.map((z, i) => (
+                  <button type="button" key={z.id} className={`nl-pino nl-pino-foto${zona === z.id ? " ativo" : ""}`} data-visivel="1"
+                    style={{ left: `${z.foto[0]}%`, top: `${z.foto[1]}%` }} data-lado={z.foto[0] > 78 ? "esq" : ""}
+                    onClick={() => escolher(zona === z.id ? null : z.id)} aria-label={`Peças de ${z.nome}`}>
+                    <span className="nl-pino-ponto">{i + 1}</span><span className="nl-pino-nome">{z.nome}</span>
+                  </button>
+                ))}
+              </div>
             </div>
-            <div className="nl-carro-legenda">
-              <p className="nl-kicker"><span /> COMPRE PELA PARTE DO CARRO</p>
-              <h2 className="nl-carro-titulo">{aberto ? <>Toque num número <em>e veja as peças.</em></> : <>Role para abrir <em>o carro.</em></>}</h2>
-            </div>
-            {!pronto && <div className="nl-carro-carregando">{semCarro ? <><CarFront size={64} strokeWidth={0.8} /><span>Escolha a parte do carro na lista abaixo</span></> : <><img src={caminho("assets/car/nova-leoes-uno-poster.jpg")} alt="" fetchPriority="high" decoding="async" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} /><span className="nl-carro-barra-carga" /></>}</div>}
-            <div className="nl-carro-controles" data-sem-giro>
-              {pronto && (
-                <div className="nl-carro-girar" role="group" aria-label="Girar o carro">
-                  <button type="button" aria-label="Girar o carro para a esquerda" onClick={() => carro.current?.girar(-Math.PI / 4)}><ChevronLeft size={20} /></button>
-                  <button type="button" aria-label="Girar o carro para a direita" onClick={() => carro.current?.girar(Math.PI / 4)}><ChevronRight size={20} /></button>
-                </div>
-              )}
-              {pronto && !aberto && !reduzido && <button type="button" className="nl-carro-abrir" onClick={abrirCarro}>Abrir o carro <ArrowRight size={16} /></button>}
-              {pronto && aberto && !girou && <span className="nl-carro-dica" aria-hidden="true"><Hand size={15} /> Arraste para girar</span>}
-            </div>
-            {painel}
-            <small className="nl-carro-nota">Veículo ilustrativo<span className="nl-carro-nota-longa">. A aplicação de cada peça é conferida pela loja</span> · <a href={caminho("assets/car/ATTRIBUTION.txt")} target="_blank" rel="noopener noreferrer">Créditos do modelo</a></small>
+          ) : (
+            <>
+              <div ref={palco} className="nl-carro-palco" role="img" aria-label="Carro ilustrativo que abre peça por peça. Arraste ou use as setas para girar; os números sobre o carro abrem as peças de cada parte." />
+              <div className="nl-carro-pinos">
+                {ZONAS.map((z, i) => (
+                  <button type="button" key={z.id} ref={(el) => { if (el) pinos.current.set(z.id, el); else pinos.current.delete(z.id); }}
+                    className={`nl-pino${zona === z.id ? " ativo" : ""}`} data-visivel="0" tabIndex={-1} onClick={() => escolher(zona === z.id ? null : z.id)} aria-label={`Peças de ${z.nome}`}>
+                    <span className="nl-pino-ponto">{i + 1}</span><span className="nl-pino-nome">{z.nome}</span>
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+          <div className="nl-carro-legenda">
+            <p className="nl-kicker"><span /> COMPRE PELA PARTE DO CARRO</p>
+            <h2 className="nl-carro-titulo">{titulo}</h2>
+            <p className="nl-carro-promessa">Desde 1993 em Guarulhos · entrega própria</p>
           </div>
+          {!pronto && !semCarro && <div className="nl-carro-carregando"><img src={caminho(POSTER_CARRO)} alt="" fetchPriority="high" decoding="async" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} /><span className="nl-carro-barra-carga" /></div>}
+          <div className="nl-carro-controles" data-sem-giro>
+            {pronto && (
+              <div className="nl-carro-girar" role="group" aria-label="Girar o carro">
+                <button type="button" aria-label="Girar o carro para a esquerda" onClick={() => carro.current?.girar(-Math.PI / 4)}><ChevronLeft size={20} /></button>
+                <button type="button" aria-label="Girar o carro para a direita" onClick={() => carro.current?.girar(Math.PI / 4)}><ChevronRight size={20} /></button>
+              </div>
+            )}
+            {pronto && !aberto && !reduzido && <button type="button" className="nl-carro-abrir" onClick={abrirCarro}>Abrir o carro <ArrowRight size={16} /></button>}
+            {pronto && aberto && !girou && <span className="nl-carro-dica" aria-hidden="true"><Hand size={15} /> Arraste para girar</span>}
+          </div>
+          {painel}
+          {/* Atalhos das partes para teclado e leitor de tela: só aparecem quando recebem foco. */}
+          {!semCarro && (
+            <nav className="nl-carro-atalhos" aria-label="Partes do carro" data-sem-giro>
+              <ul>
+                {ZONAS.map((z, i) => <li key={z.id}><button type="button" aria-pressed={zona === z.id} onClick={() => escolherPeloAtalho(z.id)}><b>{i + 1}</b>{z.nome}</button></li>)}
+              </ul>
+            </nav>
+          )}
+          <small className="nl-carro-nota">Veículo ilustrativo<span className="nl-carro-nota-longa">. A aplicação de cada peça é conferida pela loja</span> · <a href={caminho("assets/car/ATTRIBUTION.txt")} target="_blank" rel="noopener noreferrer">Créditos do modelo</a></small>
         </div>
-      </section>
-      <div className="nl-carro-partes wrap">
-        <p className="nl-carro-partes-rotulo">{catalogo ? `${catalogo.meta.total.toLocaleString("pt-BR")} peças com preço e estoque. ` : ""}Escolha a parte do carro:</p>
-        <ul className="nl-carro-zonas" aria-label="Partes do carro">
-          {ZONAS.map((z, i) => <li key={z.id}><button type="button" className={zona === z.id ? "ativo" : ""} aria-pressed={zona === z.id} onClick={() => { escolher(z.id); secao.current?.scrollIntoView({ block: "end", behavior: reduzido ? "instant" : "smooth" }); }}><b>{i + 1}</b>{z.nome}</button></li>)}
-        </ul>
-        <a className="nl-carro-direto" href="#catalogo">Ir direto ao catálogo <ArrowUpRight size={15} /></a>
       </div>
-    </>
+    </section>
   );
 }

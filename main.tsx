@@ -1,5 +1,13 @@
 import React, { lazy, Suspense, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
+// Marca Nova Leões: fontes auto-hospedadas (a CSP é font-src 'self'; o Vite empacota os woff2) e tokens de cor.
+// Precisam vir antes da vitrine, para os CSS dela sobrescreverem o que for de componente.
+import "@fontsource/barlow/latin-400.css";
+import "@fontsource/barlow/latin-500.css";
+import "@fontsource/barlow/latin-600.css";
+import "@fontsource/barlow-semi-condensed/latin-600.css";
+import "@fontsource/barlow-semi-condensed/latin-700.css";
+import "./components/nl-marca.css";
 import Storefront from "./components/storefront";
 import CommerceLogin from "./components/commerce-login";
 import CommerceActivation from "./components/commerce-activation";

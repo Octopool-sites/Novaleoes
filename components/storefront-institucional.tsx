@@ -35,7 +35,7 @@ export function SecaoServicos() {
       <section className="nl-servicos" aria-label="Como a loja atende">
         <article><Truck size={24} strokeWidth={1.4} /><h3>Entrega própria</h3><p>Motoboys da loja levam o pedido para oficinas e clientes da região. Prazo e valor combinados no atendimento.</p></article>
         <article><ShieldCheck size={24} strokeWidth={1.4} /><h3>Aplicação conferida</h3><p>Antes de aprovar, a equipe confere se a peça serve no seu modelo, ano e motor. Sem surpresa na hora de instalar.</p></article>
-        <article><MessageCircle size={24} strokeWidth={1.4} /><h3>Atendimento direto</h3><p>Não achou a peça no site? A equipe procura para você pelo WhatsApp ou telefone, inclusive itens sob encomenda.</p></article>
+        <article><MessageCircle size={24} strokeWidth={1.4} /><h3>Atendimento direto</h3><p>Não achou a peça no site? A equipe procura para você pelo WhatsApp ou telefone.</p></article>
       </section>
   );
 }
@@ -120,7 +120,7 @@ export function RodapeLoja({ storefrontHref, departamentos, onDepartamento, onPa
         </div>
         <div className="nl-footer-colunas">
           <div className="nl-footer-coluna">
-            <a className="store-brand" href={storefrontHref} aria-label="NOVA LEÕES AUTOPEÇAS, início"><img src={caminho("assets/logo.png")} alt="" loading="lazy" /><span>NOVA LEÕES<small>AUTOPEÇAS</small></span></a>
+            <a className="store-brand" href={storefrontHref} aria-label="NOVA LEÕES AUTOPEÇAS, início"><img src={caminho("assets/logo.png")} alt="" loading="lazy" /><span>NOVA LEÕES<small>AUTOPEÇAS</small><small className="nl-desde">DESDE {LOJA.fundacao}</small></span></a>
             <p>{LOJA.razaoSocial}<br />CNPJ {LOJA.cnpj}</p>
             <p>{LOJA.endereco.logradouro}, {LOJA.endereco.numero} · {LOJA.endereco.bairro}<br />{CIDADE} · CEP {LOJA.endereco.cep}</p>
           </div>
@@ -141,7 +141,7 @@ export function RodapeLoja({ storefrontHref, departamentos, onDepartamento, onPa
             {LOJA.instagram ? <a href={`https://www.instagram.com/${LOJA.instagram}`} target="_blank" rel="noopener noreferrer">Instagram</a> : null}
           </div>
         </div>
-        <div className="nl-footer-meta"><span>Seu carro. Nosso cuidado. · © {new Date().getFullYear()} {LOJA.nome}</span><span>Um ambiente da <b>octopool</b> · <a href="/gestao">Acesso da equipe <ArrowUpRight size={13} /></a></span></div>
+        <div className="nl-footer-meta"><span>Seu carro. Nosso cuidado. · © {new Date().getFullYear()} {LOJA.nome}</span><span>Um ambiente da <b>octopool</b></span></div>
       </div>
     </footer>
   );

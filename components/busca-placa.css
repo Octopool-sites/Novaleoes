@@ -1,0 +1,78 @@
+/* Busca pela placa: no seletor "Meu carro" (passo da montadora) e na barra "Qual é o seu carro?" do catálogo.
+   Cores: tokens da marca (--nl-*, components/nl-marca.css) com a paleta atual da loja como reserva. As reservas
+   ficam só neste bloco; quando os tokens da marca estiverem no :root, dá para apagá-las sem mexer no resto. */
+.nl-placa, .nl-placa-divisor, .nl-carro-placa {
+  --placa-tinta: var(--nl-chumbo, #262921);
+  --placa-tinta-2: var(--nl-chumbo-2, #3d4634);
+  --placa-muted: var(--nl-muted, #6b7361);
+  --placa-linha: var(--nl-linha, #e1e4d7);
+  --placa-linha-forte: var(--nl-linha-forte, #cfd2c4);
+  --placa-papel: var(--nl-papel, #f6f6f1);
+  --placa-destaque: var(--nl-laranja, #b48c36);
+  --placa-destaque-forte: var(--nl-laranja-forte, #9c7829);
+  --placa-sobre-destaque: var(--nl-chumbo, #fff);
+  --placa-destaque-texto: var(--nl-laranja-texto, #7a5c1c);
+  --placa-selo: var(--nl-laranja-claro, #f3ead3);
+  --placa-erro: var(--nl-erro, #8a4a2c);
+}
+
+.nl-placa { min-width: 0; margin-top: 20px; padding: 16px; border: 1px solid var(--placa-linha); border-radius: 14px; background: #fff; color: var(--placa-tinta); }
+.nl-placa-rotulo { display: block; margin-bottom: 8px; font-size: 13px; font-weight: 600; color: var(--placa-tinta); }
+.nl-placa-linha { display: flex; gap: 8px; }
+.nl-placa-campo { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 10px; height: 48px; padding: 0 14px; border: 1px solid var(--placa-linha-forte); border-radius: 10px; background: var(--placa-papel); color: var(--placa-muted); }
+.nl-placa-campo:focus-within { border-color: var(--placa-tinta); background: #fff; box-shadow: 0 0 0 3px var(--placa-selo); }
+/* width 0: o input não impõe a largura própria (~20 caracteres); o campo cabe em 320 px. */
+.nl-placa-campo input { flex: 1 1 0; width: 0; min-width: 0; height: 100%; border: 0; outline: none; background: transparent; font-size: 19px; font-weight: 600; letter-spacing: 3px; text-transform: uppercase; color: var(--placa-tinta); font-variant-numeric: tabular-nums; }
+.nl-placa-campo input::placeholder { color: var(--placa-muted); opacity: .45; font-weight: 500; }
+.nl-placa-campo input[aria-invalid="true"] { color: var(--placa-erro); }
+.nl-placa-linha > button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; flex: 0 0 auto; height: 48px; padding: 0 18px; border-radius: 10px; background: var(--placa-tinta); color: #fff; font-size: 13px; font-weight: 600; white-space: nowrap; }
+.nl-placa-linha > button:hover:not(:disabled) { background: var(--placa-tinta-2); }
+.nl-placa-linha > button:disabled { border: 1px solid var(--placa-linha-forte); background: var(--placa-papel); color: var(--placa-muted); opacity: 1; cursor: not-allowed; }
+.nl-placa-dica { margin: 8px 0 0; font-size: 12px; line-height: 1.4; color: var(--placa-muted); }
+/* Dentro da barra do catálogo, os ícones seguem a cor do próprio botão/texto (a barra pinta todo svg de dourado). */
+.nl-carro-barra .nl-placa svg { color: inherit; }
+
+.nl-placa-resultado { margin-top: 12px; font-size: 14px; line-height: 1.45; color: var(--placa-tinta); }
+.nl-placa-resultado:empty { display: none; }
+.nl-placa-resultado p { margin: 0; }
+.nl-placa-resultado b { font-weight: 600; color: var(--placa-tinta); }
+.nl-placa-status { color: var(--placa-muted); }
+.nl-placa-erro { display: flex; align-items: flex-start; gap: 8px; color: var(--placa-erro); }
+.nl-placa-erro svg { flex-shrink: 0; margin-top: 2px; }
+.nl-placa-selo { display: inline-block; margin-left: 8px; padding: 2px 8px; border-radius: 20px; background: var(--placa-selo); color: var(--placa-destaque-texto); font-size: 10.5px; font-weight: 600; letter-spacing: .6px; text-transform: uppercase; vertical-align: 1px; }
+.nl-placa-acoes { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.nl-placa-acoes button, .nl-placa-acoes a { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 42px; padding: 0 16px; border-radius: 10px; font-size: 13px; font-weight: 600; }
+.nl-placa-usar { background: var(--placa-destaque); color: var(--placa-sobre-destaque); }
+.nl-placa-usar:hover { background: var(--placa-destaque-forte); }
+.nl-placa-nao { border: 1px solid var(--placa-linha-forte); background: #fff; color: var(--placa-tinta); }
+.nl-placa-nao:hover { border-color: var(--placa-tinta); }
+.nl-placa-whats { background: var(--placa-tinta); color: #fff; }
+.nl-placa-alternativas { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 12px; }
+.nl-placa-alternativas small { font-size: 12px; color: var(--placa-muted); }
+.nl-placa-alternativas button { padding: 6px 12px; border: 1px solid var(--placa-linha); border-radius: 20px; background: var(--placa-papel); font-size: 12.5px; color: var(--placa-tinta); }
+.nl-placa-alternativas button:hover { border-color: var(--placa-tinta); }
+.nl-placa-girando { animation: nl-placa-girar .9s linear infinite; }
+@keyframes nl-placa-girar { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .nl-placa-girando { animation: none; } }
+
+/* No seletor: divisor entre a placa e a grade de montadoras. */
+.nl-placa-divisor { display: flex; align-items: center; gap: 12px; margin: 20px 0 0; font-size: 11px; letter-spacing: 1.2px; text-transform: uppercase; color: var(--placa-muted); }
+.nl-placa-divisor::before, .nl-placa-divisor::after { content: ""; flex: 1; height: 1px; background: var(--placa-linha); }
+.nl-seletor .nl-placa-divisor + .nl-seletor-grade { margin-top: 14px; }
+
+/* Na barra do catálogo: botão ao lado dos selects e o campo numa linha própria. */
+.nl-carro-placa { display: inline-flex; align-items: center; justify-content: center; gap: 6px; flex: 0 0 auto; min-height: 40px; padding: 0 14px; border: 1px solid var(--placa-linha-forte); border-radius: 10px; background: #fff; font-size: 12.5px; font-weight: 600; color: var(--placa-tinta); white-space: nowrap; }
+.nl-carro-placa:hover { border-color: var(--placa-destaque); }
+.nl-carro-placa[aria-expanded="true"] { border-color: var(--placa-tinta); background: var(--placa-tinta); color: #fff; }
+.nl-carro-barra .nl-carro-placa svg { color: var(--placa-destaque-texto); }
+.nl-carro-barra .nl-carro-placa[aria-expanded="true"] svg { color: var(--placa-selo); }
+.nl-carro-barra > .nl-placa { flex: 1 1 100%; margin-top: 2px; }
+
+@media (max-width: 700px) {
+  .nl-placa { padding: 14px; }
+  .nl-placa-campo { padding: 0 12px; gap: 8px; }
+  .nl-placa-campo input { font-size: 17px; letter-spacing: 2px; }
+  .nl-placa-linha > button { padding: 0 14px; }
+  .nl-carro-selects .nl-carro-placa { grid-column: 1 / -1; }
+  .nl-placa-acoes button, .nl-placa-acoes a { flex: 1 1 auto; }
+}

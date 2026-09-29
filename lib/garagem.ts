@@ -15,8 +15,12 @@ export function lerVeiculoSalvo(): VeiculoSalvo | null {
   return null;
 }
 
+// Só os 3 campos: nada que venha junto no objeto (ex.: a placa da busca) chega ao localStorage.
 export function salvarVeiculo(v: VeiculoSalvo | null) {
-  try { if (v) localStorage.setItem(CHAVE, JSON.stringify(v)); else localStorage.removeItem(CHAVE); } catch {}
+  try {
+    if (v) localStorage.setItem(CHAVE, JSON.stringify({ montadora: String(v.montadora), modelo: String(v.modelo), ano: Number(v.ano) || 0 }));
+    else localStorage.removeItem(CHAVE);
+  } catch {}
 }
 
 export function resolverVeiculo(catalogo: Catalogo, salvo: VeiculoSalvo | null): Veiculo | null {

@@ -1,6 +1,21 @@
 # Carro ilustrativo da vitrine Nova Leões
 
-## Atual: Uno Mille 2001 (28/09/2026)
+## Atual: hatch cinza "da Higgsfield" em 3D (29/09/2026)
+
+O Luca pediu de volta o carro do começo (o hatch cinza das imagens da Higgsfield de 22/09, `nova-leoes-assembled.webp` e `nova-leoes-exploded.webp`), agora em 3D com giro e os 9 números.
+
+- **Base:** "2020 Hyundai i20 N- Line", de shreyanshchaurasia13, no Sketchfab, licença **CC BY 4.0** (baixado pela conta do Luca, GLB 38,9 MB, 633 malhas sem nome). É o modelo mais parecido com o carro da Higgsfield. Crédito em `/assets/car/ATTRIBUTION.txt`.
+- **Montagem:** `scripts/carro/montar-hatch.mjs` (glTF-Transform + meshoptimizer + three, fora do build) gera `public/assets/car/nova-leoes-hatch-v1.glb` (3,2 MB, ~1,5 MB comprimido, 176 mil triângulos, 15 materiais, sem textura, só `KHR_mesh_quantization`). `scripts/carro/malhas-i20.json` é o índice das malhas do original usado para separar as peças.
+  - metros, Y para cima, +Z frente, +X lado do motorista, chão em y = 0;
+  - peças com nome e origem na dobradiça ou no cubo: `NL_CAPO`, `NL_TETO`, `NL_PORTA_DE`, `NL_PORTA_TE`, `NL_RODA_DE`, `NL_RODA_TE`, `NL_PARALAMA_DE`, `NL_DISCO_DE`, `NL_PINCA_DE`, `NL_FAROL_E`, `NL_VOLANTE`, `NL_CAMBIO`, `NL_ESCAPAMENTO`; o resto é `NL_CARROCERIA`;
+  - feitas por código (o original não tem motor nem suspensão): `NL_MOTOR` (bloco, cabeçote, bobinas, coletor, alternador), `NL_CORREIA` (engrenagens dentadas vazadas e correia), `NL_FILTRO_AR` (elemento laranja que sobe na abertura) e `NL_AMORTECEDOR_DE` (mola vermelha);
+  - fora do arquivo: emblemas, letreiros, logos do centro das rodas e placas;
+  - materiais próprios: pintura cinza com verniz (único `MeshPhysicalMaterial`), preto acetinado, plástico, vidro, lente, cromo, roda, pneu, disco, lanterna, interior, motor, mola, filtro.
+- **Movimento e números:** `components/carro-modelo.ts` (`MOVIMENTOS` com deslocamento e giro na dobradiça; `ZONAS` com o nó de cada número e a posição na foto de reserva). `tests/carro.test.mjs` confere nós, extensões, peso e departamentos.
+- **Reserva sem 3D** (sem WebGL, economia de dados ou rede 2G): a própria foto da Higgsfield do carro aberto com os 9 números em HTML.
+- **Foto de espera:** `nova-leoes-hatch-poster.webp`, capturada do 3D no enquadramento inicial, com fundo transparente sobre o estúdio bege.
+
+## Anterior: Uno Mille 2001 (28–29/09/2026), registro histórico
 
 - **Origem:** "UNO MILLE SMART 2001 - RIGGED MODEL", de bruno_sales, no Sketchfab, licença **CC BY 4.0** (uso comercial permitido com crédito). Baixado pela conta do Luca (GLB, texturas 1k, 27 MB). Crédito em `/assets/car/ATTRIBUTION.txt`, com link na abertura ("Créditos do modelo").
 - **Otimização** (`public/assets/car/nova-leoes-uno-v1.glb`, 2,9 MB; ~1,3 MB com a compressão da Vercel): texturas até 1024 px em WebP, estepe e animação do autor removidos, malha simplificada (pneus 10%, resto 30%) e quantizada, sem decodificador (sem Draco/Meshopt, que exigiriam `wasm-unsafe-eval` na CSP). Script: `otimizar-uno.mjs` (glTF-Transform), fora do repositório.

@@ -1,8 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { limparNome, limparGrupo, limparDescricao, unidadeLegivel, VAZAMENTO_CODIGO } from "../scripts/catalogo/nomes.mjs";
+import { limparNome, limparGrupo, limparDescricao, unidadeLegivel, VAZAMENTO_CODIGO, removerCodigosDePeca, temCodigoDePeca } from "../scripts/catalogo/nomes.mjs";
 import { classificar, DEPARTAMENTOS, normalizarTexto } from "../scripts/catalogo/taxonomia.mjs";
-import { construir, vazamentos, grupoDerivado, limparMarca, nomeModelo, chaveModelo, idCurto, bucketDe, normalizarAno, BUCKETS } from "../scripts/catalogo/construir.mjs";
+import { construir, vazamentos, grupoDerivado, limparMarca, nomeModelo, chaveModelo, idCurto, bucketDe, normalizarAno, BUCKETS, faixaDeAnos, precoPlaceholder, GRUPOS_FORA_DO_SITE, fotosComCodigo } from "../scripts/catalogo/construir.mjs";
 import { filtrar, montarCatalogo, filtroDaUrl, filtroParaUrl, FILTRO_VAZIO, resumoAplicacoes, faixaAnos, separarDescricao, termosDe, textoBusca } from "../lib/catalogo-site.ts";
 
 test("nomes: expande abreviações do balcão, restaura acentos e remove código de fabricante do fim", () => {
@@ -191,4 +191,104 @@ test("busca: tolera pontuação, plural, feminino, preposições, siglas do balc
   assert.equal(ids("oleo"), "c", "fluido de freio não é óleo");
   assert.equal(ids("kits"), "", "sigla solta não casa com pedaço de palavra");
   assert.deepEqual(termosDe("ts"), [["traseir"]]);
+});
+
+// ---- Revisão de 29/09/2026 (auditoria do catálogo) ----
+
+test("29/09: código de fabricante e interno saem do nome, da descrição e da aplicação", () => {
+  assert.equal(limparNome("CUBO RODA TS / 599A"), "Cubo Roda Traseiro");
+  assert.equal(limparNome("DISCO FREIO DT VENT 5F 278 / 352 C *"), "Disco Freio Dianteiro Ventilado 5 furos 278");
+  assert.equal(limparNome("PIVO INFERIOR / 96051 ( LE )"), "Pivô Inferior ( Lado Esquerdo )");
+  assert.equal(limparNome("SENSOR DE POSICAO DA BORBOLETA - DPL708010"), "Sensor de Posição da Borboleta");
+  // Medida, lâmpada, fusível, pneu, motor e carro ficam.
+  assert.equal(limparNome("LAMPADA 12V 21/5W"), "Lâmpada 12V 21/5W");
+  assert.equal(limparNome("FUSIVEL LAMINA 40A"), "Fusível Lamina 40A");
+  assert.equal(limparNome("PNEU 175/70 R13"), "Pneu 175/70 R13");
+  for (const legit of ["27MM", "104X170", "1300CC", "34CV", "450AH", "EA111", "AP1600", "L200", "F-1000", "K2500", "C180", "CG125", "TITAN150", "97VW"]) {
+    assert.equal(temCodigoDePeca(legit), false, legit);
+  }
+  for (const codigo of ["BB1092", "M31096S", "05801IOSS", "BC868JSTD", "UB636", "MF-419", "75621", "G-1104", "541121407A", "IWP044"]) {
+    assert.equal(temCodigoDePeca(codigo), true, codigo);
+  }
+  assert.equal(removerCodigosDePeca("Reservatório d'Água do Radiador / 11419 / MF-419 / MF419"), "Reservatório d'Água do Radiador");
+  assert.equal(removerCodigosDePeca("Caravan NºGM94644668 NºFORD327/96283/2").includes("327"), false);
+});
+
+test("29/09: descrição sem setas do balcão, recado interno, fornecedor e aspas quebradas", () => {
+  const { linhas, destaques } = limparDescricao([
+    "COBALT / ONIX",
+    "( * ) >> TRANSMISSAO MANUAL <<",
+    "ROLAMENTO RODA DENTADA S/ SENSOR << / 05801IOSS",
+    "ATENCAO: >> PEDIR FOTO",
+    "SE O CARRO FOR DUSTER PEDIR AMOSTRA",
+    "HA 02 MODELOS ( CONFIRMAR SEMPRE )",
+    "FORN: RICARDO DINPAR",
+    "10W30 MINERAL OLEO DE MOTOR FORNECEDORES: SINAL ( ABC MOTORS )",
+    'O DISCO DE EMBREAGEM E DE 200 MM "" SEM "" ATUADOR',
+    "LOGUS - AP 1.6 - 1991>1996",
+    "Gates: 40859X22XS",
+    "Leoes 11302",
+  ].join("\n"));
+  const tudo = [...linhas, ...destaques].join(" | ");
+  assert.deepEqual(destaques, ["Transmissão Manual"]);
+  assert.doesNotMatch(tudo, />|<|05801|Pedir|Amostra|Confirmar Sempre|Forn|Dinpar|Sinal|""|40859|11302/i);
+  assert.ok(linhas.includes("10W30 Mineral Óleo de Motor"));
+  assert.ok(linhas.some((l) => /1991 a 1996/.test(l)));
+});
+
+test("29/09: taxonomia corrige as famílias que caíam no departamento errado", () => {
+  assert.equal(classificar("VALVULA ESCAPE", "VALVULA ESCAPE GOL 1.0"), "motor");
+  assert.equal(classificar("COLETOR", "COLETOR ADMISSAO PALIO"), "motor");
+  assert.equal(classificar("COLETOR", "COLETOR ESCAPE PALIO"), "escapamento");
+  assert.equal(classificar("CABO", "CABO VELOCIMETRO UNO"), "cabos");
+  assert.equal(classificar("SOQUETE", "SOQUETE 1/2 12 MM"), "ferramentas");
+  assert.equal(classificar("MANGUEIRA", "MANGUEIRA TBI GOL"), "injecao");
+  assert.equal(classificar("AMORT TAMPA PORTA", "AMORT TAMPA TS GOL"), "carroceria");
+  assert.equal(classificar("HOMOCINETICA", "HOMOCINETICA LADO RODA GOL"), "transmissao");
+  assert.equal(classificar("LUBRIFICANTES", "OLEO MULTI CVT TRANSM AUT 1 L"), "lubrificantes");
+});
+
+test("29/09: preço de mentira vira consulta, ano invertido é trocado e patrimônio fica fora", () => {
+  assert.equal(precoPlaceholder(0.5, 0), true);
+  assert.equal(precoPlaceholder(1.5, 215), true);
+  assert.equal(precoPlaceholder(1.5, 3), false); // miudeza de verdade
+  assert.equal(precoPlaceholder(62, 60), false);
+  assert.deepEqual(faixaDeAnos(2010, 1983), [1983, 2010]);
+  assert.deepEqual(faixaDeAnos(1995, 2005), [1995, 2005]);
+  assert.ok(GRUPOS_FORA_DO_SITE.test("PATRIMONIO") && GRUPOS_FORA_DO_SITE.test("CONSUMO LOJA") && !GRUPOS_FORA_DO_SITE.test("FILTRO"));
+  assert.equal(limparMarca("AUTO STAR PIVO"), "Auto Star");
+  assert.equal(limparMarca("PRO TORK"), "Pro Tork");
+  assert.equal(limparMarca("AMORT RECOND"), "");
+});
+
+test("29/09: catálogo publicado passa na trava inteira (nome, descrição, aplicação e meta)", async () => {
+  const { readFileSync, readdirSync } = await import("node:fs");
+  const meta = JSON.parse(readFileSync("public/catalogo/meta.json", "utf8"));
+  const indice = JSON.parse(readFileSync("public/catalogo/indice.json", "utf8"));
+  const detalhes = new Map();
+  for (const f of readdirSync("public/catalogo/detalhes")) for (const [id, d] of Object.entries(JSON.parse(readFileSync(`public/catalogo/detalhes/${f}`, "utf8")))) detalhes.set(id, d);
+  assert.deepEqual(vazamentos({ meta, indice, detalhes }), []);
+  // Foto publicada só com nome sem código (site/<hash>): o nome no bucket do ERP é o código da peça.
+  assert.deepEqual(fotosComCodigo({ meta, indice, detalhes }), []);
+  assert.equal(indice.pecas.some((p) => /^d{4}.d{3}/.test(p[6] || "")), false);
+  assert.equal(indice.pecas.some((p) => /Arquivo Aco|Gondola|Nobreak|Saco Lixo/i.test(p[1])), false);
+});
+
+test("29/09: custo e imposto da loja e código com pontos não saem na descrição", () => {
+  const { linhas } = limparDescricao("ADITIVO ROSA RADCOOL IMPOSTO: VT PRODUTOS / QT X 1,065\nP/ PRECO CUSTO > IMPOSTO > MULTIPLICAR = 1,08\nBICO 0.280.155.929\nPOLO 2003 032.115.611-H\nVERONA 1989 / 10.1991\nCARROS COM MAIS DE 80.000 KM");
+  const tudo = linhas.join(" | ");
+  assert.doesNotMatch(tudo, /custo|imposto|multiplic|1,065|0\.280|032\.115/i);
+  assert.match(tudo, /10\.1991/);
+  assert.match(tudo, /80\.000 KM/i);
+  for (const c of ["90.501.168", "0.280.155.929", "BRO.01.10.006", "032.115.611-H", "228.109-02"]) assert.equal(temCodigoDePeca(c), true, c);
+  for (const ok of ["1.6", "2.0", "10.1991", "11.08", "1.250"]) assert.equal(temCodigoDePeca(ok), false, ok);
+});
+
+test("29/09 (verificação): chassi fica, código com pontos sai, preço de centavo vira consulta, nota de estoque sai", () => {
+  for (const c of ["Peugeot Nº 9.633.359.080", "Bico Injetor / 0280.155.288", "Fusca/kombi 113.115.611", "Fiat 51.736.529", "Oirg 93.284.788 / 93.287.964", "Variant 311.119.665.B", "Válvula Termostática 3494.100"]) assert.equal(temCodigoDePeca(c), true, c);
+  for (const ok of ["PALIO 1.4 8V FLEX - 06/.. ( ATE CHASSI 2.616.995 )", "UNO 1.5 8V FIASA - 97 / .. ( CHASSI A PARTIR Nº 5.912.671 )", "Rodas 5.5 X 14", "Correia 6PK 1.235"]) assert.equal(temCodigoDePeca(ok), false, ok);
+  assert.equal(removerCodigosDePeca("PALIO 1.4 8V FLEX - 06/.."), "PALIO 1.4 8V FLEX - 06/..");
+  assert.equal(precoPlaceholder(0.01, 4.5), true);
+  assert.equal(precoPlaceholder(0.22, 6), false);
+  assert.deepEqual(limparDescricao("TUCHO VELA CH19\nOBS: AJUSTE ESTOQUE 12/05/23\n07 PC ENFERRUJADAS").linhas, ["Tucho Vela CH19"]);
 });
