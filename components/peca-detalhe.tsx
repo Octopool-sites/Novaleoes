@@ -6,7 +6,7 @@ import { productBenefits } from "./storefront-editorial";
 import { type Catalogo, type Detalhe, type Peca, aplicaAno, carregarDetalhe, faixaAnos, money, normalizeSearch, separarDescricao } from "@/lib/catalogo-site";
 import { type Veiculo, servePara } from "@/lib/garagem";
 import { disponibilidadeDaPeca, fotoDaPeca, fotoIlustrativa, precoDaPeca, tituloDaPeca } from "./catalogo-loja";
-import { unidadeLegivel } from "@/lib/unidades";
+import { compraMinima, unidadeLegivel } from "@/lib/unidades";
 import CalculoFrete from "./calculo-frete";
 import { BASE_URL } from "@/lib/base";
 
@@ -36,7 +36,7 @@ export default function PecaDetalhe({ peca, catalogo, live, veiculo, onAdicionar
   const foto = fotoDaPeca(peca, catalogo, live);
   const preco = precoDaPeca(peca, live);
   const disp = disponibilidadeDaPeca(peca, live);
-  const indisponivel = !!peca.externalId && disp.estoque <= 0;
+  const compra = compraMinima(preco, peca.quantidadeMinima);
   const beneficio = peca.externalId ? productBenefits[peca.externalId] : "";
   const unidade = unidadeLegivel(peca.unidade, peca.quantidadeMinima);
   const { meta } = catalogo;
@@ -71,7 +71,7 @@ export default function PecaDetalhe({ peca, catalogo, live, veiculo, onAdicionar
 
   async function compartilhar() {
     const url = linkDaPeca(peca);
-    const dados = { title: `${titulo} | ${"Nova Leões Autopeças"}`, text: `${titulo}${preco > 0 ? ` por ${money(preco)}` : ""} na Nova Leões Autopeças`, url };
+    const dados = { title: `${titulo} | ${"Nova Leões Autopeças"}`, text: `${titulo}${preco > 0 ? ` por ${money(compra.totalCents)}${compra.detalhe ? ` (${compra.detalhe})` : ""}` : ""} na Nova Leões Autopeças`, url };
     try {
       if (navigator.share) { await navigator.share(dados); return; }
     } catch { return; }
@@ -98,11 +98,12 @@ export default function PecaDetalhe({ peca, catalogo, live, veiculo, onAdicionar
         {maisTexto.length > 0 && <details className="nl-detail-mais"><summary>Mais informações do cadastro <ChevronDown size={14} /></summary><p>{maisTexto.join(" · ")}</p></details>}
         {detalhe?.h.length ? <ul className="nl-detail-destaques">{detalhe.h.map((h) => <li key={h}>{h}</li>)}</ul> : null}
 
-        <strong className="detail-price">{preco > 0 ? money(preco) : "Preço sob consulta"}</strong>
+        <strong className="detail-price">{preco > 0 ? money(compra.totalCents) : "Preço sob consulta"}</strong>
+        {compra.detalhe && preco > 0 && <p className="nl-compra-minima">{compra.detalhe} · venda mínima</p>}
         <p className={`subtle ${disp.classe}`}>{disp.texto}{preco > 0 ? " · valor confirmado pela loja no pedido" : ""}</p>
         <div className="nl-detail-acoes">
-          <button type="button" className="primary-button wide" disabled={indisponivel} onClick={() => onAdicionar(peca)}>
-            {indisponivel ? "Indisponível" : "Adicionar ao pedido"} <ShoppingBag size={18} />
+          <button type="button" className="primary-button wide" onClick={() => onAdicionar(peca)}>
+            {compra.quantidade > 1 ? `Adicionar ${compra.quantidade} un. ao pedido` : "Adicionar ao pedido"} <ShoppingBag size={18} />
           </button>
           <a className="nl-whats-button" href={onWhatsApp(peca)} target="_blank" rel="noopener noreferrer"><MessageCircle size={18} /> Perguntar no WhatsApp</a>
         </div>

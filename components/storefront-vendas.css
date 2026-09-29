@@ -1,0 +1,52 @@
+/* Vendas (29/09/2026): venda mínima, "Não achou?", pedido grande e gaveta do pedido no celular.
+   Só layout: as cores vêm das classes que já existem (primary-button, nl-whats-button, subtle). */
+
+/* Venda mínima: total da compra mínima no cartão e na ficha */
+.nl-store .nl-product-card .product-bottom small.nl-compra-minima { font-weight: 500; }
+.nl-product-dialog .nl-compra-minima { margin: 4px 0 0; font-size: 13px; }
+.nl-cart-sheet .nl-cart-unit { display: block; margin-top: 2px; font-size: 12px; opacity: .8; }
+
+/* "Não achou?" no fim da lista e na tela vazia */
+.nl-nao-achou { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 20px; margin: 30px 0 0; padding: 18px 20px; border: 1px solid color-mix(in srgb, currentColor 16%, transparent); border-radius: 10px; }
+.nl-nao-achou p { display: grid; gap: 3px; flex: 1 1 280px; font-size: 14px; line-height: 1.5; }
+.nl-nao-achou p span { font-size: 13px; opacity: .85; }
+.nl-nao-achou .nl-whats-button { flex: 0 0 auto; text-decoration: none; }
+.empty-state .nl-procura-whats { display: inline-flex; align-items: center; gap: 9px; min-height: 48px; margin: 16px auto 6px; padding: 0 22px; text-decoration: none; }
+.empty-state .nl-procura-whats svg { margin: 0; }
+
+/* Pedido grande (não cabe no link do WhatsApp): copiar e colar */
+.nl-cart-sheet .nl-aviso-colar { margin: 0 0 10px; }
+.nl-enviado-passos { margin: 0 0 18px; padding-left: 20px; font-size: 14px; line-height: 1.7; text-align: left; }
+.nl-enviado-colar .nl-enviado-abrir { display: flex; width: 100%; margin-top: 10px; text-decoration: none; }
+.nl-cart-sheet .nl-totais-cep { font-size: inherit; }
+
+/* Celular: cabeçalho e rodapé fixos da gaveta menores, para sobrar tela para as peças e o formulário */
+@media (max-width: 700px) {
+  .nl-cart-sheet [data-slot=sheet-header] { padding: 16px 52px 12px 18px !important; gap: 2px; }
+  .nl-cart-sheet .nl-cart-eyebrow { margin-bottom: 2px; }
+  .nl-cart-sheet [data-slot=sheet-title] { font-size: 21px; letter-spacing: -.4px; }
+  .nl-cart-sheet [data-slot=sheet-description] { font-size: 12px; line-height: 1.5; }
+  /* Depois do 1º passo a frase já foi lida: some da tela, continua para o leitor de tela */
+  .nl-cart-sheet:not(.nl-passo-cart) [data-slot=sheet-description] { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .nl-cart-sheet > button:last-child { top: 8px; right: 8px; padding: 10px; }
+  .nl-cart-sheet .cart-scroll { padding: 4px 18px 16px; }
+  .nl-cart-sheet .cart-line { gap: 12px; padding: 14px 0; }
+  .nl-cart-sheet .cart-line > img { width: 60px; height: 72px; padding: 6px; }
+  .nl-cart-sheet .cart-line > svg { width: 60px; }
+  .nl-cart-sheet .cart-line h3 { font-size: 15px; }
+  .nl-cart-sheet .cart-line strong { font-size: 16px; }
+  .nl-cart-sheet .quantity { margin-top: 6px; }
+  .nl-cart-sheet .cart-footer { padding: 10px 16px 12px !important; }
+  /* Totais numa linha: o total em cima, subtotal e frete pequenos embaixo */
+  .nl-cart-sheet .nl-totais { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 14px; row-gap: 2px; margin-bottom: 8px; font-size: 12px; }
+  .nl-cart-sheet .nl-totais > div { justify-content: flex-start; gap: 5px; }
+  .nl-cart-sheet .nl-totais .nl-total { order: -1; flex: 1 0 100%; justify-content: space-between; padding-top: 0; border-top: 0; font-size: 14px; }
+  .nl-cart-sheet .nl-totais .nl-total strong { font-size: 21px; }
+  .nl-cart-sheet .cart-footer > .subtle { display: block; margin: 0 0 6px; font-size: 11px; }
+  .nl-cart-sheet .cart-footer > small { display: none; }
+  .nl-cart-sheet .cart-footer .text-button { padding: 7px; }
+  .nl-cart-sheet .cart-footer .primary-button { min-height: 46px; }
+  .nl-cart-sheet .nl-cart-aviso { padding: 8px 11px; line-height: 1.45; }
+  .nl-nao-achou { padding: 16px; }
+  .nl-nao-achou .nl-whats-button { width: 100%; }
+}

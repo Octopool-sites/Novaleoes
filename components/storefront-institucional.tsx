@@ -35,7 +35,7 @@ export function SecaoServicos() {
       <section className="nl-servicos" aria-label="Como a loja atende">
         <article><Truck size={24} strokeWidth={1.4} /><h3>Entrega própria</h3><p>Motoboys da loja levam o pedido para oficinas e clientes da região. Prazo e valor combinados no atendimento.</p></article>
         <article><ShieldCheck size={24} strokeWidth={1.4} /><h3>Aplicação conferida</h3><p>Antes de aprovar, a equipe confere se a peça serve no seu modelo, ano e motor. Sem surpresa na hora de instalar.</p></article>
-        <article><MessageCircle size={24} strokeWidth={1.4} /><h3>Atendimento direto</h3><p>Não achou a peça no site? A equipe procura para você pelo WhatsApp ou telefone, inclusive itens sob encomenda.</p></article>
+        <article><MessageCircle size={24} strokeWidth={1.4} /><h3>Atendimento direto</h3><p>Não achou a peça no site? A equipe procura para você pelo WhatsApp ou telefone.</p></article>
       </section>
   );
 }
