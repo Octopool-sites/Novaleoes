@@ -102,7 +102,7 @@
 .nl-carro-add { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; background: var(--carro-laranja); color: var(--carro-chumbo); }
 .nl-carro-add:hover { background: var(--carro-laranja-forte); }
 .nl-carro-peca-vazia { height: 78px; border-radius: 10px; background: linear-gradient(90deg, #f4ede2, #fbf8f3, #f4ede2); background-size: 200% 100%; animation: nl-carro-brilho 1.2s linear infinite; }
-.nl-carro-ver-todas.nl-button { width: 100%; margin-top: 12px; gap: 10px; }
+.nl-carro-ver-todas.nl-button { position: sticky; bottom: 0; width: 100%; margin-top: 12px; gap: 10px; box-shadow: 0 -10px 16px -6px #ffffffee; }
 
 .nl-carro-estatico { height: auto; }
 .nl-carro-estatico .nl-carro-fixo { position: relative; top: 0; }
@@ -127,6 +127,9 @@
   .nl-carro-foto-quadro { width: 100%; }
   /* No celular o painel sobe de baixo, por cima da página (e fecha quando a pessoa sai do carro) */
   .nl-carro-painel { position: fixed; left: 0; right: 0; top: auto; bottom: 0; z-index: 60; width: auto; max-height: 46svh; border-radius: 16px 16px 0 0; padding: 16px 16px 22px; animation: nl-carro-sobe .28s ease-out; }
+  /* O "+" das peças não fica sob o botão flutuante "Fale com a loja" (canto de baixo à direita). */
+  .nl-carro-pecas li { margin-right: 64px; }
+  .nl-carro-ver-todas.nl-button { width: calc(100% - 64px); }
   @keyframes nl-carro-sobe { from { transform: translateY(24px); opacity: 0; } to { transform: none; opacity: 1; } }
 }
 @media (prefers-reduced-motion: reduce) {

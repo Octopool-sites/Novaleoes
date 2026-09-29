@@ -24,6 +24,31 @@ function baixarModelo() {
   return downloadModelo;
 }
 
+// Números visíveis a menos de DIST px um do outro são empurrados para longe (no celular o carro é pequeno e
+// motor, farol, amortecedor, disco, volante e câmbio caíam quase no mesmo ponto). Ficam dentro do palco.
+const DIST = 34;
+function afastarPinos(lista: PosicaoPino[], largura: number, altura: number): PosicaoPino[] {
+  const pts = lista.map((p) => ({ ...p }));
+  const vis = pts.filter((p) => p.visivel);
+  for (let volta = 0; volta < 8; volta++) {
+    let mexeu = false;
+    for (let i = 0; i < vis.length; i++) for (let j = i + 1; j < vis.length; j++) {
+      const a = vis[i], b = vis[j];
+      let dx = b.x - a.x, dy = b.y - a.y;
+      let d = Math.hypot(dx, dy);
+      if (d >= DIST) continue;
+      if (d < 0.01) { dx = 1; dy = 0; d = 1; }
+      const empurra = (DIST - d) / 2;
+      a.x -= (dx / d) * empurra; a.y -= (dy / d) * empurra;
+      b.x += (dx / d) * empurra; b.y += (dy / d) * empurra;
+      mexeu = true;
+    }
+    if (!mexeu) break;
+  }
+  if (largura > 0 && altura > 0) for (const p of vis) { p.x = Math.min(largura - 18, Math.max(18, p.x)); p.y = Math.min(altura - 18, Math.max(18, p.y)); }
+  return pts;
+}
+
 // Economia de dados ligada (ou rede 2G): nada de 3D (modelo + Three.js ~1,7 MB); fica a foto do carro aberto.
 function economiaDeDados() {
   const c = (navigator as Navigator & { connection?: { saveData?: boolean; effectiveType?: string } }).connection;
@@ -68,7 +93,8 @@ export default function CarroInterativo({ catalogo, live, veiculo, onSelecionar,
     const alvo = palco.current;
     if (!alvo || !liberado || sem3d) return;
     let descartado = false;
-    const posicionar = (lista: PosicaoPino[]) => {
+    const posicionar = (bruta: PosicaoPino[]) => {
+      const lista = afastarPinos(bruta, palco.current?.clientWidth ?? 0, palco.current?.clientHeight ?? 0);
       for (const p of lista) {
         const el = pinos.current.get(p.id);
         if (!el) continue;
@@ -201,7 +227,7 @@ export default function CarroInterativo({ catalogo, live, veiculo, onSelecionar,
         {!catalogo && [1, 2, 3].map((i) => <li key={i} className="nl-carro-peca-vazia" />)}
       </ul>
       {departamento && (
-        <button type="button" className="nl-button nl-carro-ver-todas" onClick={() => onDepartamento(departamento.id)}>
+        <button type="button" className="nl-button nl-carro-ver-todas" onClick={() => { escolher(null); onDepartamento(departamento.id); }}>
           Ver todas as {departamento.n.toLocaleString("pt-BR")} peças de {departamento.nome} <ArrowRight size={17} />
         </button>
       )}

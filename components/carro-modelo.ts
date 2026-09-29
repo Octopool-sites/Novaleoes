@@ -58,6 +58,6 @@ export const ZONAS: Zona[] = [
   { id: "direcao", nome: "Direção", deps: ["direcao"], pino: { id: "direcao", no: "NL_VOLANTE", face: null }, foto: [53, 33] },
   { id: "transmissao", nome: "Câmbio e embreagem", deps: ["transmissao", "cabos"], pino: { id: "transmissao", no: "NL_CAMBIO", face: null }, foto: [60, 44] },
   { id: "eletrica", nome: "Elétrica e faróis", deps: ["eletrica"], pino: { id: "eletrica", no: "NL_FAROL_E", face: [0, 0, 1] }, foto: [39, 58] },
-  { id: "escapamento", nome: "Escapamento", deps: ["escapamento"], pino: { id: "escapamento", no: "NL_ESCAPAMENTO", face: [0, 0, -1] }, foto: [84, 72] },
+  { id: "escapamento", nome: "Escapamento", deps: ["escapamento"], pino: { id: "escapamento", no: "NL_ESCAPAMENTO", face: null }, foto: [84, 72] },
   { id: "carroceria", nome: "Carroceria", deps: ["carroceria"], pino: { id: "carroceria", no: "NL_PORTA_DE", face: [1, 0, 0] }, foto: [67, 50] },
 ];
