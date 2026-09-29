@@ -8,6 +8,10 @@ import {
 import { type Veiculo, type VeiculoSalvo, servePara } from "@/lib/garagem";
 import { whatsappUrl } from "@/lib/loja";
 import "./catalogo-loja.css";
+// Busca por placa (só a barra "Qual é o seu carro?" usa).
+import { RectangleHorizontal } from "lucide-react";
+import { resolverVeiculo } from "@/lib/garagem";
+import BuscaPlaca, { usePlacaAtiva } from "./busca-placa";
 
 const PAGINA = 24;
 
@@ -64,6 +68,8 @@ export function dataEstoque(catalogo: Catalogo | null) {
 export default function CatalogoLoja({ catalogo, carregando, erro, live, filtro, veiculo, onFiltro, onSelecionar, onAdicionar, onTentarNovamente, onVeiculo }: CatalogoLojaProps) {
   const [limite, setLimite] = useState(PAGINA);
   const [filtrosAbertos, setFiltrosAbertos] = useState(false);
+  const placaAtiva = usePlacaAtiva();
+  const [placaAberta, setPlacaAberta] = useState(false);
   const filtroAdiado = useDeferredValue(filtro);
   const resultados = useMemo(() => (catalogo ? filtrar(catalogo, filtroAdiado) : []), [catalogo, filtroAdiado]);
   // Com o carro no filtro, as peças universais (lâmpada, óleo, bateria…) e as sem aplicação cadastrada ficam de fora.
@@ -88,7 +94,11 @@ export default function CatalogoLoja({ catalogo, carregando, erro, live, filtro,
     const comPecas = new Set(meta.modelos.filter((m) => m[2] > 0).map((m) => m[0]));
     return meta.montadoras.map((nome, idx) => ({ idx, nome })).filter((m) => comPecas.has(m.idx)).sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
   }, [meta]);
-  const anos = useMemo(() => (catalogo && filtro.modelo >= 0 ? anosDisponiveis(catalogo, filtro.modelo, -1) : []), [catalogo, filtro.modelo]);
+  // O ano vindo da placa pode não estar nas faixas das aplicações: entra na lista para o select não ficar em branco.
+  const anos = useMemo(() => {
+    const lista = catalogo && filtro.modelo >= 0 ? anosDisponiveis(catalogo, filtro.modelo, -1) : [];
+    return filtro.modelo >= 0 && filtro.ano > 0 && !lista.includes(filtro.ano) ? [...lista, filtro.ano].sort((a, b) => b - a) : lista;
+  }, [catalogo, filtro.modelo, filtro.ano]);
   const marcas = useMemo(() => {
     if (!meta) return [] as { idx: number; nome: string; n: number }[];
     const contagem = new Map<string, number>();
@@ -106,6 +116,14 @@ export default function CatalogoLoja({ catalogo, carregando, erro, live, filtro,
   const escolherModelo = (modelo: number) => { atualizar({ modelo, ano: 0 }); lembrar(modelo, 0); };
   const escolherAno = (ano: number) => { atualizar({ ano }); lembrar(filtro.modelo, ano); };
   const limparCarro = () => { atualizar({ montadora: -1, modelo: -1, ano: 0 }); lembrar(-1, 0); };
+  // Carro confirmado pela placa: mesmo caminho dos selects (filtra o catálogo e lembra o carro).
+  const usarDaPlaca = (v: VeiculoSalvo) => {
+    setPlacaAberta(false);
+    const r = catalogo ? resolverVeiculo(catalogo, v) : null;
+    if (!r) return;
+    atualizar({ montadora: r.montadora, modelo: r.modelo, ano: r.ano });
+    onVeiculo(v);
+  };
   const filtrosAtivos = [filtro.marca >= 0, filtro.somenteEstoque, filtro.ordem !== "relevancia"].filter(Boolean).length;
   const visiveis = resultados.slice(0, limite);
   const estoqueEm = dataEstoque(catalogo);
@@ -127,8 +145,14 @@ export default function CatalogoLoja({ catalogo, carregando, erro, live, filtro,
             <option value={0}>Ano</option>
             {anos.map((a) => <option key={a} value={a}>{a}</option>)}
           </select><ChevronDown size={15} /></span>
+          {placaAtiva && meta && (
+            <button type="button" className="nl-carro-placa" aria-expanded={placaAberta} onClick={() => setPlacaAberta((v) => !v)}>
+              <RectangleHorizontal size={15} aria-hidden="true" /> Buscar pela placa
+            </button>
+          )}
           {(filtro.montadora >= 0 || veiculo) && <button type="button" className="nl-carro-limpar" onClick={limparCarro}><X size={14} /> Limpar</button>}
         </div>
+        {placaAtiva && placaAberta && catalogo && <BuscaPlaca catalogo={catalogo} manual="nos campos acima" autoFocus onUsar={usarDaPlaca} />}
       </div>
 
       <div className="nl-catalog-tools">
