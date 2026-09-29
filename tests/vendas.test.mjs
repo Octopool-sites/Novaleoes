@@ -20,3 +20,16 @@ test("ordenar por preço usa o valor que o cartão mostra (total da compra míni
   assert.equal(ordem("menor-preco"), "abc");
   assert.equal(ordem("maior-preco"), "bac");
 });
+
+test("29/09: placa digitada na busca geral não vai para o endereço nem para a mensagem do WhatsApp", async () => {
+  const { buildSync } = await import("esbuild");
+  buildSync({ stdin: { contents: 'export { filtroParaUrl, FILTRO_VAZIO, pareceplaca } from "./lib/catalogo-site.ts"; export { mensagemProcura } from "./lib/pedido.ts";', resolveDir: ".", loader: "ts" }, bundle: true, platform: "node", format: "esm", outfile: "outputs/test-placa-busca.mjs", logLevel: "silent" });
+  const m = await import("../outputs/test-placa-busca.mjs");
+  for (const placa of ["ABC1D23", "abc-1234", "ABC 1234"]) {
+    assert.equal(m.pareceplaca(placa), true, placa);
+    assert.doesNotMatch(String(m.filtroParaUrl({ ...m.FILTRO_VAZIO, q: placa })), /q=/);
+    assert.doesNotMatch(m.mensagemProcura(placa, "Fiat Uno 2010"), /ABC/i);
+  }
+  assert.match(String(m.filtroParaUrl({ ...m.FILTRO_VAZIO, q: "pastilha gol" })), /q=pastilha/);
+  assert.match(m.mensagemProcura("pastilha gol"), /pastilha gol/);
+});

@@ -97,7 +97,9 @@ export function observacaoDoItem(l: { stock: number; quantity: number; minimo: n
 
 // "Não achou?": pedido de procura com a busca e o carro já escritos.
 export function mensagemProcura(busca: string, carro = "") {
-  const peca = String(busca || "").trim().slice(0, 120);
+  // Placa na busca não vai para a mensagem (dado pessoal); o carro, se escolhido, já vai na linha "Carro:".
+  const texto = String(busca || "").trim();
+  const peca = /^[A-Z]{3}[-\s]?[0-9][A-Z0-9][0-9]{2}$/i.test(texto) ? "" : texto.slice(0, 120);
   return [
     `Olá! Não achei no site da ${LOJA.nome} a peça que procuro.`,
     `Peça: ${peca || "(vou descrever)"}`,
