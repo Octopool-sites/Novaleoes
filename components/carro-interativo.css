@@ -1,8 +1,22 @@
 /* Abertura: compra pela parte do carro (components/carro-interativo.tsx).
-   Primeiro só o carro, na largura toda; título pequeno por cima; painel de peças por cima do carro;
-   a lista das partes fica logo abaixo da abertura. */
-.nl-carro { position: relative; height: 160svh; background: radial-gradient(120% 90% at 50% 40%, #fbfaf6 0%, var(--nl-paper) 55%, #ecebe4 100%); }
-.nl-carro-fixo { position: sticky; top: 84px; height: calc(100svh - 84px); min-height: 520px; }
+   Só o carro, na largura toda, num estúdio bege como a foto da Higgsfield; título pequeno por cima; painel de peças
+   por cima do carro; o catálogo vem logo abaixo. Cores da Nova Leões (tokens de nl-marca.css, com reserva). */
+.nl-carro {
+  --carro-chumbo: var(--nl-chumbo, #2f2e2e);
+  --carro-laranja: var(--nl-laranja, #ff9e2f);
+  --carro-laranja-forte: var(--nl-laranja-forte, #f08a12);
+  --carro-laranja-texto: var(--nl-laranja-texto, #a84f00);
+  --carro-linha: var(--nl-linha, #e6ddcb);
+  --carro-muted: var(--nl-muted, #6b645a);
+  position: relative; height: 160svh;
+  /* Parede clara no alto, horizonte difuso no meio, piso bege; um foco de luz no alto à esquerda. */
+  background:
+    radial-gradient(70% 55% at 22% 12%, #fbf6ef 0%, #fbf6ef00 70%),
+    linear-gradient(180deg, #f7f0e7 0%, #f1e8dc 44%, #ece2d4 58%, #e8ddce 100%);
+}
+/* Passagem suave do estúdio para a página branca do catálogo. */
+.nl-carro::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 90px; background: linear-gradient(180deg, #e8ddce00, #fff); pointer-events: none; }
+.nl-carro-fixo { position: sticky; top: 84px; height: calc(100svh - 84px); min-height: 520px; z-index: 1; }
 .nl-carro-palco-area { position: relative; height: 100%; overflow: hidden; cursor: grab; }
 .nl-carro-palco-area[data-arrastando] { cursor: grabbing; }
 .nl-carro-palco-area[data-arrastando] .nl-pino { pointer-events: none; }
@@ -12,73 +26,82 @@
 
 /* Título pequeno no canto */
 .nl-carro-legenda { position: absolute; left: max(32px, calc((100% - 1320px) / 2)); top: 28px; z-index: 2; pointer-events: none; }
-.nl-carro-titulo { margin: 10px 0 0; font-size: clamp(22px, 2.1vw, 30px); font-weight: 500; line-height: 1.15; letter-spacing: -.03em; color: var(--nl-ink); }
-.nl-carro-titulo em { display: block; }
+.nl-carro-titulo { margin: 10px 0 0; font-size: clamp(22px, 2.1vw, 30px); font-weight: 700; line-height: 1.1; letter-spacing: -.01em; color: var(--carro-chumbo); }
+.nl-carro-titulo em { display: block; font-style: normal; color: var(--carro-laranja-texto); }
+.nl-carro-promessa { margin: 8px 0 0; color: var(--carro-muted); font-size: 13px; font-weight: 500; }
 
 /* Pontos numerados sobre as peças */
 .nl-carro-pinos { position: absolute; inset: 0; pointer-events: none; }
 .nl-pino { position: absolute; left: 0; top: 0; width: 30px; height: 30px; margin: -15px 0 0 -15px; pointer-events: auto; transition: opacity .25s; will-change: transform; }
 .nl-pino[data-visivel="0"] { opacity: 0; pointer-events: none; }
-.nl-pino-ponto { position: relative; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: var(--nl-ink); color: #fff; font-size: 12px; font-weight: 600; box-shadow: 0 0 0 5px #e7cd9466, 0 6px 16px -6px #26292199; transition: background .2s, transform .2s; }
+.nl-pino-ponto { position: relative; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: var(--carro-chumbo); color: #fff; font-size: 12px; font-weight: 700; box-shadow: 0 0 0 4px #ff9e2f59, 0 6px 16px -6px #2f2e2e99; transition: background .2s, color .2s, transform .2s; }
 /* Até a primeira interação os pontos pulsam: mostra que são clicáveis. */
-.nl-carro:not(.nl-carro-usado) .nl-pino-ponto::after { content: ""; position: absolute; inset: -5px; border-radius: 50%; border: 2px solid #b48c36; animation: nl-pino-pulso 1.8s ease-out infinite; }
+.nl-carro:not(.nl-carro-usado) .nl-pino-ponto::after { content: ""; position: absolute; inset: -5px; border-radius: 50%; border: 2px solid var(--carro-laranja); animation: nl-pino-pulso 1.8s ease-out infinite; }
 @keyframes nl-pino-pulso { from { transform: scale(1); opacity: .9; } to { transform: scale(1.9); opacity: 0; } }
 .nl-pino:hover .nl-pino-ponto, .nl-pino:focus-visible .nl-pino-ponto { transform: scale(1.12); }
-.nl-pino.ativo .nl-pino-ponto { background: #b48c36; box-shadow: 0 0 0 6px #b48c3640, 0 6px 16px -6px #26292199; }
-.nl-pino-nome { position: absolute; left: 37px; top: 50%; transform: translateY(-50%); padding: 5px 10px; border: 1px solid var(--nl-line); border-radius: 20px; background: #fffffff2; color: #262921; font-size: 12px; font-weight: 500; white-space: nowrap; box-shadow: 0 4px 14px -8px #26292166; }
+.nl-pino.ativo .nl-pino-ponto { background: var(--carro-laranja); color: var(--carro-chumbo); box-shadow: 0 0 0 2px var(--carro-chumbo), 0 0 0 7px #ff9e2f40, 0 6px 16px -6px #2f2e2e99; }
+.nl-pino-nome { position: absolute; left: 37px; top: 50%; transform: translateY(-50%); padding: 5px 10px; border: 1px solid var(--carro-linha); border-radius: 8px; background: #fffffff2; color: var(--carro-chumbo); font-size: 12px; font-weight: 600; white-space: nowrap; box-shadow: 0 4px 14px -8px #2f2e2e66; }
 .nl-pino[data-lado="esq"] .nl-pino-nome { left: auto; right: 37px; }
 .nl-pino:focus-visible { outline: none; }
-.nl-pino:focus-visible .nl-pino-nome { outline: 2px solid #b48c36; outline-offset: 2px; }
+.nl-pino:focus-visible .nl-pino-nome { outline: 2px solid var(--carro-chumbo); outline-offset: 2px; }
 
 /* Controles embaixo, no centro */
 .nl-carro-controles { position: absolute; left: 50%; bottom: 36px; z-index: 3; transform: translateX(-50%); display: flex; align-items: center; gap: 12px; cursor: default; }
 .nl-carro-girar { display: flex; gap: 8px; }
-.nl-carro-girar button { display: grid; place-items: center; width: 42px; height: 42px; border: 1px solid var(--nl-line); border-radius: 50%; background: #fffffff2; color: #262921; box-shadow: 0 6px 18px -10px #26292188; transition: background .2s, border-color .2s; }
-.nl-carro-girar button:hover { background: #fff; border-color: #b48c36; }
-.nl-carro-abrir { display: inline-flex; align-items: center; gap: 10px; padding: 12px 20px; border-radius: 40px; background: var(--nl-ink); color: #fff; font-size: 13px; font-weight: 500; box-shadow: 0 10px 30px -14px #262921aa; }
-.nl-carro-dica { display: inline-flex; align-items: center; gap: 7px; padding: 8px 13px; border-radius: 30px; background: #ffffffd9; color: #5c6453; font-size: 12px; }
-.nl-carro-nota { position: absolute; right: 24px; bottom: 12px; color: #9a9f90; font-size: 10px; }
+.nl-carro-girar button { display: grid; place-items: center; width: 42px; height: 42px; border: 1px solid var(--carro-linha); border-radius: 50%; background: #fffffff2; color: var(--carro-chumbo); box-shadow: 0 6px 18px -10px #2f2e2e88; transition: background .2s, border-color .2s; }
+.nl-carro-girar button:hover { background: #fff; border-color: var(--carro-chumbo); }
+.nl-carro-abrir { display: inline-flex; align-items: center; gap: 10px; padding: 12px 20px; border-radius: 10px; background: var(--carro-laranja); color: var(--carro-chumbo); font-size: 14px; font-weight: 700; white-space: nowrap; box-shadow: 0 10px 30px -14px #2f2e2eaa; transition: background .2s; }
+.nl-carro-abrir:hover { background: var(--carro-laranja-forte); }
+.nl-carro-abrir:focus-visible { outline: 2px solid var(--carro-chumbo); outline-offset: 3px; }
+.nl-carro-dica { display: inline-flex; align-items: center; gap: 7px; padding: 8px 13px; border-radius: 10px; background: #ffffffd9; color: var(--carro-muted); font-size: 12px; white-space: nowrap; }
+.nl-carro-nota { position: absolute; right: 24px; bottom: 12px; z-index: 2; color: #8a8378; font-size: 10px; }
 .nl-carro-nota a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
 
-/* Carregando */
-.nl-carro-carregando { position: absolute; inset: 0; display: grid; place-items: center; align-content: center; gap: 16px; color: #8c9480; font-size: 13px; pointer-events: none; }
+/* Carregando: a foto do próprio 3D, no mesmo enquadramento */
+.nl-carro-carregando { position: absolute; inset: 0; display: grid; place-items: center; align-content: center; gap: 16px; color: var(--carro-muted); font-size: 13px; pointer-events: none; }
 .nl-carro-carregando img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
-.nl-carro-barra-carga { position: absolute; left: 50%; bottom: 60px; width: 120px; height: 3px; margin-left: -60px; border-radius: 3px; background: linear-gradient(90deg, #e3e0d4, #b48c36, #e3e0d4); background-size: 200% 100%; animation: nl-carro-brilho 1s linear infinite; }
+.nl-carro-barra-carga { position: absolute; left: 50%; bottom: 60px; width: 120px; height: 3px; margin-left: -60px; border-radius: 3px; background: linear-gradient(90deg, var(--carro-linha), var(--carro-laranja), var(--carro-linha)); background-size: 200% 100%; animation: nl-carro-brilho 1s linear infinite; }
 @keyframes nl-carro-brilho { to { background-position: -200% 0; } }
 
+/* Sem 3D (sem WebGL ou economia de dados): a foto do carro aberto com os números por cima */
+.nl-carro-foto { position: absolute; inset: 88px 0 72px; display: grid; place-items: center; }
+.nl-carro-foto-quadro { position: relative; width: min(100%, calc((100svh - 240px) * 1.768)); aspect-ratio: 2688 / 1520; }
+.nl-carro-foto-quadro img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; mix-blend-mode: multiply; }
+.nl-pino-foto { transform: none; }
+
+/* Atalhos das partes (teclado e leitor de tela): escondidos até receber foco */
+.nl-carro-atalhos { position: absolute; left: 50%; bottom: 92px; z-index: 5; transform: translateX(-50%); width: max-content; max-width: calc(100% - 32px); clip-path: inset(50%); height: 1px; overflow: hidden; }
+.nl-carro-atalhos:focus-within { clip-path: none; height: auto; overflow: visible; }
+.nl-carro-atalhos ul { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin: 0; padding: 10px; list-style: none; border: 1px solid var(--carro-linha); border-radius: 12px; background: #fffffff5; box-shadow: 0 14px 40px -20px #2f2e2e88; }
+.nl-carro-atalhos button { display: inline-flex; align-items: center; gap: 7px; padding: 6px 11px 6px 6px; border: 1px solid var(--carro-linha); border-radius: 8px; background: #fff; color: var(--carro-chumbo); font-size: 12.5px; font-weight: 500; }
+.nl-carro-atalhos button b { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: var(--carro-chumbo); color: #fff; font-size: 10px; }
+.nl-carro-atalhos button[aria-pressed="true"], .nl-carro-atalhos button:hover { border-color: var(--carro-chumbo); background: #fff4e5; }
+.nl-carro-atalhos button:focus-visible { outline: 2px solid var(--carro-chumbo); outline-offset: 2px; }
+
 /* Painel de peças: por cima do carro, à direita */
-.nl-carro-painel { position: absolute; right: max(24px, calc((100% - 1320px) / 2)); top: 24px; max-height: calc(100% - 48px); z-index: 4; width: min(380px, calc(100% - 48px)); overflow-y: auto; padding: 20px; border: 1px solid var(--nl-line); border-radius: 16px; background: #fffffff5; box-shadow: 0 24px 60px -30px #26292166; cursor: default; animation: nl-carro-entra .28s ease-out; }
+.nl-carro-painel { position: absolute; right: max(24px, calc((100% - 1320px) / 2)); top: 24px; max-height: calc(100% - 48px); z-index: 4; width: min(380px, calc(100% - 48px)); overflow-y: auto; padding: 20px; border: 1px solid var(--carro-linha); border-radius: 12px; background: #fffffff7; box-shadow: 0 24px 60px -30px #2f2e2e66; cursor: default; animation: nl-carro-entra .28s ease-out; }
 @keyframes nl-carro-entra { from { opacity: 0; transform: translateX(14px); } to { opacity: 1; transform: none; } }
 .nl-carro-painel-topo { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-.nl-carro-fechar { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; color: #4a5343; }
-.nl-carro-fechar:hover { background: #f3f1ea; }
+.nl-carro-fechar { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; color: var(--carro-chumbo); }
+.nl-carro-fechar:hover { background: #f4ede2; }
 .nl-carro-deps { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
-.nl-carro-deps button { padding: 6px 11px; border: 1px solid var(--nl-line); border-radius: 30px; font-size: 12px; color: #4a5343; }
-.nl-carro-deps button.ativo { background: var(--nl-ink); border-color: var(--nl-ink); color: #fff; }
+.nl-carro-deps button { padding: 6px 11px; border: 1px solid var(--carro-linha); border-radius: 30px; font-size: 12px; color: var(--carro-chumbo); }
+.nl-carro-deps button.ativo { background: var(--carro-chumbo); border-color: var(--carro-chumbo); color: #fff; }
 .nl-carro-pecas { margin: 12px 0 0; padding: 0; list-style: none; display: grid; gap: 8px; }
 .nl-carro-pecas li { position: relative; }
-.nl-carro-peca { display: grid; grid-template-columns: 60px 1fr; gap: 12px; align-items: center; width: 100%; padding: 8px 48px 8px 8px; border: 1px solid #ecebe3; border-radius: 12px; background: #fff; text-align: left; transition: border-color .2s; }
-.nl-carro-peca:hover { border-color: #cfc9b3; }
-.nl-carro-peca-foto { display: grid; place-items: center; width: 60px; height: 60px; border-radius: 9px; background: #f5f3ee; overflow: hidden; color: #9aa28d; }
+.nl-carro-peca { display: grid; grid-template-columns: 60px 1fr; gap: 12px; align-items: center; width: 100%; padding: 8px 48px 8px 8px; border: 1px solid #ede6da; border-radius: 10px; background: #fff; text-align: left; transition: border-color .2s; }
+.nl-carro-peca:hover { border-color: #cfc3ac; }
+.nl-carro-peca-foto { display: grid; place-items: center; width: 60px; height: 60px; border-radius: 8px; background: #faf6ef; overflow: hidden; color: #9a9184; }
 .nl-carro-peca-foto img { width: 100%; height: 100%; object-fit: contain; mix-blend-mode: multiply; }
 .nl-carro-peca-info { display: grid; gap: 1px; min-width: 0; }
-.nl-carro-peca-info b { overflow: hidden; color: #262921; font-size: 13px; font-weight: 500; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-.nl-carro-peca-info small { overflow: hidden; color: #7b8272; font-size: 11px; white-space: nowrap; text-overflow: ellipsis; }
-.nl-carro-peca-info strong { margin-top: 3px; color: #262921; font-size: 15px; font-weight: 600; }
-.nl-carro-disp { font-size: 10.5px; }
-.nl-carro-add { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: var(--nl-ink); color: #fff; }
-.nl-carro-add:hover { background: #3a4033; }
-.nl-carro-peca-vazia { height: 78px; border-radius: 12px; background: linear-gradient(90deg, #f3f1ea, #faf9f5, #f3f1ea); background-size: 200% 100%; animation: nl-carro-brilho 1.2s linear infinite; }
+.nl-carro-peca-info b { overflow: hidden; color: var(--carro-chumbo); font-size: 13px; font-weight: 600; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.nl-carro-peca-info small { overflow: hidden; color: var(--carro-muted); font-size: 11px; white-space: nowrap; text-overflow: ellipsis; }
+.nl-carro-peca-info strong { margin-top: 3px; color: var(--carro-chumbo); font-size: 15px; font-weight: 700; }
+.nl-carro-disp { font-size: 11px; }
+.nl-carro-add { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; background: var(--carro-laranja); color: var(--carro-chumbo); }
+.nl-carro-add:hover { background: var(--carro-laranja-forte); }
+.nl-carro-peca-vazia { height: 78px; border-radius: 10px; background: linear-gradient(90deg, #f4ede2, #fbf8f3, #f4ede2); background-size: 200% 100%; animation: nl-carro-brilho 1.2s linear infinite; }
 .nl-carro-ver-todas.nl-button { width: 100%; margin-top: 12px; gap: 10px; }
-
-/* Abaixo do carro: as partes em lista e o atalho para o catálogo */
-.nl-carro-partes { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px; padding: 22px 0 6px; }
-.nl-carro-partes-rotulo { margin: 0; color: var(--nl-muted); font-size: 13px; }
-.nl-carro-zonas { display: flex; flex-wrap: wrap; gap: 7px; flex: 1 1 520px; }
-.nl-carro-zonas button { display: inline-flex; align-items: center; gap: 7px; padding: 7px 13px 7px 7px; border: 1px solid var(--nl-line); border-radius: 30px; background: #fff; color: #36402f; font-size: 12.5px; transition: border-color .2s, background .2s; }
-.nl-carro-zonas button b { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: var(--nl-ink); color: #fff; font-size: 10px; font-weight: 600; }
-.nl-carro-zonas button:hover, .nl-carro-zonas button.ativo { border-color: #b48c36; background: #fffaf0; }
-.nl-carro-direto { display: inline-flex; align-items: center; gap: 6px; color: #36402f; font-size: 13px; text-decoration: underline; text-underline-offset: 4px; }
 
 .nl-carro-estatico { height: auto; }
 .nl-carro-estatico .nl-carro-fixo { position: relative; top: 0; }
@@ -92,17 +115,18 @@
   .nl-carro-fixo { top: 72px; height: min(calc(100svh - 72px), 620px); min-height: 420px; }
   .nl-carro-legenda { left: 18px; top: 16px; }
   .nl-carro-titulo { font-size: 21px; }
+  .nl-carro-promessa { font-size: 12px; }
   .nl-carro-controles { bottom: 26px; }
   .nl-carro-girar button { width: 38px; height: 38px; }
   .nl-carro-nota { right: 18px; bottom: 6px; }
   .nl-carro-nota-longa { display: none; }
   .nl-pino, .nl-pino-ponto { width: 28px; height: 28px; }
   .nl-pino { margin: -14px 0 0 -14px; }
-  /* No celular o painel sobe de baixo, por cima da página */
-  .nl-carro-painel { position: fixed; left: 0; right: 0; top: auto; bottom: 0; z-index: 60; width: auto; max-height: 46svh; border-radius: 18px 18px 0 0; padding: 16px 16px 22px; animation: nl-carro-sobe .28s ease-out; }
+  .nl-carro-foto { inset: 104px 0 64px; }
+  .nl-carro-foto-quadro { width: 100%; }
+  /* No celular o painel sobe de baixo, por cima da página (e fecha quando a pessoa sai do carro) */
+  .nl-carro-painel { position: fixed; left: 0; right: 0; top: auto; bottom: 0; z-index: 60; width: auto; max-height: 46svh; border-radius: 16px 16px 0 0; padding: 16px 16px 22px; animation: nl-carro-sobe .28s ease-out; }
   @keyframes nl-carro-sobe { from { transform: translateY(24px); opacity: 0; } to { transform: none; opacity: 1; } }
-  .nl-carro-partes { padding-top: 16px; }
-  .nl-carro-zonas { flex-basis: 100%; }
 }
 @media (prefers-reduced-motion: reduce) {
   .nl-carro-painel, .nl-carro-peca-vazia, .nl-carro-barra-carga, .nl-carro:not(.nl-carro-usado) .nl-pino-ponto::after { animation: none; }
