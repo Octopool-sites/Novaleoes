@@ -4,7 +4,7 @@
 //
 // Privacidade: a placa serve só para identificar o modelo. Ela não vai para URL, localStorage, log nem
 // mensagem do WhatsApp; o carro lembrado (lib/garagem.ts) guarda só montadora, modelo e ano.
-import type { Meta } from "./catalogo-site";
+// Sem import de lib/catalogo-site: o servidor (e o vite.config, pelo server/placa-local.ts) carrega este arquivo.
 
 // Placa antiga (ABC1234) e Mercosul (ABC1D23): 3 letras, 1 número, 1 letra ou número, 2 números.
 export const PLACA_RE = /^[A-Z]{3}[0-9][A-Z0-9][0-9]{2}$/;
@@ -45,7 +45,8 @@ export type RespostaPlaca =
 
 // Posições no meta do site: montadora = índice em meta.montadoras, modelo = índice em meta.modelos.
 export type CarroSite = { montadora: number; modelo: number };
-type MetaCarros = { meta: Pick<Meta, "montadoras" | "modelos"> };
+// O pedaço do meta que interessa (mesmo formato de Meta em lib/catalogo-site.ts).
+type MetaCarros = { meta: { montadoras: string[]; modelos: [montadoraIdx: number, nome: string, n: number][] } };
 
 // Par montadora/modelo do ERP (AplicacaoVeiculo) -> posições do site. A montadora do catálogo do site é o
 // nome exato do ERP; sem acento/pontuação só como reserva ("Citroën" = "Citroen"). O modelo casa pela chave.
