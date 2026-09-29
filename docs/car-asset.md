@@ -1,6 +1,15 @@
 # Carro ilustrativo da vitrine Nova Leões
 
-## Atual: v2, carro inteiro e com detalhe (29/09/2026, tarde)
+## Atual: v3, rodas novas e sem "craquelado" (29/09/2026, fim da tarde)
+
+O Luca pediu rodas no nível do carro da Higgsfield e apontou "craquelado" no vidro traseiro e no vidrinho da coluna, e "ciscos e amassadinhos" no meio das portas. `scripts/carro/montar-hatch.mjs` gera `public/assets/car/nova-leoes-hatch-v3.glb` (3,998 MiB, no limite de 4 MiB do teste):
+
+- **Rodas** (`NL_RODA_DE`, `NL_RODA_TE`, `NL_RODA_DD`, `NL_RODA_TD`, uma malha só nas quatro): aro do autor (5 pares de raios, porcas, calota sem logo) com as normais dele, reduzido para 17" para o pneu ter a lateral cheia da foto; tambor e pneu (talão, protetor de aro, ombro, 4 sulcos) torneados por código. Prata de liga acetinada (a de 0,9 de metal parecia papel-alumínio). Do autor ficam disco e pinça.
+- **Craquelado e ciscos:** vinham de recalcular as normais depois de simplificar (frisos pretos, lanternas, coluna) e da solda de 15° na lataria (juntava normais que o autor separou de propósito). Agora a simplificação guarda a normal do autor em cada canto (`simplificarComNormais`), a lataria solda a 4°, vidros e frisos pretos de trás (`NL_FRISOS`) ficam inteiros, e aerofólio e moldura do vidro traseiro, cujas normais já vinham facetadas do autor, ganham normais suaves (`RECALC_MALHA`).
+- **Números no computador:** o nome "Câmbio e embreagem" tapava o 5 (Direção) em 1366 px e o clique no 5 abria o câmbio (já acontecia na v2 publicada). `afastarPinos` agora também afasta na vertical um número coberto pelo nome de outro (só quando os nomes aparecem, acima de 1100 px).
+- Foto de espera e foto de reserva refeitas do próprio 3D; os números da reserva não mudaram de lugar.
+
+## v2, carro inteiro e com detalhe (29/09/2026, tarde)
 
 O Luca apontou na v1: lataria com cara de amassada, placa e emblema na grade, teto subindo e "flutuando", uma placa preta tampando os bancos com a porta aberta, um "porta-objetos" descolado da porta e o chão aparecendo pelo vão do motor. O que mudou em `scripts/carro/montar-hatch.mjs` (gera `public/assets/car/nova-leoes-hatch-v2.glb`, 3,9 MB, 219 mil triângulos, 15 materiais):
 

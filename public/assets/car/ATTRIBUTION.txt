@@ -15,7 +15,10 @@ Modifications by Octopool, September 2026:
 - Added an engine with timing belt and pulleys, an air filter and a front shock absorber with coil spring.
 - Added an engine bay (splash shield, inner fenders, strut towers, firewall, radiator, battery, reservoirs),
   door trim panels on the driver-side doors and a cabin floor.
-- Simplified and quantized the meshes for web delivery (the painted body keeps the original mesh and normals).
+- Wheels: the original rim (spokes, lug nuts, center cap without the logo) reduced to a 17-inch size, with a new
+  rim barrel and a new tire modeled by Octopool; the same wheel is used on all four corners.
+- Simplified and quantized the meshes for web delivery, keeping the original vertex normals (the painted body,
+  glass and rear trims keep the original mesh).
 - Added a scroll-driven exploded view and interactive part markers.
 
 This is an illustrative vehicle. It does not guarantee compatibility between any

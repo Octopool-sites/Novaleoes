@@ -3,7 +3,7 @@
 // instalados (o kit C:\dev\fabrica-3d do PC do Luca já tem tudo). malhas-i20.json = índice das 633 malhas do original.
 // Monta o carro da vitrine Nova Leões a partir do "2020 Hyundai i20 N-Line" (Sketchfab, shreyanshchaurasia13, CC BY 4.0).
 // Entrada: modelos/i20nline.glb (original) + info.json (índices das malhas, gerado pelo visualizador).
-// Saída: saida/nova-leoes-hatch-v2.glb + saida/manifesto.json
+// Saída: saida/nova-leoes-hatch-v3.glb + saida/manifesto.json
 //
 // O que faz:
 //  - leva tudo para metros, Y para cima, +Z frente, +X lado do motorista, chão em y = 0;
@@ -16,13 +16,20 @@
 //  - junta primitivas por peça+material, simplifica e quantiza (sem texturas, sem Draco/Meshopt: CSP sem wasm).
 //    A PINTURA não é simplificada: o autor gravou normais por canto (ponderadas) e é isso que deixa a lataria
 //    lisa; simplificar e recalcular as normais deixava o carro com cara de amassado (v1, 29-09).
+// v3 (29-09 tarde, Luca: rodas no nível do carro da Higgsfield, sem "craquelado" nem "ciscos"):
+//  - rodas: aro do autor reduzido para 17" com as normais dele, tambor e pneu de lateral cheia torneados, mesma malha
+//    nas quatro (NL_RODA_DE/TE/DD/TD); do autor ficam disco e pinça;
+//  - nada tem mais as normais recalculadas depois de simplificar: a simplificação guarda a normal do autor em cada
+//    canto (simplificarComNormais); solda da lataria a 4° (15° juntava normais que o autor separou de propósito);
+//  - vidros e frisos pretos de trás (NL_FRISOS) inteiros; aerofólio e moldura do vidro traseiro com normais suaves.
+//  Orçamento apertado: 3,998 MiB para o limite de 4 MiB do tests/carro.test.mjs (ver RATIO).
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { Document, NodeIO, getBounds } from "@gltf-transform/core";
 import { ALL_EXTENSIONS } from "@gltf-transform/extensions";
 import { prune, dedup, quantize, weld } from "@gltf-transform/functions";
 import { MeshoptSimplifier } from "meshoptimizer";
 import * as THREE from "three";
-import { mergeGeometries, toCreasedNormals } from "three/examples/jsm/utils/BufferGeometryUtils.js";
+import { mergeGeometries, mergeVertices, toCreasedNormals } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 
 await MeshoptSimplifier.ready;
 const io = new NodeIO().registerExtensions(ALL_EXTENSIONS);
@@ -36,13 +43,16 @@ const G = (g) => info.filter((m) => grupoDe(m) === g).map((m) => m.i);
 const PECAS = {
   NL_CAPO: [413],
   NL_GRADE: [289], // desenho da grade: fica inteiro (sem simplificar), senão vira facetas grandes
+  // v3: frisos pretos brilhantes em volta dos vidros de trás (aerofólio 28, moldura do vidro 525, peça da coluna entre o
+  // vidrinho e o vidro traseiro 241/242): inteiros; simplificados, o reflexo "craquelava" (Luca, 29-09 tarde)
+  NL_FRISOS: [28, 525, 241, 242],
   // O teto (560, frisos 486/487, antena 423) fica na carroceria: não sobe mais na abertura (pedido do Luca, 29-09).
   // 325/337 e 330/335 NÃO são da porta: são a lateral e o pé dos bancos (iguais a 318/336 e 339 do outro lado do
   // banco). Na v1 iam com a porta e pareciam um porta-objetos "descolado" (Luca, 29-09).
   NL_PORTA_DE: [2, 20, 23, 24, 47, 49, 60, 63, 102, 243, 387, 523],
   NL_PORTA_TE: [4, 232, 246, 386, 383, 524],
-  NL_RODA_DE: [15, 81, 70, ...G("node_id142_128"), ...G("node_id136_122")],
-  NL_RODA_TE: [1, 457, 238, ...G("node_id650_605"), ...G("node_id611_567")],
+  // v3: as quatro rodas (aro, pneu, cubo, enfeites dos raios, válvula) são feitas por código e dividem a mesma malha
+  // (RODA_NOVA, mais abaixo); do autor ficam só disco e pinça de freio.
   NL_PARALAMA_DE: [94],
   NL_DISCO_DE: [86, ...G("node_id635_590")],
   NL_PINCA_DE: [...G("node_id707_660")],
@@ -60,7 +70,11 @@ const REMOVER = new Set([
   87, 420, 80, 456, // H no centro das quatro rodas
   ...G("node_id182_162"), ...G("node_id244_219"), ...G("node_id232_208"), // letreiros N / i20 / N Line
   ...G("node_id280_253"), ...G("node_id298_270"), // "N" nos paralamas
-  ...G("node_id198_177"), ...G("node_id629_584"), ...G("node_id204_183"), ...G("node_id341_308"), // calotas centrais com logo
+  ...G("node_id198_177"), ...G("node_id629_584"), ...G("node_id204_183"), ...G("node_id341_308"), // porcas das rodas
+  // rodas do autor (v3: roda nova por código): aros, pneus, cubos, enfeites dos raios e válvulas das quatro
+  15, 1, 0, 14, 81, 457, 89, 370, 70, 238, 50, 282,
+  ...G("node_id142_128"), ...G("node_id650_605"), ...G("node_id94_85"), ...G("node_id570_530"),
+  ...G("node_id136_122"), ...G("node_id611_567"), ...G("node_id155_139"), ...G("node_id640_595"),
 ]);
 
 // ---------------------------------------------------------------- materiais novos
@@ -71,7 +85,7 @@ const MAT = {
   VIDRO: { cor: 0x1a2124, metal: 0, rug: 0.04, alfa: 0.58 },
   LENTE: { cor: 0xd6dde1, metal: 0, rug: 0.03, alfa: 0.22 },
   CROMO: { cor: 0xd4d6d8, metal: 1, rug: 0.16 },
-  RODA: { cor: 0xbfc1c3, metal: 0.9, rug: 0.3 },
+  RODA: { cor: 0xc2c5c8, metal: 0.7, rug: 0.36 }, // v3: prata de roda de liga, acetinada (0,9 de metal parecia papel-alumínio)
   PNEU: { cor: 0x1c1d1e, metal: 0, rug: 0.9 },
   DISCO: { cor: 0x8c8e90, metal: 0.9, rug: 0.38 },
   LANTERNA: { cor: 0x8a0f14, metal: 0.1, rug: 0.3 },
@@ -83,7 +97,10 @@ const MAT = {
 };
 const DO_AUTOR = { material_0: "PRETO", material_1: "PINTURA", material_2: "PLASTICO", material_3: "LANTERNA", material_4: "INTERIOR", material_5: "CROMO", material_6: "VIDRO", material_7: "RODA", material_8: "LANTERNA", material_9: "PLASTICO", material_10: "CROMO", material_11: "LENTE", material_12: "PNEU", material_13: "DISCO", material_14: "CROMO", material_15: "LANTERNA", material_16: "CROMO", material_17: "PLASTICO", material_18: "MOTOR", material_19: "LANTERNA", material_20: "PLASTICO", material_21: "PLASTICO" };
 // Exceções por malha: o teto do N-Line é preto (vira pintura, como o carro da Higgsfield); os aros escuros viram prata.
-const MAT_MALHA = { 560: "PINTURA", 0: "RODA", 1: "RODA", 14: "RODA", 15: "RODA" };
+const MAT_MALHA = { 560: "PINTURA" };
+// Normais recalculadas por malha (ângulo de vinco, graus), só onde as do próprio autor são facetadas:
+// 28 = aerofólio e 525 = moldura do vidro traseiro: saíam com vincos acima do vidro (Luca, 29-09 tarde).
+const RECALC_MALHA = JSON.parse(process.env.RECALC_MALHA || '{"28": 50, "525": 50}');
 for (const i of [...G("node_id635_590"), ...G("node_id624_579"), ...G("node_id173_153"), ...G("node_id428_391")]) MAT_MALHA[i] = "DISCO";
 
 // ---------------------------------------------------------------- normalização (metros, chão em 0)
@@ -205,6 +222,7 @@ for (const [i, node] of noDe) {
   if (REMOVER.has(i)) { removidas++; continue; }
   const peca = pecaDe.get(i) || "NL_CARROCERIA";
   for (let { pos, nor, idx, mat } of lerMalha(node, i)) {
+    if (RECALC_MALHA[i]) { ({ pos, idx } = soldarPosicao(pos, idx)); ({ pos, nor, idx } = normaisComVinco(pos, idx, RECALC_MALHA[i])); }
     if (i === GRADE.malha && !process.env.SEM_GRADE) ({ pos, nor, idx } = completarGrade({ pos, nor, idx }));
     if (DIVIDIR[i]) {
       const partes = new Map();
@@ -259,7 +277,10 @@ function addGeo(peca, mat, geo) {
   empilhar(peca, mat, Float32Array.from(geo.attributes.position.array), Float32Array.from(geo.attributes.normal.array), Uint32Array.from(geo.index.array));
 }
 const M4 = (x, y, z) => new THREE.Matrix4().makeTranslation(x, y, z);
-const rodaC = cx.NL_RODA_DE.getCenter(new THREE.Vector3()); // centro da roda dianteira esquerda
+// Centro de cada roda = centro do pneu do autor (o pneu sai, a medida fica).
+const centroDe = (i) => { const b = new THREE.Box3(); for (const { pos } of lerMalha(noDe.get(i), i)) for (let t = 0; t < pos.length; t += 3) b.expandByPoint(new THREE.Vector3(pos[t], pos[t + 1], pos[t + 2])); return b.getCenter(new THREE.Vector3()); };
+const RODAS = { NL_RODA_DE: centroDe(81), NL_RODA_TE: centroDe(457), NL_RODA_DD: centroDe(89), NL_RODA_TD: centroDe(370) };
+const rodaC = RODAS.NL_RODA_DE; // centro da roda dianteira do motorista
 const discoC = cx.NL_DISCO_DE.getCenter(new THREE.Vector3());
 
 // Motor transversal no vão do capô.
@@ -530,12 +551,71 @@ const PIVO = {
   NL_CAPO: [0, capo.max.y - 0.01, capo.min.z + 0.02], // borda traseira, gira para cima
   NL_PORTA_DE: [cx.NL_PORTA_DE.max.x - 0.12, 0.7, 0.80], // borda dianteira
   NL_PORTA_TE: [cx.NL_PORTA_TE.max.x - 0.08, 0.7, -0.27],
-  NL_RODA_DE: rodaC.toArray(),
-  NL_RODA_TE: cx.NL_RODA_TE.getCenter(new THREE.Vector3()).toArray(),
+  NL_RODA_DE: RODAS.NL_RODA_DE.toArray(),
+  NL_RODA_TE: RODAS.NL_RODA_TE.toArray(),
 };
 // Nós filhos: mesma origem do pai (acompanham o giro da porta).
 const PAI = { NL_PORTA_DE_FORRO: "NL_PORTA_DE", NL_PORTA_TE_FORRO: "NL_PORTA_TE" };
 for (const [filho, pai] of Object.entries(PAI)) PIVO[filho] = PIVO[pai];
+
+
+// ---------------------------------------------------------------- roda nova (v3)
+// Pedido do Luca (29-09 tarde): rodas no nível do carro da Higgsfield (aro prata de 5 pares de raios, calota lisa,
+// pneu de lateral cheia). Uma roda só, em coordenadas locais (origem no centro do pneu, eixo +X = face de fora), usada
+// nas quatro posições (as do passageiro giram 180° em Y).
+// - Aro: o do autor (10 raios em 5 pares, molduras das janelas, porcas, calota sem o H), da roda dianteira do
+//   motorista, com as normais do autor e reduzido no raio para 17" (ESCALA_ARO), o que dá ao pneu a lateral cheia da
+//   foto. A v1/v2 simplificava esse aro a 13% com normais recalculadas: raios facetados.
+// - O aro do autor não tem tambor: entra um tambor torneado a 19 cm do centro (disco de freio até 18,2 cm, pinça até
+//   17,7 cm e 7,8 cm para fora; os raios começam em 7,8 cm para fora).
+// - Pneu torneado (144 segmentos): talão, lateral cheia com protetor de aro, ombro redondo e 4 sulcos.
+const ESCALA_ARO = 0.94;
+const PECAS_ARO = { RODA: [15, 70, 75, 76, 77, 78, 79], CROMO: [105, 106, 107, 108], PRETO: [71, 72, 73, 74] };
+const RATIO_ARO = { RODA: 0.38, CROMO: 0.4, PRETO: 0.35 };
+function construirRoda() {
+  const semUV = (g) => { for (const k of Object.keys(g.attributes)) if (k !== "position" && k !== "normal") g.deleteAttribute(k); return g; };
+  const indexar = (g, vinco) => mergeVertices(semUV(toCreasedNormals(semUV(g), (vinco * Math.PI) / 180)), 1e-6);
+  // Perfil (raio, eixo) torneado em volta do eixo; lado de fora da superfície = à direita de quem anda pelo perfil.
+  const torno = (pts, seg, vinco) => indexar(new THREE.LatheGeometry(pts.map(([r, x]) => new THREE.Vector2(r, x)), seg).rotateZ(-Math.PI / 2), vinco);
+  // anel fechado percorrido no sentido anti-horário (raio para a direita, eixo para cima): normais para fora
+  const anelFechado = (pts) => {
+    let a = 0;
+    for (let k = 0; k < pts.length; k++) { const [x1, y1] = pts[k], [x2, y2] = pts[(k + 1) % pts.length]; a += x1 * y2 - x2 * y1; }
+    const l = a > 0 ? pts : [...pts].reverse();
+    return [...l, l[0]];
+  };
+  const pecas = { RODA: [], PNEU: [], CROMO: [], PRETO: [] };
+
+  // aro do autor: do mundo para o local da roda, raio reduzido, normais corrigidas (escala não uniforme)
+  const C = RODAS.NL_RODA_DE;
+  for (const [mat, lista] of Object.entries(PECAS_ARO)) {
+    const P = [], N = [], I = [];
+    for (const i of lista) for (const { pos, nor, idx } of lerMalha(noDe.get(i), i)) {
+      const base = P.length / 3;
+      for (let v = 0; v < pos.length / 3; v++) {
+        P.push(pos[v * 3] - C.x, (pos[v * 3 + 1] - C.y) * ESCALA_ARO, (pos[v * 3 + 2] - C.z) * ESCALA_ARO);
+        const nx = nor[v * 3], ny = nor[v * 3 + 1] / ESCALA_ARO, nz = nor[v * 3 + 2] / ESCALA_ARO, l = Math.hypot(nx, ny, nz) || 1;
+        N.push(nx / l, ny / l, nz / l);
+      }
+      for (const v of idx) I.push(v + base);
+    }
+    const r = simplificarComNormais(Float32Array.from(P), Float32Array.from(N), Uint32Array.from(I), RATIO_ARO[mat], 0.001);
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.BufferAttribute(r.pos, 3)); g.setAttribute("normal", new THREE.BufferAttribute(r.nor, 3)); g.setIndex(new THREE.BufferAttribute(r.idx, 1));
+    pecas[mat].push(g);
+  }
+
+  // tambor por dentro dos raios (anel fechado), com flange de dentro
+  const tambor = [[0.1900, -0.1000], [0.1950, -0.1060], [0.2080, -0.1085], [0.2200, -0.1060], [0.2210, -0.1010], [0.2090, -0.0960], [0.2050, -0.0600], [0.2050, 0.0850], [0.2020, 0.0950], [0.1920, 0.0960], [0.1900, 0.0850]];
+  pecas.RODA.push(torno(anelFechado(tambor), 112, 60));
+
+  // pneu: do talão de dentro ao de fora (a superfície fica para o lado de fora)
+  const lado = [[0.2085, 0.1000], [0.2120, 0.1065], [0.2180, 0.1110], [0.2240, 0.1135], [0.2290, 0.1128], [0.2360, 0.1140], [0.2460, 0.1158], [0.2580, 0.1172], [0.2700, 0.1170], [0.2820, 0.1140], [0.2920, 0.1085], [0.2995, 0.1005], [0.3045, 0.0912], [0.3070, 0.0810], [0.3080, 0.0700],
+    [0.3080, 0.0580], [0.3005, 0.0565], [0.3005, 0.0455], [0.3080, 0.0440], [0.3080, 0.0200], [0.3005, 0.0185], [0.3005, 0.0095], [0.3080, 0.0080]];
+  pecas.PNEU.push(torno([...lado.map(([r, x]) => [r, -x]), ...[...lado].reverse()], 112, 50));
+
+  return Object.fromEntries(Object.entries(pecas).filter(([, l]) => l.length).map(([m, l]) => [m, l.length > 1 ? mergeGeometries(l) : l[0]]));
+}
 
 // ---------------------------------------------------------------- documento novo
 const doc = new Document();
@@ -555,14 +635,16 @@ const cena = doc.createScene("NovaLeoesHatch");
 const raiz = doc.createNode("NL_HATCH");
 cena.addChild(raiz);
 const nos = {};
-// v2: lataria e grade inteiras custam ~0,9 MB; o peso sai de peças escuras/pequenas onde a simplificação não aparece.
-const RATIO = { PNEU: 0.16, RODA: 0.13, INTERIOR: 0.22, PRETO: 0.17, PLASTICO: 0.17, PINTURA: 0.34, CROMO: 0.15, LENTE: 0.1, VIDRO: 0.5, DISCO: 0.24, LANTERNA: 0.16, MOTOR: 0.3 };
+// v3: com as normais do autor guardadas a simplificação não aparece; cortes maiores em peças escuras e pequenas pagam
+// a roda nova, a lataria inteira e os frisos inteiros dentro dos 4 MB.
+const RATIO = { PNEU: 0.16, RODA: 0.13, INTERIOR: 0.15, PRETO: 0.12, PLASTICO: 0.12, PINTURA: 0.34, CROMO: 0.12, LENTE: 0.08, VIDRO: 0.5, DISCO: 0.2, LANTERNA: 0.13, MOTOR: 0.25 };
 const EXTRAS = new Set(["NL_MOTOR", "NL_CORREIA", "NL_FILTRO_AR", "NL_AMORTECEDOR_DE", "NL_COFRE", "NL_CABINE", "NL_PORTA_DE_FORRO", "NL_PORTA_TE_FORRO"]);
 // Materiais que ficam com a malha e as normais do autor (só soldados): a lataria. O autor gravou uma normal por
 // canto de face (ponderada pela face); é o que deixa a chapa lisa com poucos vértices. Simplificar e recalcular
 // as normais (v1) deixava reflexos ondulados, cara de carro batido.
-const SEM_SIMPLIFICAR = new Set(["PINTURA"]);
-const PECA_INTEIRA = new Set(["NL_GRADE"]);
+// v3: o vidro também fica inteiro (poucos triângulos; simplificado, o reflexo "craquelava" no vidro traseiro).
+const SEM_SIMPLIFICAR = new Set(["PINTURA", "VIDRO"]);
+const PECA_INTEIRA = new Set(["NL_GRADE", "NL_FRISOS"]);
 // Solda cantos na mesma posição cujas normais diferem menos que `graus` (média das normais do grupo).
 function soldarComNormal(pos, nor, idx, graus) {
   const cosV = Math.cos((graus * Math.PI) / 180);
@@ -633,6 +715,47 @@ function normaisComVinco(pos, idx, graus) {
   for (let q = 0; q < idx.length; q++) I[q] = chaveCanto.get(q);
   return { pos: Float32Array.from(P), nor: Float32Array.from(N), idx: I };
 }
+// v3: simplifica pela POSIÇÃO (como a v2, que reduz bem) e, em cada canto de triângulo, usa a normal original do
+// autor naquele ponto que mais combina com a face nova, em vez de recalcular. Recalcular (v1/v2) deixava frisos
+// pretos, lanternas e a coluna traseira com o reflexo quebrado em facetas ("craquelado"); simplificar respeitando
+// as normais (simplifyWithAttributes) quase não reduzia (costuras por canto) e o arquivo ia a 12 MB.
+function simplificarComNormais(pos, nor, idx, ratio, erro) {
+  const n = pos.length / 3, mapa = new Map(), soldado = new Uint32Array(n), P = [], doAutor = [];
+  for (let v = 0; v < n; v++) {
+    const chave = `${Math.round(pos[v * 3] * 2e4)},${Math.round(pos[v * 3 + 1] * 2e4)},${Math.round(pos[v * 3 + 2] * 2e4)}`;
+    let w = mapa.get(chave);
+    if (w === undefined) { w = P.length / 3; mapa.set(chave, w); P.push(pos[v * 3], pos[v * 3 + 1], pos[v * 3 + 2]); doAutor.push([]); }
+    soldado[v] = w;
+    const nv = [nor[v * 3], nor[v * 3 + 1], nor[v * 3 + 2]], lista = doAutor[w];
+    if (!lista.some((q) => q[0] * nv[0] + q[1] * nv[1] + q[2] * nv[2] > 0.9998)) lista.push(nv);
+  }
+  const p2 = Float32Array.from(P), i2 = Uint32Array.from(idx, (v) => soldado[v]);
+  const alvo = Math.max(3, Math.floor((i2.length / 3) * ratio)) * 3;
+  let [simp] = MeshoptSimplifier.simplify(i2, p2, 3, alvo, erro, ["LockBorder"]);
+  if (simp.length < 3) simp = i2;
+  const saida = new Map(), PO = [], NO = [], IO = [];
+  const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3();
+  for (let t = 0; t < simp.length; t += 3) {
+    a.fromArray(p2, simp[t] * 3); b.fromArray(p2, simp[t + 1] * 3); c.fromArray(p2, simp[t + 2] * 3);
+    const fn = b.clone().sub(a).cross(c.clone().sub(a));
+    if (fn.lengthSq() === 0) continue;
+    fn.normalize();
+    for (let k = 0; k < 3; k++) {
+      const w = simp[t + k], lista = doAutor[w];
+      let melhor = -1, dMax = 0;
+      for (let j = 0; j < lista.length; j++) { const d = lista[j][0] * fn.x + lista[j][1] * fn.y + lista[j][2] * fn.z; if (d > dMax) { dMax = d; melhor = j; } }
+      const chave = w * 64 + (melhor + 1);
+      let o = saida.get(chave);
+      if (o === undefined) {
+        o = PO.length / 3; saida.set(chave, o);
+        PO.push(p2[w * 3], p2[w * 3 + 1], p2[w * 3 + 2]);
+        if (melhor >= 0) NO.push(...lista[melhor]); else NO.push(fn.x, fn.y, fn.z);
+      }
+      IO.push(o);
+    }
+  }
+  return { pos: Float32Array.from(PO), nor: Float32Array.from(NO), idx: Uint32Array.from(IO) };
+}
 let trisAntes = 0, trisDepois = 0;
 for (const [k, lista] of blocos) {
   const [peca, mat] = k.split("|");
@@ -648,8 +771,14 @@ for (const [k, lista] of blocos) {
   }
   trisAntes += idx.length / 3;
   if (!EXTRAS.has(peca) && (SEM_SIMPLIFICAR.has(mat) || PECA_INTEIRA.has(peca)) && lista.every((b) => b.nor)) {
-    ({ pos, nor, idx } = soldarComNormal(pos, nor, idx, +(process.env.SOLDA_GRAUS || 15)));
+    // v3: solda de 4° (15° juntava normais que o autor deixou separadas de propósito: reflexo enrugado nas portas)
+    ({ pos, nor, idx } = soldarComNormal(pos, nor, idx, +(process.env.SOLDA_GRAUS || 4)));
     if (process.env.DEBUG) console.log(k, "t", ni / 3, "->", idx.length / 3, "(sem simplificar), vértices", pos.length / 3);
+  } else if (!EXTRAS.has(peca) && lista.every((b) => b.nor)) {
+    // v3: simplifica guardando as normais do autor. Recalcular as normais depois de simplificar (v1/v2) deixava
+    // frisos pretos, lanternas e a coluna traseira com o reflexo quebrado em facetas ("craquelado").
+    ({ pos, nor, idx } = simplificarComNormais(pos, nor, idx, RATIO[mat] ?? 0.4, +(process.env.ERRO || 0.0015)));
+    if (process.env.DEBUG) console.log(k, "t", ni / 3, "->", idx.length / 3, "(normais do autor), vértices", pos.length / 3);
   } else if (!EXTRAS.has(peca)) {
     // O autor exportou normais facetadas (cada face com os próprios vértices): solda só por POSIÇÃO para o
     // simplificador conseguir colapsar, e depois recalcula as normais com ângulo de vinco (quina viva continua viva).
@@ -681,10 +810,28 @@ for (const [k, lista] of blocos) {
   const mesh = doc.createMesh(`${peca}_${mat}`).addPrimitive(prim);
   nos[peca].addChild(doc.createNode(`${peca}_${mat}`).setMesh(mesh));
 }
+// ---- roda nova: uma malha por material, a mesma nas quatro rodas (as do passageiro giram 180° em Y)
+{
+  const acc = (arr, tipo) => doc.createAccessor().setType(tipo).setArray(arr).setBuffer(buf);
+  const malhas = Object.entries(construirRoda()).map(([mat, g]) => {
+    const pos = Float32Array.from(g.attributes.position.array), nor = Float32Array.from(g.attributes.normal.array), idx = Uint32Array.from(g.index.array);
+    trisDepois += (idx.length / 3) * 4;
+    const prim = doc.createPrimitive().setAttribute("POSITION", acc(pos, "VEC3")).setAttribute("NORMAL", acc(nor, "VEC3"))
+      .setIndices(acc(pos.length / 3 < 65535 ? Uint16Array.from(idx) : idx, "SCALAR")).setMaterial(materiais[mat]);
+    console.log("roda:", mat, idx.length / 3, "triângulos,", pos.length / 3, "vértices");
+    return [mat, doc.createMesh(`NL_RODA_${mat}`).addPrimitive(prim)];
+  });
+  for (const [nome, c] of Object.entries(RODAS)) {
+    const no = doc.createNode(nome).setTranslation(c.toArray());
+    if (c.x < 0) no.setRotation([0, 1, 0, 0]);
+    raiz.addChild(no);
+    for (const [mat, malha] of malhas) no.addChild(doc.createNode(`${nome}_${mat}`).setMesh(malha));
+  }
+}
 doc.getRoot().getAsset().copyright = "Base: \"2020 Hyundai i20 N- Line\" por shreyanshchaurasia13 (Sketchfab), CC BY 4.0. Adaptado para a vitrine Nova Leões: logos, placas e suporte de placa removidos, grade completada, peças separadas, motor/filtro/amortecedor e cofre do motor adicionados.";
 await doc.transform(prune(), weld({ tolerance: 0.00001 }), dedup(), quantize({ quantizePosition: 14, quantizeNormal: +(process.env.BITS_NORMAL || 8) }));
 mkdirSync("saida", { recursive: true });
-const SAIDA = process.env.SAIDA || "saida/nova-leoes-hatch-v2.glb";
+const SAIDA = process.env.SAIDA || "saida/nova-leoes-hatch-v3.glb";
 await io.write(SAIDA, doc);
 console.log("gravado", SAIDA);
 const manifesto = { escala: ESCALA, pivos: PIVO, caixas: Object.fromEntries(Object.entries(nos).map(([p]) => [p, (() => { const b = caixaDe(p); return [b.min.toArray().map((v) => +v.toFixed(3)), b.max.toArray().map((v) => +v.toFixed(3))]; })()])), trisAntes: Math.round(trisAntes), trisDepois: Math.round(trisDepois), malhasLidas: lidas, removidas };
