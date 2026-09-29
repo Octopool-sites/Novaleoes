@@ -341,7 +341,7 @@ await teste("detalhe da peça: abre, aplicações, WhatsApp, link compartilhado,
 await teste("carrinho: adicionar, quantidade, venda mínima, remover, persistência", async ({ page, verificar, anotar }) => {
   await abrir(page, "?q=vela");
   await sleep(1000);
-  const alvo = await page.$$eval(".product-grid .nl-product-card", (els) => els.map((e, i) => ({ i, t: e.querySelector("h3")?.textContent, min: /mín\. (\d+)/.exec(e.textContent)?.[1] || "1", dis: e.querySelector(".add-button")?.disabled })).filter((x) => !x.dis).slice(0, 2));
+  const alvo = await page.$$eval(".product-grid .nl-product-card", (els) => els.map((e, i) => ({ i, t: e.querySelector("h3")?.textContent, min: /(\d+) un\. ×|mín\. (\d+)/.exec(e.textContent)?.slice(1).find(Boolean) || "1", dis: e.querySelector(".add-button")?.disabled })).filter((x) => !x.dis).slice(0, 2));
   anotar(`peças: ${JSON.stringify(alvo)}`);
   await page.evaluate((i) => document.querySelectorAll(".product-grid .nl-product-card .add-button")[i].click(), alvo[0].i);
   await page.waitForSelector(".cart-line", { timeout: 5000 });
@@ -460,6 +460,46 @@ await teste("checkout completo pelo WhatsApp (retirada e entrega)", async ({ pag
   const texto2 = decodeURIComponent((log.abertos[1] || "").split("text=")[1] || "");
   anotar(`entrega:\n${texto2}`);
   verificar(/Entrega pelo motoboy/.test(texto2) && /Endereço:/.test(texto2) && /Total estimado/.test(texto2), "mensagem de entrega incompleta");
+});
+
+await teste("cliente que volta e pedido grande: 'Finalizar' mostra o checkout; pedido grande vira copiar e colar", async ({ page, verificar, anotar, log }) => {
+  await abrir(page, "?q=pastilha");
+  // Dados lembrados de outra visita (retirada: formulário já válido) e 30 peças no pedido.
+  const ids = await page.evaluate(async () => {
+    const r = await fetch("catalogo/indice.json").then((x) => x.json()).catch(() => null);
+    return (r?.pecas || []).filter((p) => p[4] > 0 && p[5] > 0).slice(0, 30).map((p) => p[0]);
+  });
+  verificar(ids.length === 30, `peças para o pedido grande: ${ids.length}`);
+  await page.evaluate((ids) => {
+    localStorage.setItem("nl-dados-cliente-v1", JSON.stringify({ nome: "Cliente Teste", telefone: "11988887777", entrega: "retirada", pagamento: "Pix" }));
+    localStorage.setItem("octopool-commerce-live-cart-v1", JSON.stringify({ ["c:" + ids[0]]: 1 }));
+  }, ids);
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await page.waitForFunction(() => Number(document.querySelector(".cart-trigger b")?.textContent) > 0, { timeout: 60000 });
+  await page.evaluate(() => document.querySelector(".cart-trigger").click());
+  await page.waitForSelector(".cart-line");
+  await page.waitForFunction(() => { const b = [...document.querySelectorAll(".nl-cart-sheet button")].find((x) => /Finalizar pedido/.test(x.textContent)); return b && !b.disabled; }, { timeout: 60000 });
+  await clicarTexto(page, ".nl-cart-sheet button", "Finalizar pedido");
+  await sleep(800);
+  verificar(!!(await page.$("#checkout-form")), "'Finalizar pedido' não mostrou o checkout");
+  verificar(log.abertos.length === 0, "'Finalizar pedido' enviou o pedido sozinho (cliente com dados lembrados)");
+  // pedido grande
+  await page.evaluate((ids) => localStorage.setItem("octopool-commerce-live-cart-v1", JSON.stringify(Object.fromEntries(ids.map((i) => ["c:" + i, 2])))), ids);
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await page.waitForFunction(() => Number(document.querySelector(".cart-trigger b")?.textContent) > 0, { timeout: 60000 });
+  await page.evaluate(() => document.querySelector(".cart-trigger").click());
+  await page.waitForFunction(() => { const b = [...document.querySelectorAll(".nl-cart-sheet button")].find((x) => /Finalizar pedido/.test(x.textContent)); return b && !b.disabled; }, { timeout: 60000 });
+  await clicarTexto(page, ".nl-cart-sheet button", "Finalizar pedido");
+  await page.waitForSelector("#checkout-form");
+  const botao = await page.$eval(".nl-botao-whats", (b) => b.textContent);
+  anotar(`botão do pedido grande: ${botao}`);
+  verificar(/Copiar pedido/.test(botao), "pedido grande sem o botão 'Copiar pedido'");
+  await page.evaluate(() => document.querySelector(".nl-botao-whats").click());
+  await sleep(800);
+  const link = log.abertos[log.abertos.length - 1] || "";
+  anotar(`pedido grande: link de ${link.length} caracteres: ${decodeURIComponent(link.split("text=")[1] || "")}`);
+  verificar(/wa\.me\/551124528939/.test(link) && link.length < 800, "pedido grande: link do WhatsApp não é o aviso curto");
+  verificar(!!(await page.$(".nl-enviado-colar")), "pedido grande: tela de copiar e colar não apareceu");
 });
 
 await teste("páginas da loja, navegação do topo/rodapé e voltar do navegador", async ({ page, verificar, anotar }) => {

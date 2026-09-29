@@ -168,8 +168,10 @@ export function filtrar(catalogo: Catalogo, filtro: Filtro): Peca[] {
 function ordenar(pecas: Peca[], filtro: Filtro, termos: string[][]) {
   const nome = (a: Peca, b: Peca) => a.nome.localeCompare(b.nome, "pt-BR");
   if (filtro.ordem === "nome") return pecas.sort(nome);
-  if (filtro.ordem === "menor-preco") return pecas.sort((a, b) => (a.precoCents || Infinity) - (b.precoCents || Infinity) || nome(a, b));
-  if (filtro.ordem === "maior-preco") return pecas.sort((a, b) => b.precoCents - a.precoCents || nome(a, b));
+  // Ordena pelo valor que o cartão mostra: com venda mínima, o total da compra mínima (4 × R$ 62,00 = R$ 248,00).
+  const valor = (p: Peca) => p.precoCents * Math.max(1, Math.round(p.quantidadeMinima) || 1);
+  if (filtro.ordem === "menor-preco") return pecas.sort((a, b) => (valor(a) || Infinity) - (valor(b) || Infinity) || nome(a, b));
+  if (filtro.ordem === "maior-preco") return pecas.sort((a, b) => valor(b) - valor(a) || nome(a, b));
   // Relevância: com foto e em estoque primeiro; busca pelo nome pesa mais que pela aplicação.
   const pontos = (p: Peca) => {
     let s = 0;
