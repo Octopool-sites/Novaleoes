@@ -93,6 +93,8 @@ export function rotuloCombustivel(c: string | null) {
   const t = String(c || "").trim();
   if (!t) return "";
   const n = t.toUpperCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+  // "INDETERMINADO", "NAO INFORMADO": o provedor não sabe; melhor não mostrar nada ("Passat 1979 · Indeterminado").
+  if (/INDETERMIN|NAO INFORM|SEM INFORM|NAO IDENT|^-+$/.test(n)) return "";
   if (n.includes("FLEX") || (n.includes("ALCOOL") && n.includes("GASOLINA"))) return "Flex";
   return t.charAt(0).toUpperCase() + t.slice(1).toLowerCase();
 }

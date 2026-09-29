@@ -329,3 +329,13 @@ test("logs: nenhum aviso do servidor contém placa", () => {
   assert.ok(avisos.length > 5);
   for (const a of avisos) assert.ok(!/[A-Z]{3}-?[0-9][A-Z0-9][0-9]{2}/i.test(a), a);
 });
+
+test("placa: combustível que o provedor não sabe não aparece (29/09, visto em produção)", async () => {
+  const { buildSync } = await import("esbuild");
+  buildSync({ entryPoints: ["lib/placa-site.ts"], bundle: true, platform: "node", format: "esm", outfile: "outputs/test-placa-combustivel.mjs", logLevel: "silent" });
+  const { rotuloCombustivel } = await import("../outputs/test-placa-combustivel.mjs");
+  assert.equal(rotuloCombustivel("INDETERMINADO"), "");
+  assert.equal(rotuloCombustivel("Não informado"), "");
+  assert.equal(rotuloCombustivel("ALCOOL/GASOLINA"), "Flex");
+  assert.equal(rotuloCombustivel("GASOLINA"), "Gasolina");
+});
