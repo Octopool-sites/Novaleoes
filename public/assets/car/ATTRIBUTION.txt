@@ -1,23 +1,25 @@
 Nova Leoes illustrative car
 
-Based on "UNO MILLE SMART 2001 - RIGGED MODEL" by bruno_sales (https://sketchfab.com/bruno_sales).
+Based on "2020 Hyundai i20 N- Line" by shreyanshchaurasia13 (https://sketchfab.com/shreyanshchaurasia13).
 Licensed under Creative Commons Attribution 4.0 International (CC BY 4.0).
 https://creativecommons.org/licenses/by/4.0/
 
 Source:
-https://sketchfab.com/3d-models/uno-mille-smart-2001-rigged-model-ede3d69de2be4993ad58be4910590df2
+https://sketchfab.com/3d-models/2020-hyundai-i20-n-line-6c267be59fb94253bff935616eddcc99
 
 Modifications by Octopool, September 2026:
-- Removed the spare wheel and the author's door animation.
-- Resized textures to at most 1024 px and converted them to WebP.
-- Simplified and quantized the meshes (tires more than the rest) for web delivery.
-- Hid the manufacturer emblem, the badges and the license plates.
-- Replaced the untextured engine block material with a dark metal finish.
-- Added scroll-driven exploded view and interactive part markers.
+- Removed the manufacturer emblems, badges, wheel center logos and license plates.
+- Replaced all materials and textures with plain colors (grey paint, satin black trims, glass, alloy wheels).
+- Separated the hood, roof, driver-side doors, driver-side wheels and front fender into hinged parts.
+- Added an engine with timing belt and pulleys, an air filter and a front shock absorber with coil spring.
+- Simplified and quantized the meshes for web delivery.
+- Added a scroll-driven exploded view and interactive part markers.
 
 This is an illustrative vehicle. It does not guarantee compatibility between any
 listed auto part and a vehicle, and implies no endorsement by the manufacturer,
 the original author or Sketchfab.
 
-Earlier versions of this site used "Car Concept" (Khronos glTF Sample Assets,
-copyright 2024 Darmstadt Graphics Group GmbH, model by Eric Chadwick, CC BY 4.0).
+Earlier versions of this site used "UNO MILLE SMART 2001 - RIGGED MODEL" by bruno_sales
+(CC BY 4.0) and "Car Concept" (Khronos glTF Sample Assets, copyright 2024 Darmstadt
+Graphics Group GmbH, model by Eric Chadwick, CC BY 4.0). The exploded photo used as a
+fallback without 3D was generated for Octopool on Higgsfield (22 September 2026).

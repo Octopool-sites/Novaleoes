@@ -9,7 +9,7 @@ import {
   MeshStandardMaterial,
   Object3D,
   PerspectiveCamera,
-  PCFSoftShadowMap,
+  PCFShadowMap,
   MeshPhysicalMaterial,
   ShadowMaterial,
   PlaneGeometry,
@@ -27,36 +27,18 @@ import {
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { caminho } from "@/lib/base";
+import { ARQUIVO_CARRO, MOVIMENTOS, type PinoCarro } from "./carro-modelo";
 
-// Carro ilustrativo que abre peça por peça. Modelo: "UNO MILLE SMART 2001" de bruno_sales (Sketchfab, CC BY 4.0),
-// otimizado e sem emblema/adesivos da montadora; créditos em /assets/car/ATTRIBUTION.txt.
-// As peças são os nós reais do modelo: montado, tudo encaixa; aberto, cada parte se afasta na sua direção.
-// Renderiza sob demanda: só enquanto a abertura, o giro ou o foco estão em movimento.
+// Carro ilustrativo que abre peça por peça: o hatch cinza da versão A (foto da Higgsfield) em 3D, feito a partir do
+// "2020 Hyundai i20 N- Line" (Sketchfab, CC BY 4.0), sem logos nem placas; créditos em /assets/car/ATTRIBUTION.txt.
+// Cada peça que se move é um nó NL_* com a origem na dobradiça: montado, tudo encaixa; aberto, cada parte gira ou se
+// afasta (components/carro-modelo.ts). Renderiza sob demanda: só enquanto a abertura, o giro ou o foco se mexem.
 
-export const ARQUIVO_CARRO = "assets/car/nova-leoes-uno-v1.glb";
+export type { PinoCarro };
 
-// Nomes dos nós como estão no modelo. O carregador tira espaços e pontos, e o arquivo veio com os acentos
-// corrompidos ("CAPÔ" virou "CAP" + dois caracteres inválidos): achar() compara só letras e números.
-// Também as placas: podem ser de um carro de verdade.
-const OCULTAR = ["CORPO_METAL.001_0", "PORTA MALAS_ADESIVOS_0", "CORPO.003", "PORTA MALAS_PLACA MERCOSUL_0"];
-// [nó, deslocamento no mundo em metros (x = lado do motorista, y = cima, z = frente), início na abertura 0..1]
-const MOVIMENTOS: [string, [number, number, number], number][] = [
-  ["CAP", [0, 0.78, 0.25], 0], // capô
-  ["MOTOR_MOTOR_0", [0, 0.36, 0.05], 0.18],
-  ["PORTA MOTORISTA", [0.72, 0.02, 0], 0.04],
-  ["PORTA SAPO", [-0.72, 0.02, 0], 0.04],
-  ["PORTA MALAS", [0, 0.42, -0.38], 0.06],
-  ["RODA DIANTEIRA ESQ.", [0.58, 0, 0.05], 0.1],
-  ["RODA DIANTEIRA DIR.", [-0.58, 0, 0.05], 0.1],
-  ["RODA TRASEIRA ESQ.", [0.58, 0, -0.05], 0.12],
-  ["RODA TRASEIRA DIR.", [-0.58, 0, -0.05], 0.12],
-  ["LANTERNAS_LANTERNA TRASEIRA_0", [0, 0, -0.28], 0.14],
-  ["LANTERNAS_LANTERNA_0", [0, 0, 0.3], 0.14],
-  ["LANTERNAS_SETA_0", [0, 0, 0.3], 0.14],
-  ["LANTERNAS_METAL_0", [0, 0, 0.3], 0.14],
-  ["CORPO.002_GRADE_0", [0, 0, 0.3], 0.14],
-  ["CORPO.001", [0, 0, 0.3], 0.14],
-];
+const DEV = !!(import.meta as { env?: { DEV?: boolean } }).env?.DEV;
+
+// achar() compara só letras e números (o carregador tira espaços e pontos dos nomes dos nós).
 const normalizarNome = (s: string) => s.normalize("NFD").replace(/\p{M}/gu, "").replace(/[^A-Za-z0-9]/g, "").toUpperCase();
 function achar(raiz: Object3D, nome: string) {
   const alvo = normalizarNome(nome);
@@ -70,18 +52,6 @@ export async function baixarCarro(signal?: AbortSignal) {
   if (!resposta.ok) throw new Error("modelo indisponível");
   return resposta.arrayBuffer();
 }
-
-export type PinoCarro = {
-  id: string;
-  /** Nó do modelo onde o pino fica preso (acompanha a peça quando ela se afasta). */
-  no: string;
-  /** Deslocamento do pino em relação ao centro do nó, no espaço do carro (Y para cima, +Z = frente). */
-  desloca?: [number, number, number];
-  /** Direção para onde a parte "olha"; o pino some quando essa face está de costas para a câmera. */
-  face?: [number, number, number] | null;
-  /** Ponto dentro da caixa da peça, de -1 a 1 por eixo, em vez do centro. */
-  canto?: [number, number, number];
-};
 
 export type PosicaoPino = { id: string; x: number; y: number; visivel: boolean };
 
@@ -107,7 +77,7 @@ const YAW_INICIAL = -0.78; // três quartos: frente à esquerda, lateral esquerd
 // Só a pintura precisa do material "físico" (verniz); os outros viram o padrão, que compila mais rápido.
 // O mapa é de cada montagem: global, ele guardava os materiais (e texturas) de todas as montagens anteriores.
 function simplificar(m: MeshStandardMaterial, trocados: Map<Material, MeshStandardMaterial>): MeshStandardMaterial {
-  if (!(m instanceof MeshPhysicalMaterial) || m.name.toUpperCase() === "LATARIA") return m;
+  if (!(m instanceof MeshPhysicalMaterial) || m.name.toUpperCase() === "PINTURA") return m;
   let novo = trocados.get(m);
   if (!novo) {
     novo = new MeshStandardMaterial({ name: m.name, color: m.color, map: m.map, normalMap: m.normalMap, roughness: m.roughness, metalness: m.metalness, roughnessMap: m.roughnessMap, metalnessMap: m.metalnessMap, transparent: m.transparent, opacity: m.opacity, side: m.side, depthWrite: m.depthWrite, alphaTest: m.alphaTest });
@@ -117,31 +87,20 @@ function simplificar(m: MeshStandardMaterial, trocados: Map<Material, MeshStanda
   return novo;
 }
 
-// Pintura com verniz, vidro escuro transparente, borracha e plásticos foscos, cromado só onde é cromado.
+// Acabamento: as cores já vêm do arquivo (materiais próprios, sem textura). Aqui só o que depende da cena:
+// reflexo do estúdio, verniz da pintura e vidros/lentes sem escrever profundidade (não recortam o que está atrás).
 function acabamento(m: MeshStandardMaterial): MeshStandardMaterial {
   const nome = m.name.toUpperCase();
   m.envMapIntensity = 1;
-  if (nome === "LATARIA" && m instanceof MeshPhysicalMaterial) {
-    m.color.set("#4a0710"); m.metalness = 0.55; m.roughness = 0.32; m.clearcoat = 1; m.clearcoatRoughness = 0.04; m.envMapIntensity = 0.95;
-  } else if (nome === "METAL") {
-    // Molduras das janelas e frisos: borracha/plástico preto acetinado (vinha cinza espelhado, parecia branco).
-    m.color.set("#121314"); m.metalness = 0.1; m.roughness = 0.45;
-    if (m instanceof MeshPhysicalMaterial) m.clearcoat = 0;
-  } else if (nome === "GLASS" || nome === "VIDROS") {
-    m.color.set("#0c1114"); m.opacity = 0.28; m.metalness = 0; m.roughness = 0.04; m.envMapIntensity = 1.3; m.depthWrite = false;
-  } else if (nome === "GRADE") {
-    m.color.set("#0b0b0b"); m.opacity = 0.85; m.roughness = 0.6;
-  } else if (nome === "PNEUS") {
-    m.color.set("#141414"); m.roughness = 0.92;
-  } else if (/^PL.?STIC|^PRETO|AMORTECEDORES|BANCOS/.test(nome)) {
-    m.roughness = Math.max(m.roughness, 0.75);
-  } else if (nome === "ESPELHO" || nome === "METAL.001") {
-    m.color.set("#c9cccf"); m.metalness = 1; m.roughness = 0.12;
-  } else if (nome === "MOTOR" && !m.map) {
-    // O bloco do motor veio sem textura (branco chapado): vira metal fundido escuro.
-    m.color.set("#4b5053"); m.metalness = 0.75; m.roughness = 0.42;
-  } else if (nome === "CALOTAS") {
-    m.metalness = 0.85; m.roughness = 0.3;
+  if (nome === "PINTURA" && m instanceof MeshPhysicalMaterial) {
+    m.clearcoat = 0.5; m.clearcoatRoughness = 0.32; m.roughness = Math.max(m.roughness, 0.45); m.envMapIntensity = 0.7;
+  } else if (nome === "VIDRO" || nome === "LENTE") {
+    m.transparent = true; m.depthWrite = false; m.envMapIntensity = 1.3;
+  } else if (nome === "CROMO" || nome === "RODA") {
+    m.envMapIntensity = 1.2;
+  } else if (nome === "PRETO") {
+    // Frisos e molduras: preto acetinado (em ângulo rasante o preto brilhante refletia o estúdio e parecia branco).
+    m.envMapIntensity = 0.6;
   }
   m.needsUpdate = true;
   return m;
@@ -210,8 +169,9 @@ export async function montarCarro3D(host: HTMLElement, opcoes: {
     for (const p of partes) {
       const q = suave((valor - p.inicio) / (1 - p.inicio));
       p.objeto.position.copy(p.posicao).addScaledVector(p.desvio, q);
+      // O giro é no espaço do pai (eixo do mundo convertido): a peça gira em torno da própria origem, a dobradiça.
       interp.copy(identidade).slerp(p.giro, q);
-      p.objeto.quaternion.copy(p.rotacao).multiply(interp);
+      p.objeto.quaternion.copy(interp).multiply(p.rotacao);
     }
   }
 
@@ -370,8 +330,8 @@ export async function montarCarro3D(host: HTMLElement, opcoes: {
     renderer.toneMapping = ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.0;
     renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = PCFSoftShadowMap;
-    renderer.setClearColor(0xf6f4ed, 0);
+    renderer.shadowMap.type = PCFShadowMap; // o PCFSoft saiu no three r186
+    renderer.setClearColor(0xf1e8dc, 0);
     renderer.domElement.setAttribute("aria-hidden", "true");
     renderer.domElement.style.cssText = "display:block;width:100%;height:100%;";
     renderer.domElement.addEventListener("webglcontextlost", contextoPerdido);
@@ -394,19 +354,21 @@ export async function montarCarro3D(host: HTMLElement, opcoes: {
     });
     centralizador.add(gltf.scene);
 
-    // Emblema e adesivos da montadora saem: o carro é ilustrativo, o site não é propaganda da marca.
-    for (const nome of OCULTAR) { const o = achar(gltf.scene, nome); if (o) o.visible = false; }
-
     // Deslocamentos em coordenadas do mundo (Y para cima, frente = +Z, lado do motorista = +X), convertidos
     // para o espaço do pai de cada nó: montado, tudo volta exatamente ao lugar.
-    const alvo = new Vector3();
-    for (const [nome, desvio, inicio] of MOVIMENTOS) {
-      const o = achar(gltf.scene, nome);
-      if (!o?.parent) continue;
+    const alvo = new Vector3(), qPai = new Quaternion();
+    for (const mov of MOVIMENTOS) {
+      const o = achar(gltf.scene, mov.no);
+      if (!o?.parent) { if (DEV) console.warn("carro-3d: nó não encontrado", mov.no); continue; }
       o.updateWorldMatrix(true, false);
-      o.getWorldPosition(alvo).add(new Vector3(...desvio));
+      o.getWorldPosition(alvo).add(new Vector3(...(mov.desvio ?? [0, 0, 0])));
       const local = o.parent.worldToLocal(alvo.clone());
-      partes.push({ objeto: o, posicao: o.position.clone(), rotacao: o.quaternion.clone(), desvio: local.sub(o.position), giro: new Quaternion(), inicio });
+      const giro = new Quaternion();
+      if (mov.giro) {
+        o.parent.getWorldQuaternion(qPai).invert();
+        giro.setFromAxisAngle(new Vector3(...mov.giro.eixo).normalize().applyQuaternion(qPai), (mov.giro.graus * Math.PI) / 180);
+      }
+      partes.push({ objeto: o, posicao: o.position.clone(), rotacao: o.quaternion.clone(), desvio: local.sub(o.position), giro, inicio: mov.inicio });
     }
 
     // Centro e raio do carro montado e aberto: a câmera enquadra pela esfera, então girar não muda o zoom.
@@ -425,7 +387,7 @@ export async function montarCarro3D(host: HTMLElement, opcoes: {
     // Âncoras: centro de cada nó guardado no espaço do próprio nó, para acompanhar a peça.
     for (const pino of opcoes.pinos) {
       const objeto = achar(gltf.scene, pino.no);
-      if (!objeto) continue;
+      if (!objeto) { if (DEV) console.warn("carro-3d: nó do pino não encontrado", pino.no); continue; }
       caixa.setFromObject(objeto);
       const centroMundo = caixa.getCenter(new Vector3());
       // canto: ponto dentro da caixa da peça, de -1 a 1 em cada eixo (ex.: o amortecedor dianteiro esquerdo
@@ -443,7 +405,7 @@ export async function montarCarro3D(host: HTMLElement, opcoes: {
     cena.environment = ambiente.texture;
     cena.environmentIntensity = 1.35;
     // Luz de estúdio: principal alta e à frente (faz a sombra no chão), contraluz para o recorte e céu fraco.
-    const luz = new DirectionalLight(0xfff6e8, 2.6); luz.position.set(-2.5, 7, 4.5);
+    const luz = new DirectionalLight(0xfff3e4, 2.5); luz.position.set(-2.5, 7, 4.5);
     luz.castShadow = true;
     luz.shadow.mapSize.set(1024, 1024);
     Object.assign(luz.shadow.camera, { left: -4, right: 4, top: 4, bottom: -4, near: 1, far: 20 });
@@ -451,18 +413,19 @@ export async function montarCarro3D(host: HTMLElement, opcoes: {
     luz.shadow.normalBias = 0.02;
     luz.shadow.radius = 6;
     const contra = new DirectionalLight(0xe8eef0, 1.4); contra.position.set(5, 4, -4);
-    cena.add(luz, contra, new HemisphereLight(0xfffbf2, 0x8a8a80, 0.6));
+    // Céu claro e chão bege: a parte de baixo do carro pega o calor do estúdio, como na foto da Higgsfield.
+    cena.add(luz, contra, new HemisphereLight(0xfffaf2, 0xcdbba3, 0.7));
 
     const sombra = new Mesh(new PlaneGeometry(6.4, 6.4), new ShaderMaterial({
       transparent: true, depthWrite: false,
       vertexShader: "varying vec2 vUv; void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}",
-      fragmentShader: "varying vec2 vUv; void main(){vec2 p=vUv*2.0-1.0;float d=length(p);float a=exp(-dot(p,p)*3.6)*(1.0-smoothstep(0.45,1.0,d))*0.2;gl_FragColor=vec4(0.22,0.22,0.17,a);}",
+      fragmentShader: "varying vec2 vUv; void main(){vec2 p=vUv*2.0-1.0;float d=length(p);float a=exp(-dot(p,p)*3.6)*(1.0-smoothstep(0.45,1.0,d))*0.24;gl_FragColor=vec4(0.30,0.24,0.18,a);}",
     }));
     sombra.rotation.x = -Math.PI / 2;
     sombra.position.set(0, caixa.setFromObject(gltf.scene).min.y - 0.01, 0);
     giroGrupo.add(sombra);
     // Chão invisível que só recebe a sombra do carro (e das peças quando ele abre).
-    const chao = new Mesh(new PlaneGeometry(30, 30), new ShadowMaterial({ opacity: 0.22 }));
+    const chao = new Mesh(new PlaneGeometry(30, 30), new ShadowMaterial({ opacity: 0.3, color: 0x4a3c2e }));
     chao.rotation.x = -Math.PI / 2;
     chao.position.y = sombra.position.y + 0.002;
     chao.receiveShadow = true;
