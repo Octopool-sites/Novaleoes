@@ -120,7 +120,7 @@ export function RodapeLoja({ storefrontHref, departamentos, onDepartamento, onPa
         </div>
         <div className="nl-footer-colunas">
           <div className="nl-footer-coluna">
-            <a className="store-brand" href={storefrontHref} aria-label="Nova Leões, início"><img src={caminho("assets/logo.png")} alt="" loading="lazy" /><span>NOVA LEÕES<small>AUTOPEÇAS</small></span></a>
+            <a className="store-brand" href={storefrontHref} aria-label="NOVA LEÕES AUTOPEÇAS, início"><img src={caminho("assets/logo.png")} alt="" loading="lazy" /><span>NOVA LEÕES<small>AUTOPEÇAS</small></span></a>
             <p>{LOJA.razaoSocial}<br />CNPJ {LOJA.cnpj}</p>
             <p>{LOJA.endereco.logradouro}, {LOJA.endereco.numero} · {LOJA.endereco.bairro}<br />{CIDADE} · CEP {LOJA.endereco.cep}</p>
           </div>

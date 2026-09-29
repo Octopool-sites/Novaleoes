@@ -1,5 +1,27 @@
 # Octopool Commerce — Nova Leões
 
+## Pente fino para entrega — 28/09/2026
+
+A vitrine foi revisada inteira para ser entregue ao Berna. Foram corrigidos:
+- a busca, que falhava com plural, pontuação e óleo;
+- o carro salvo, que escondia as peças universais;
+- o pedido, que se perdia quando o WhatsApp não abria;
+- o frete, que ficava velho ao trocar o CEP, e a posição da loja;
+- o "voltar" do celular;
+- a janela da peça cortada e o topo sem busca nem menu no celular;
+- as texturas do 3D bloqueadas pela CSP;
+- o código interno na API pública;
+- a prévia do link no WhatsApp.
+
+Uma bateria de 21 cenários de cliente roda com `npm run e2e -- <url>`. O que ainda depende do Berna, do Luca e do
+Trotta (**qual número tem WhatsApp**, horário, frete, Google Meu Negócio, fotos nomeadas pelo código do ERP,
+domínio) está em [entrega de 28/09](docs/entrega-2026-09-28.md).
+
+**Publicação:** o projeto Vercel `nova-leoes-preview` está ligado ao GitHub desde 28/09. Um push ou merge na `main`
+publica em produção (https://nova-leoes-preview.vercel.app/); branches e PRs geram prévias, que pedem login na
+Vercel. A tarefa agendada do catálogo (`scripts/catalogo/atualizar.mjs`) também faz commit direto na `main`:
+trabalhe em branch e faça `git pull` antes de começar.
+
 ## Loja pronta para vender — 25/09/2026 (tarde)
 
 Seletor "Meu carro" (montadora → modelo → ano) com selo "Serve no seu carro", departamentos com foto, frete por CEP (distância até a loja, faixas em `lib/loja.ts`), checkout completo que envia o pedido pronto pelo WhatsApp da loja, link e compartilhamento por peça, WhatsApp fixo e seção Entrega e frete. Fotos conferidas uma a uma (23.089, todas válidas). Fluxo de cliente testado ponta a ponta no computador e no celular. O que confirmar com a loja e como colocar no ar: [catálogo do ERP no site](docs/catalogo-erp.md#loja-pronta-para-vender--25092026-tarde).
@@ -76,7 +98,7 @@ Aplicação independente do Nexus, hospedada na conta Cloudflare da Octopool. A 
 - Organização dos sites de clientes: `Octopool-sites`. O repositório foi transferido da conta pessoal em 21/09/2026, mantendo sua identidade e histórico.
 - Pasta de trabalho padrão: `%USERPROFILE%\Documents\Octopool\clientes\nova-leoes\site`.
 - Este repositório contém as versões A/B da vitrine, a gestão do Commerce, a API Vercel/Firestore e o histórico Worker/D1. O Nexus ERP permanece em outro repositório.
-- A versão consolidada fica em `main`; branches preservam o trabalho em andamento. Em 23/09/2026, o projeto Vercel `nova-leoes-preview` usa deploy via CLI e não possui integração Git automática. Enviar código à organização não publica outra versão por si só.
+- A versão consolidada fica em `main`; branches preservam o trabalho em andamento. Em 23/09/2026 o projeto Vercel `nova-leoes-preview` usava deploy via CLI, sem integração Git; **desde 28/09 a integração Git está ligada e um push na `main` publica em produção**.
 - O histórico original foi preservado. A organização de pastas e o envio ao GitHub em 21/09/2026 não publicam uma nova versão na Cloudflare nem alteram o banco ou o estoque.
 - Previews antigos são históricos; não usar suas configurações para publicar a operação atual.
 

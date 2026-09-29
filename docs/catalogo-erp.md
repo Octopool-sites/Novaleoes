@@ -178,3 +178,28 @@ Em 3 dias sem reexportar (25/09 → 28/09), 20 preços mudaram e 27 peças esgot
 - **Foto ilustrativa** (índice, posição 11 = 1): peça sem foto própria (ou só com desenho) recebe a foto real de outra peça do mesmo grupo, primeiro da mesma marca, com selo "Foto ilustrativa" no cartão e no detalhe. Grupos em que a escolha automática erraria têm foto fixa em `scripts/catalogo/fotos-ilustrativas.json` (pastilhas: foto real da Varga). `_fotoErrada` lista fotos do cadastro que mostram outra peça (ex.: coxim de motor numa pastilha SYL), tratadas como sem foto.
 - **Resultado (com estoque):** 3.689 com foto própria, 3.888 com ilustrativa, 1.844 sem foto (grupos sem nenhuma foto).
 - **Caminho definitivo:** a loja fotografa e cadastra no ERP; a atualização das 7h/13h traz a foto própria e o selo some. Lista priorizada entregue ao Luca em `Octopool/Documentos/Nova Leões - peças com estoque sem foto (2026-09-28).csv` (vault).
+
+## Revisão de entrega — 28/09/2026
+
+- **Busca** (`lib/catalogo-site.ts`, `textoBusca`/`termosDe`/`raizBusca`): o índice e o que o cliente digita passam
+  pela mesma limpeza. Sem acento; apóstrofo e hífen somem (`D´agua` = `dagua`, `HR-V` = `hrv`); o resto da
+  pontuação vira espaço. Na busca:
+  - de/da/do/para/com são ignorados;
+  - singular e masculino valem pelo plural e pelo feminino;
+  - dt/ts/ld/le são siglas do balcão, e vw/gm são apelidos de montadora;
+  - os grupos de óleo por viscosidade (`5W30`, `20W50`, `ATF`…) ganham "óleo lubrificante" no índice.
+
+  O texto de marca, grupo e modelo é calculado uma vez por item da lista: montar as 39 mil peças continua em
+  ~70 ms.
+- **Nomes** (`nomes.mjs`): DIR vira "Direito" em peça de lado (lanterna, farol, retrovisor, porta…). Os
+  adjetivos logo depois de um nome feminino concordam com ele: "Lanterna Traseira Direita", "Bandeja Completa
+  Dianteira". A mudança entra na próxima atualização automática.
+- **Frete** (`lib/frete.ts`, `lib/loja.ts`):
+  - a loja passou para o nº 444 no OpenStreetMap (-23,4459 / -46,5476), e não mais o centro do CEP;
+  - o limite de tempo é compatível com o iOS 15;
+  - "CEP não existe" e "falha de conexão" têm mensagens diferentes;
+  - o mesmo CEP é consultado uma vez só por visita.
+- **Cache** (`vercel.json`): `/catalogo/*` usa `max-age=0, must-revalidate`, e a CDN da Vercel troca a cada deploy.
+  Assim o navegador não mostra o estoque do dia anterior.
+- **Pendência:** o nome dos arquivos de foto é o código interno do ERP. Ver
+  [entrega de 28/09](entrega-2026-09-28.md#com-o-luca-e-o-trotta).

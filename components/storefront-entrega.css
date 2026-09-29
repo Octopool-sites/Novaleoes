@@ -1,0 +1,102 @@
+/* Revisão de entrega (28/09/2026): celular, leitura e acessibilidade. Carregado por último na vitrine. */
+
+/* Topo: busca e menu no celular e em telas médias (onde a navegação some) */
+.nl-header-lupa, .nl-header-menu { display: none; flex: 0 0 auto; align-items: center; justify-content: center; width: 42px; height: 42px; border: 1px solid #dedfd4; border-radius: 50%; background: #fff; color: #36402f; cursor: pointer; }
+.nl-header-lupa.ativo { background: #303b2b; border-color: #303b2b; color: #fff; }
+.nl-header-lupa:focus-visible, .nl-header-menu:focus-visible { outline: 2px solid #b48c36; outline-offset: 2px; }
+.nl-header-carro:disabled { opacity: .6; cursor: progress; }
+.nl-header-busca input[type="search"]::-webkit-search-cancel-button { display: none; }
+@media (max-width: 1250px) {
+  .nl-store .nl-header-menu { display: inline-flex; }
+  .nl-store .nl-header-busca { flex: 1 1 180px; min-width: 0; }
+  .nl-store .store-header { gap: 12px; }
+}
+@media (max-width: 700px) {
+  .nl-store .store-header { gap: 6px; position: sticky; }
+  .nl-store .nl-header-lupa { display: inline-flex; margin-left: auto; }
+  .nl-store .nl-header-carro { margin-left: 0; }
+  .nl-store .cart-trigger { margin-left: 0; }
+  .nl-header-busca.aberta { display: flex; position: absolute; left: 12px; right: 12px; top: calc(100% + 6px); max-width: none; height: 48px; background: #fff; border-color: #8c916e; box-shadow: 0 12px 30px #20281d2e; z-index: 31; }
+  .nl-header-busca.aberta input { font-size: 16px; } /* 16px: o iPhone não dá zoom ao focar */
+}
+@media (max-width: 420px) {
+  .nl-store .store-header { padding-inline: 12px; gap: 4px; }
+  .nl-store .nl-header-carro { width: 38px; height: 38px; padding: 0; justify-content: center; }
+  .nl-store .nl-header-carro span { display: none; }
+  .nl-store .nl-header-lupa, .nl-store .nl-header-menu { width: 38px; height: 38px; }
+  .nl-store .cart-trigger { padding: 6px; }
+}
+@media (max-width: 350px) {
+  .nl-store .store-brand > span { font-size: 14px; }
+  .nl-store .store-brand img { width: 26px; height: 33px; }
+  .nl-store .nl-header-lupa, .nl-store .nl-header-menu, .nl-store .nl-header-carro { width: 34px; height: 34px; }
+}
+
+/* Menu da loja (gaveta lateral) */
+.nl-menu-sheet { width: min(360px, 92vw) !important; max-width: none !important; background: #fffefa; color: #283023; display: flex; flex-direction: column; overflow-y: auto; }
+.nl-menu-sheet [data-slot="sheet-title"] { font-size: 19px; font-weight: 600; color: #262921; }
+.nl-menu-links { display: grid; padding: 4px 16px; }
+.nl-menu-links a, .nl-menu-links button { display: grid; gap: 2px; padding: 13px 4px; border: 0; border-bottom: 1px solid #ecebe3; background: none; text-align: left; color: #283023; font: inherit; cursor: pointer; }
+.nl-menu-links b { font-size: 15px; font-weight: 600; }
+.nl-menu-links small { font-size: 13px; color: #5f6656; }
+.nl-menu-links a[aria-current="page"] b { color: #8a6415; }
+.nl-menu-links button:disabled { opacity: .6; }
+.nl-menu-contato { display: grid; gap: 10px; padding: 18px 20px 26px; margin-top: auto; }
+.nl-menu-contato .primary-button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 48px; border-radius: 9px; background: #303e29; color: #fff; font-weight: 500; text-decoration: none; }
+.nl-menu-telefone { display: inline-flex; align-items: center; justify-content: center; gap: 8px; color: #36402f; font-size: 14px; }
+
+/* Detalhe da peça no celular: a coluna não pode crescer além da tela (1fr aceitava a largura do conteúdo) */
+.nl-store .nl-product-dialog, .nl-product-dialog { grid-template-columns: minmax(0, .95fr) minmax(0, 1fr); }
+@media (max-width: 700px) {
+  .nl-product-dialog { grid-template-columns: minmax(0, 1fr) !important; width: calc(100vw - 20px) !important; max-width: calc(100vw - 20px) !important; max-height: calc(100dvh - 20px) !important; }
+  .nl-product-dialog .detail-photo { min-height: 0 !important; padding: 34px 16px 16px !important; }
+  .nl-product-dialog .detail-photo img { height: 150px !important; }
+  .nl-product-dialog .nl-desenho-tecnico img { max-height: 140px; }
+  .nl-product-dialog .detail-title { font-size: 24px !important; overflow-wrap: anywhere; }
+  .nl-product-dialog .detail-description { overflow-wrap: anywhere; }
+  .nl-product-dialog table { display: block; max-width: 100%; overflow-x: auto; }
+}
+
+/* Letras legíveis no celular (havia textos de 8 a 9 px nos cartões) */
+@media (max-width: 700px) {
+  .nl-store .product-brand { font-size: 11px !important; }
+  .nl-store .nl-product-card .application { font-size: 12px !important; }
+  .nl-store .nl-product-card .product-bottom small { font-size: 11.5px !important; }
+  .nl-store .category-nav button { font-size: 13px !important; }
+  .nl-store .nl-value-strip b { font-size: 13px !important; }
+  .nl-store .nl-value-strip small { font-size: 12px !important; }
+  .nl-store .nl-footer-meta { font-size: 11.5px !important; }
+  .nl-store .nl-kicker { font-size: 11px !important; }
+  .nl-store .cart-trigger b { width: 20px; height: 20px; font-size: 11px !important; }
+  .nl-foto-ilustrativa { font-size: 11px !important; }
+}
+
+/* Contraste mínimo (WCAG AA) nos textos pequenos em cinza */
+.nl-store .store-brand small { color: #5f6258; }
+.nl-vitrine-deps .nl-deps-grade button small { color: #5b6250; }
+.nl-store .nl-value-strip small { color: #5f6457; }
+.nl-store .category-nav button small { color: #5f6656; }
+.nl-store .category-nav button.active small { color: inherit; }
+
+/* Partes do carro: lista de verdade (leitor de tela anuncia os botões) */
+ul.nl-carro-zonas { list-style: none; margin: 0; padding: 0; }
+ul.nl-carro-zonas li { display: contents; }
+
+/* Aviso do filtro do carro e estado vazio */
+.nl-aviso-carro { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 4px 0 16px; padding: 11px 14px; border: 1px solid #e3dfcc; border-radius: 10px; background: #fffaf0; color: #4b4631; font-size: 13.5px; line-height: 1.5; }
+.nl-aviso-carro svg { flex: 0 0 auto; color: #b48c36; }
+.nl-aviso-carro span { flex: 1 1 260px; }
+.nl-aviso-carro button { border: 1px solid #b48c36; border-radius: 20px; padding: 6px 14px; background: #fff; color: #5b4715; font-weight: 600; font-size: 13px; cursor: pointer; }
+.nl-vazio-acoes { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 8px; }
+.nl-vazio-acoes a, .nl-vazio-acoes button { display: inline-flex; align-items: center; min-height: 40px; padding: 0 16px; border: 1px solid #d9dccd; border-radius: 22px; background: #fff; color: #303b2b; font-size: 14px; text-decoration: none; cursor: pointer; }
+.nl-vazio-acoes button:first-child { background: #303b2b; border-color: #303b2b; color: #fff; }
+
+/* Pedido enviado: copiar e confirmar */
+.nl-copiar { display: inline-flex; align-items: center; justify-content: center; gap: 8px; width: 100%; min-height: 46px; margin-top: 10px; border: 1px solid #cfd3c2; border-radius: 9px; background: #fff; color: #303b2b; font-weight: 500; cursor: pointer; }
+.nl-enviado-pronto { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
+.nl-ultimo-pedido { display: inline-flex; align-items: center; gap: 6px; margin-top: 14px; color: #4d5a3f; font-size: 13.5px; }
+.nl-link-botao { border: 0; background: none; padding: 0; color: inherit; font: inherit; font-weight: 600; text-decoration: underline; cursor: pointer; }
+
+/* Botões do carro: sem quebrar o texto em três linhas no celular */
+.nl-carro-controles .nl-carro-abrir, .nl-carro-controles .nl-carro-dica { white-space: nowrap; flex: 0 0 auto; }
+.nl-cart-sheet .nl-enviado-pronto { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; }

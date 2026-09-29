@@ -118,7 +118,21 @@ export function limparNome(nome) {
   let resultado = partes.join(" ").replace(/\s+/g, " ").replace(/\s\/\s/g, " / ").trim();
   // Primeira palavra sempre capitalizada, mesmo que seja preposição.
   resultado = resultado.charAt(0).toUpperCase() + resultado.slice(1);
-  return resultado;
+  return concordar(ladoDireito(resultado));
+}
+
+// DIR é "Direção" na peça de direção, mas é o lado ("Direito") em lanterna, farol, retrovisor, porta...
+const PECA_DE_LADO = /(^|\s)(Lanterna|Farol|Farolete|Retrovisor|Retrov|Porta|Maçaneta|Vidro|Pisca|Paralama|Para-choque|Espelho|Moldura|Friso|Manivela|Fechadura|Máquina|Seta)(?=\s|$)/;
+function ladoDireito(nome) {
+  return PECA_DE_LADO.test(nome) ? nome.replace(/(^|\s)Direção(?=\s|$)/g, "$1Direito") : nome;
+}
+
+// Concordância: "Lanterna Traseiro" → "Lanterna Traseira", "Bandeja Completo Dianteiro" → "Bandeja Completa Dianteira".
+// Só os adjetivos logo depois do nome feminino; "Pastilha Freio Dianteiro" (o freio é dianteiro) não muda.
+const FEMININOS = /^(Lanterna|Maçaneta|Porta|Moldura|Grade|Tampa|Luz|Lente|Bandeja|Mola|Borracha|Manga|Ponteira|Manivela|Fechadura|Máquina|Palheta|Alavanca)((?: (?:Traseiro|Dianteiro|Interno|Externo|Completo|Direito|Esquerdo|Cromado|Superior|Inferior))+)(?=\s|$)/;
+const FEMININO = { Traseiro: "Traseira", Dianteiro: "Dianteira", Interno: "Interna", Externo: "Externa", Completo: "Completa", Direito: "Direita", Esquerdo: "Esquerda", Cromado: "Cromada" };
+function concordar(nome) {
+  return nome.replace(FEMININOS, (_, substantivo, adjetivos) => substantivo + adjetivos.replace(/\w+/g, (a) => FEMININO[a] ?? a));
 }
 
 export function limparGrupo(grupo) {

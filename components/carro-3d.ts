@@ -18,6 +18,7 @@ import {
   Scene,
   ShaderMaterial,
   Sphere,
+  Texture,
   SRGBColorSpace,
   Vector3,
   WebGLRenderer,
@@ -104,8 +105,8 @@ const PITCH_MIN = 0.16, PITCH_MAX = 0.62, PITCH_INICIAL = 0.36;
 const YAW_INICIAL = -0.78; // três quartos: frente à esquerda, lateral esquerda à mostra
 
 // Só a pintura precisa do material "físico" (verniz); os outros viram o padrão, que compila mais rápido.
-const trocados = new Map<Material, MeshStandardMaterial>();
-function simplificar(m: MeshStandardMaterial): MeshStandardMaterial {
+// O mapa é de cada montagem: global, ele guardava os materiais (e texturas) de todas as montagens anteriores.
+function simplificar(m: MeshStandardMaterial, trocados: Map<Material, MeshStandardMaterial>): MeshStandardMaterial {
   if (!(m instanceof MeshPhysicalMaterial) || m.name.toUpperCase() === "LATARIA") return m;
   let novo = trocados.get(m);
   if (!novo) {
@@ -155,7 +156,13 @@ function liberar(raiz: Object3D) {
     for (const m of Array.isArray(o.material) ? o.material : [o.material]) materiais.add(m);
   });
   geometrias.forEach((g) => g.dispose());
-  materiais.forEach((m) => m.dispose());
+  // Texturas não saem com o material: sem isto, cada ida e volta de página deixava as imagens do carro na GPU.
+  const texturas = new Set<Texture>();
+  materiais.forEach((m) => {
+    for (const valor of Object.values(m)) if (valor instanceof Texture) texturas.add(valor);
+    m.dispose();
+  });
+  texturas.forEach((t) => { t.dispose(); (t.source?.data as { close?: () => void } | undefined)?.close?.(); });
 }
 
 export async function montarCarro3D(host: HTMLElement, opcoes: {
@@ -239,7 +246,8 @@ export async function montarCarro3D(host: HTMLElement, opcoes: {
     const meioV = (camera.fov * Math.PI) / 360;
     const meioH = Math.atan(Math.tan(meioV) * aspecto);
     // A esfera sobra muito em volta do carro (ele é baixo e comprido): a folga aproxima a câmera.
-    const folga = largura < 700 ? 0.74 : aspecto > 1.3 ? 0.72 : 0.8;
+    // No celular (retrato) 0,74 deixava a frente e a traseira do carro fora da tela.
+    const folga = largura < 700 ? 0.86 : aspecto > 1.3 ? 0.72 : 0.8;
     const distancia = (raio / Math.sin(Math.min(meioV, meioH))) * folga;
     camera.aspect = aspecto;
     // Aberto, o capô e o porta-malas sobem: a câmera acompanha o centro do carro aberto.
@@ -374,13 +382,14 @@ export async function montarCarro3D(host: HTMLElement, opcoes: {
     if (descartado) { liberar(gltf.scene); return handle; }
 
     // Acabamento de cada material para parecer carro de verdade (o modelo veio com vários sem cor ou espelhados).
+    const trocados = new Map<Material, MeshStandardMaterial>();
     gltf.scene.traverse((o) => {
       if (!(o instanceof Mesh)) return;
       const lista = Array.isArray(o.material) ? o.material : [o.material];
       const transparente = lista.some((m) => m.transparent);
       o.castShadow = !transparente;
       o.receiveShadow = !transparente;
-      const novos = lista.map((m) => (m instanceof MeshStandardMaterial ? acabamento(simplificar(m)) : m));
+      const novos = lista.map((m) => (m instanceof MeshStandardMaterial ? acabamento(simplificar(m, trocados)) : m));
       o.material = Array.isArray(o.material) ? novos : novos[0];
     });
     centralizador.add(gltf.scene);

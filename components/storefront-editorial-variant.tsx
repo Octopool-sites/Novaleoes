@@ -68,7 +68,7 @@ function CatalogReference({ product }: { product: Product }) {
   const [photoFailed, setPhotoFailed] = useState(false);
   return <div className="nl-v2-catalog-reference">
     {product.image && !photoFailed && <img src={product.image} alt="" loading="lazy" decoding="async" onError={() => setPhotoFailed(true)} />}
-    <div><span>NO CATÁLOGO NOVA LEÕES</span><strong>{productTitles[product.id] || product.name}</strong><small>{product.brand} · Cód. {product.sku}</small></div>
+    <div><span>NO CATÁLOGO NOVA LEÕES</span><strong>{productTitles[product.id] || product.name}</strong><small>{product.brand}{product.sku ? ` · Cód. ${product.sku}` : ""}</small></div>
   </div>;
 }
 

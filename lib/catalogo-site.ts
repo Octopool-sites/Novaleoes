@@ -5,6 +5,42 @@ export function normalizeSearch(s: string) {
   return s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
 }
 
+// Texto da busca, igual no índice e no que o cliente digita: sem acento, apóstrofo e hífen somem
+// ("D´agua" = "dagua", "HR-V" = "hrv", "S-10" = "s10"), o resto da pontuação vira espaço.
+export function textoBusca(s: string) {
+  return normalizeSearch(s).replace(/['´`’‘"]/g, "").replace(/(\S)-(?=\S)/g, "$1").replace(/[/,;:()[\]{}+*!?|]+/g, " ").replace(/\s+/g, " ").trim();
+}
+
+const PALAVRAS_VAZIAS = new Set(["de", "da", "do", "das", "dos", "para", "pra", "pro", "com", "e", "o", "a", "os", "as", "em", "no", "na", "p"]);
+// Abreviações do balcão e apelidos de montadora: o termo digitado vale por qualquer uma das formas.
+// Siglas de duas letras substituem o termo (sozinhas casariam com qualquer palavra: "ts" está em "kits").
+const SIGLAS: Record<string, string[]> = { dt: ["dianteir"], ts: ["traseir"], ld: ["direit"], le: ["esquerd"] };
+const SINONIMOS: Record<string, string[]> = {
+  diant: ["dianteir"], tras: ["traseir"], amort: ["amortecedor"], vw: ["volkswagen"], gm: ["chevrolet"], chevy: ["chevrolet"], mb: ["mercedes"],
+};
+
+// Singular e masculino: "pastilhas" acha "pastilha", "amortecedores" acha "amortecedor", "dianteira" acha "dianteiro".
+export function raizBusca(t: string) {
+  let r = t;
+  if (r.length > 4 && (r.endsWith("oes") || r.endsWith("aes"))) r = `${r.slice(0, -3)}ao`;
+  else if (r.length > 4 && r.endsWith("ois")) r = `${r.slice(0, -3)}ol`;
+  else if (r.length > 4 && r.endsWith("eis")) r = `${r.slice(0, -3)}el`;
+  else if (r.length > 4 && r.endsWith("ns")) r = `${r.slice(0, -2)}m`;
+  else if (r.length > 5 && /[rzl]es$/.test(r)) r = r.slice(0, -2);
+  else if (r.length >= 4 && r.endsWith("s") && !r.endsWith("ss") && !/\d/.test(r)) r = r.slice(0, -1);
+  if (r.length >= 6 && /[ao]$/.test(r)) r = r.slice(0, -1);
+  return r;
+}
+
+// Cada palavra da busca vira a lista de formas que valem por ela; a peça precisa ter todas as palavras.
+export function termosDe(q: string): string[][] {
+  return textoBusca(q).split(" ").filter((t) => t && !PALAVRAS_VAZIAS.has(t))
+    .map((t) => SIGLAS[t] || [...new Set([raizBusca(t), ...(SINONIMOS[t] || [])])]);
+}
+
+// Óleo de motor e de câmbio vem em grupos pela viscosidade ("5W30", "20W50", "ATF"), sem a palavra "óleo".
+const GRUPO_OLEO = /^(\d{1,2}w(\d{2})?|atf|sae|oleo.*)$/i;
+
 export type Departamento = { id: string; nome: string; resumo: string; n: number; grupos: number[]; capa: string };
 export type Meta = {
   versao: number; exportadoEm: string | null; geradoEm: string; empresa: string; total: number; comEstoque: number; comFoto: number;
@@ -44,15 +80,19 @@ export function urlFoto(meta: Meta, foto: string) {
 
 export function montarCatalogo(meta: Meta, linhas: LinhaIndice[]): Catalogo {
   const departamentoDoGrupo = meta.grupos.map((g) => meta.departamentos[g[1]]);
+  // Texto de busca de marca, grupo e modelo calculado uma vez por item da lista, não uma vez por peça.
+  const marcaBusca = meta.marcas.map((m) => textoBusca(m[0]));
+  const grupoBusca = meta.grupos.map((g, i) => textoBusca(`${g[0]} ${departamentoDoGrupo[i]?.nome ?? ""}${GRUPO_OLEO.test(normalizeSearch(g[0])) ? " oleo lubrificante" : ""}`));
+  const modeloBusca = meta.modelos.map((m) => textoBusca(`${meta.montadoras[m[0]]} ${m[1]}`));
   const pecas: Peca[] = linhas.map((l) => {
     const marca = l[2] >= 0 ? meta.marcas[l[2]][0] : "";
     const grupo = meta.grupos[l[3]][0];
     const departamento = departamentoDoGrupo[l[3]];
-    const modelos = l[7].map(([m]) => `${meta.montadoras[meta.modelos[m][0]]} ${meta.modelos[m][1]}`).join(" ");
+    const modelos = l[7].map(([m]) => modeloBusca[m]).join(" ");
     return {
       id: l[0], nome: l[1], marca, grupo, grupoIdx: l[3], departamento, precoCents: l[4], disponivel: l[5], foto: l[6], aplicacoes: l[7],
       externalId: l[8] || null, unidade: meta.unidades[l[9]] || "", quantidadeMinima: l[10] || 1, fotoIlustrativa: l[11] === 1,
-      busca: normalizeSearch(`${l[1]} ${marca} ${grupo} ${departamento.nome} ${modelos}`),
+      busca: `${textoBusca(l[1])} ${l[2] >= 0 ? marcaBusca[l[2]] : ""} ${grupoBusca[l[3]]} ${modelos}`,
       depOrdem: meta.departamentos.indexOf(departamento), grupoN: meta.grupos[l[3]][2],
     };
   });
@@ -95,11 +135,6 @@ export async function carregarDetalhe(catalogo: Catalogo, id: string, base = BAS
   return (await detalhesCache.get(bucket)!)[id] ?? null;
 }
 
-// Termos de busca: cada palavra precisa aparecer (ordem livre). "pastilha gol" acha "Pastilha Freio ... Volkswagen Gol".
-export function termosDe(q: string) {
-  return normalizeSearch(q).split(/\s+/).filter((t) => t.length > 0);
-}
-
 export function aplicaAno(aplicacao: [number, number, number], ano: number) {
   const [, inicio, fim] = aplicacao;
   if (!ano) return true;
@@ -124,13 +159,13 @@ export function filtrar(catalogo: Catalogo, filtro: Filtro): Peca[] {
     } else if (filtro.ano) {
       if (!p.aplicacoes.some((a) => aplicaAno(a, filtro.ano))) return false;
     }
-    if (termos.length && !termos.every((t) => p.busca.includes(t))) return false;
+    if (termos.length && !termos.every((formas) => formas.some((t) => p.busca.includes(t)))) return false;
     return true;
   });
   return ordenar(resultado, filtro, termos);
 }
 
-function ordenar(pecas: Peca[], filtro: Filtro, termos: string[]) {
+function ordenar(pecas: Peca[], filtro: Filtro, termos: string[][]) {
   const nome = (a: Peca, b: Peca) => a.nome.localeCompare(b.nome, "pt-BR");
   if (filtro.ordem === "nome") return pecas.sort(nome);
   if (filtro.ordem === "menor-preco") return pecas.sort((a, b) => (a.precoCents || Infinity) - (b.precoCents || Infinity) || nome(a, b));
@@ -142,9 +177,10 @@ function ordenar(pecas: Peca[], filtro: Filtro, termos: string[]) {
     if (p.foto) s += 2;
     if (p.externalId) s += 3;
     if (termos.length) {
-      const nomeNorm = normalizeSearch(p.nome);
-      if (termos.every((t) => nomeNorm.includes(t))) s += 6;
-      else if (termos.some((t) => nomeNorm.includes(t))) s += 2;
+      const nomeNorm = textoBusca(p.nome);
+      const noNome = (formas: string[]) => formas.some((t) => nomeNorm.includes(t));
+      if (termos.every(noNome)) s += 6;
+      else if (termos.some(noNome)) s += 2;
     }
     return s;
   };

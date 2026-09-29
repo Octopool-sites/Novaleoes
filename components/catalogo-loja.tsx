@@ -6,6 +6,7 @@ import {
   type Catalogo, type Filtro, type Peca, FILTRO_VAZIO, anosDisponiveis, filtrar, money, resumoAplicacoes, urlFoto,
 } from "@/lib/catalogo-site";
 import { type Veiculo, type VeiculoSalvo, servePara } from "@/lib/garagem";
+import { whatsappUrl } from "@/lib/loja";
 import "./catalogo-loja.css";
 
 const PAGINA = 24;
@@ -31,7 +32,7 @@ export function precoDaPeca(peca: Peca, live: Map<string, Product>) {
 
 export function disponibilidadeDaPeca(peca: Peca, live: Map<string, Product>) {
   const atual = peca.externalId ? live.get(peca.externalId) : undefined;
-  if (atual) return atual.stock > 0 ? { texto: "Em estoque · pedido online", classe: "nl-disp-online", estoque: atual.stock } : { texto: "Indisponível no momento", classe: "nl-disp-fora", estoque: 0 };
+  if (atual) return atual.stock > 0 ? { texto: "Em estoque na loja", classe: "nl-disp-online", estoque: atual.stock } : { texto: "Indisponível no momento", classe: "nl-disp-fora", estoque: 0 };
   if (peca.disponivel > 0) return { texto: "Em estoque na loja", classe: "nl-disp-loja", estoque: peca.disponivel };
   return { texto: "Sob encomenda · consulte", classe: "nl-disp-consulta", estoque: 0 };
 }
@@ -65,6 +66,13 @@ export default function CatalogoLoja({ catalogo, carregando, erro, live, filtro,
   const [filtrosAbertos, setFiltrosAbertos] = useState(false);
   const filtroAdiado = useDeferredValue(filtro);
   const resultados = useMemo(() => (catalogo ? filtrar(catalogo, filtroAdiado) : []), [catalogo, filtroAdiado]);
+  // Com o carro no filtro, as peças universais (lâmpada, óleo, bateria…) e as sem aplicação cadastrada ficam de fora.
+  // Numa busca, avisa quantas existem sem o filtro do carro.
+  const comCarro = filtroAdiado.montadora >= 0 || filtroAdiado.modelo >= 0;
+  const semCarro = useMemo(() => (catalogo && comCarro && (filtroAdiado.q.trim() || filtroAdiado.grupo >= 0)
+    ? filtrar(catalogo, { ...filtroAdiado, montadora: -1, modelo: -1, ano: 0 }).length : 0), [catalogo, comCarro, filtroAdiado]);
+  // Marcas contadas sem o filtro de marca: escolher uma não esconde as outras da lista.
+  const resultadosSemMarca = useMemo(() => (catalogo && filtroAdiado.marca >= 0 ? filtrar(catalogo, { ...filtroAdiado, marca: -1 }) : resultados), [catalogo, filtroAdiado, resultados]);
   useEffect(() => { setLimite(PAGINA); }, [filtroAdiado]);
 
   const meta = catalogo?.meta;
@@ -84,10 +92,12 @@ export default function CatalogoLoja({ catalogo, carregando, erro, live, filtro,
   const marcas = useMemo(() => {
     if (!meta) return [] as { idx: number; nome: string; n: number }[];
     const contagem = new Map<string, number>();
-    for (const p of resultados) if (p.marca) contagem.set(p.marca, (contagem.get(p.marca) || 0) + 1);
+    for (const p of resultadosSemMarca) if (p.marca) contagem.set(p.marca, (contagem.get(p.marca) || 0) + 1);
     const lista = meta.marcas.map((m, idx) => ({ idx, nome: m[0], n: contagem.get(m[0]) || 0 })).filter((m) => m.n > 0 || m.idx === filtro.marca);
     return lista.sort((a, b) => b.n - a.n || a.nome.localeCompare(b.nome, "pt-BR")).slice(0, 60);
-  }, [meta, resultados, filtro.marca]);
+  }, [meta, resultadosSemMarca, filtro.marca]);
+  const verSemCarro = () => atualizar({ montadora: -1, modelo: -1, ano: 0 });
+  const rotuloCarro = meta && filtro.modelo >= 0 ? `${meta.montadoras[meta.modelos[filtro.modelo][0]]} ${meta.modelos[filtro.modelo][1]}${filtro.ano ? ` ${filtro.ano}` : ""}` : meta && filtro.montadora >= 0 ? meta.montadoras[filtro.montadora] : "";
 
   const atualizar = (parte: Partial<Filtro>) => onFiltro({ ...filtro, ...parte });
   // Montadora → modelo → ano, um de cada vez. O carro fica lembrado a partir do modelo.
@@ -188,6 +198,14 @@ export default function CatalogoLoja({ catalogo, carregando, erro, live, filtro,
         </div>
       )}
 
+      {semCarro > resultados.length && resultados.length > 0 && (
+        <p className="nl-aviso-carro" role="status">
+          <CarFront size={16} aria-hidden="true" />
+          <span>Mostrando {resultados.length.toLocaleString("pt-BR")} {resultados.length === 1 ? "peça" : "peças"} com aplicação cadastrada para o {rotuloCarro}. Sem o filtro do carro são {semCarro.toLocaleString("pt-BR")}, incluindo peças universais.</span>
+          <button type="button" onClick={verSemCarro}>Ver todas</button>
+        </p>
+      )}
+
       {erro && (
         <div className="inline-error">
           <AlertCircle size={18} /> Não foi possível carregar o catálogo. <button type="button" onClick={onTentarNovamente}>Tentar novamente</button>
@@ -201,9 +219,15 @@ export default function CatalogoLoja({ catalogo, carregando, erro, live, filtro,
       {catalogo && !resultados.length && !carregando && (
         <div className="empty-state">
           <Search />
-          <h3>Nenhuma peça encontrada</h3>
-          <p>Tente outro nome, a marca da peça ou só o modelo do carro. Se preferir, a equipe procura para você pelo WhatsApp.</p>
-          <button type="button" onClick={() => onFiltro(FILTRO_VAZIO)}>Limpar busca e filtros</button>
+          <h3>Nenhuma peça encontrada{rotuloCarro ? ` para o ${rotuloCarro}` : ""}</h3>
+          {semCarro > 0
+            ? <p>Existem {semCarro.toLocaleString("pt-BR")} {semCarro === 1 ? "peça" : "peças"} para essa busca sem o filtro do carro (peças universais ou sem aplicação cadastrada). A equipe confere se servem no seu carro.</p>
+            : <p>Tente outro nome, a marca da peça ou só o modelo do carro. Se preferir, a equipe procura para você pelo WhatsApp.</p>}
+          <div className="nl-vazio-acoes">
+            {semCarro > 0 && <button type="button" onClick={verSemCarro}>Ver as {semCarro.toLocaleString("pt-BR")} sem o filtro do carro</button>}
+            <button type="button" onClick={() => onFiltro({ ...FILTRO_VAZIO, q: filtro.q, montadora: filtro.montadora, modelo: filtro.modelo, ano: filtro.ano })}>Limpar os outros filtros</button>
+            <a href={whatsappUrl(`Olá! Procuro esta peça e não achei no site: ${filtro.q || "(descrever)"}${rotuloCarro ? `\nCarro: ${rotuloCarro}` : ""}`)} target="_blank" rel="noopener noreferrer">Pedir para a loja procurar</a>
+          </div>
         </div>
       )}
       {resultados.length > visiveis.length && (
@@ -226,11 +250,12 @@ function CartaoPeca({ peca, catalogo, live, veiculo, onSelecionar, onAdicionar }
   const serve = servePara(peca, veiculo);
   return (
     <article className="product-card nl-product-card">
-      <button type="button" className="product-photo photo-button" onClick={() => onSelecionar(peca)} aria-label={`Ver detalhes de ${titulo}`}>
-        {foto ? <img src={foto} alt={titulo} loading="lazy" decoding="async" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} /> : <div className="nl-photo-placeholder"><Package size={44} strokeWidth={1} /><small>Foto em breve</small></div>}
-        <span>{peca.grupo}</span>
-        {foto && fotoIlustrativa(peca, live) && <small className="nl-foto-ilustrativa">Foto ilustrativa</small>}
-        {serve && <em className="nl-serve"><Check size={13} /> Serve no seu {catalogo.meta.modelos[veiculo!.modelo]?.[1] ?? "carro"}</em>}
+      <button type="button" className="product-photo photo-button" onClick={() => onSelecionar(peca)}>
+        <span className="sr-only">{titulo}: ver detalhes{serve ? ", serve no seu carro" : ""}</span>
+        {foto ? <img src={foto} alt="" loading="lazy" decoding="async" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} /> : <div className="nl-photo-placeholder" aria-hidden="true"><Package size={44} strokeWidth={1} /><small>Foto em breve</small></div>}
+        <span aria-hidden="true">{peca.grupo}</span>
+        {foto && fotoIlustrativa(peca, live) && <small className="nl-foto-ilustrativa" aria-hidden="true">Foto ilustrativa</small>}
+        {serve && <em className="nl-serve" aria-hidden="true"><Check size={13} /> Serve no seu {catalogo.meta.modelos[veiculo!.modelo]?.[1] ?? "carro"}</em>}
         <i className="nl-photo-open" aria-hidden="true"><ArrowUpRight size={18} /></i>
       </button>
       <div className="product-info">
@@ -242,7 +267,7 @@ function CartaoPeca({ peca, catalogo, live, veiculo, onSelecionar, onAdicionar }
             <strong>{preco > 0 ? money(preco) : "Consultar preço"}</strong>
             <small className={disp.classe}>{disp.texto}{peca.quantidadeMinima > 1 ? ` · mín. ${peca.quantidadeMinima}` : ""}</small>
           </div>
-          <button type="button" disabled={indisponivel} onClick={() => onAdicionar(peca)} aria-label={`Adicionar ${titulo} ao pedido`} className="add-button"><Plus size={17} /><span>{indisponivel ? "Indisponível" : "Adicionar ao pedido"}</span></button>
+          <button type="button" disabled={indisponivel} onClick={() => onAdicionar(peca)} aria-label={`${indisponivel ? "Indisponível" : "Adicionar ao pedido"}: ${titulo}`} className="add-button"><Plus size={17} /><span>{indisponivel ? "Indisponível" : "Adicionar ao pedido"}</span></button>
         </div>
       </div>
     </article>
