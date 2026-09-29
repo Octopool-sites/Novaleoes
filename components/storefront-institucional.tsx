@@ -120,7 +120,7 @@ export function RodapeLoja({ storefrontHref, departamentos, onDepartamento, onPa
         </div>
         <div className="nl-footer-colunas">
           <div className="nl-footer-coluna">
-            <a className="store-brand" href={storefrontHref} aria-label="NOVA LEÕES AUTOPEÇAS, início"><img src={caminho("assets/logo.png")} alt="" loading="lazy" /><span>NOVA LEÕES<small>AUTOPEÇAS</small></span></a>
+            <a className="store-brand" href={storefrontHref} aria-label="NOVA LEÕES AUTOPEÇAS, início"><img src={caminho("assets/logo.png")} alt="" loading="lazy" /><span>NOVA LEÕES<small>AUTOPEÇAS</small><small className="nl-desde">DESDE {LOJA.fundacao}</small></span></a>
             <p>{LOJA.razaoSocial}<br />CNPJ {LOJA.cnpj}</p>
             <p>{LOJA.endereco.logradouro}, {LOJA.endereco.numero} · {LOJA.endereco.bairro}<br />{CIDADE} · CEP {LOJA.endereco.cep}</p>
           </div>
@@ -141,7 +141,7 @@ export function RodapeLoja({ storefrontHref, departamentos, onDepartamento, onPa
             {LOJA.instagram ? <a href={`https://www.instagram.com/${LOJA.instagram}`} target="_blank" rel="noopener noreferrer">Instagram</a> : null}
           </div>
         </div>
-        <div className="nl-footer-meta"><span>Seu carro. Nosso cuidado. · © {new Date().getFullYear()} {LOJA.nome}</span><span>Um ambiente da <b>octopool</b> · <a href="/gestao">Acesso da equipe <ArrowUpRight size={13} /></a></span></div>
+        <div className="nl-footer-meta"><span>Seu carro. Nosso cuidado. · © {new Date().getFullYear()} {LOJA.nome}</span><span>Um ambiente da <b>octopool</b></span></div>
       </div>
     </footer>
   );

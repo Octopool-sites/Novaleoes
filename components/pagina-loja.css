@@ -1,15 +1,15 @@
 .nl-pagina { padding: 34px 0 80px; }
-.nl-pagina-trilha { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding-bottom: 18px; border-bottom: 1px solid #e1e3d8; color: #6c7362; font-size: 13px; }
-.nl-pagina-trilha a { display: inline-flex; align-items: center; gap: 7px; color: #303b2b; font-weight: 500; text-decoration: none; }
+.nl-pagina-trilha { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding-bottom: 18px; border-bottom: 1px solid var(--nl-linha); color: var(--nl-chumbo-3); font-size: 13px; }
+.nl-pagina-trilha a { display: inline-flex; align-items: center; gap: 7px; color: var(--nl-chumbo); font-weight: 500; text-decoration: none; }
 .nl-pagina-trilha a:hover { text-decoration: underline; }
-.nl-pagina-trilha b { color: #303b2b; font-weight: 500; }
-.nl-pagina-outras { margin-top: 64px; padding-top: 34px; border-top: 1px solid #e1e3d8; }
+.nl-pagina-trilha b { color: var(--nl-chumbo); font-weight: 500; }
+.nl-pagina-outras { margin-top: 64px; padding-top: 34px; border-top: 1px solid var(--nl-linha); }
 .nl-pagina-outras > div { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; margin-top: 18px; }
-.nl-pagina-outras a { position: relative; display: block; padding: 18px 44px 18px 18px; border: 1px solid #e1e3d8; border-radius: 12px; background: #fff; color: #303b2b; text-decoration: none; transition: border-color .2s; }
-.nl-pagina-outras a:hover { border-color: #9a8044; }
-.nl-pagina-outras b { display: block; font-size: 15px; font-weight: 500; }
-.nl-pagina-outras small { display: block; margin-top: 4px; color: #747969; font-size: 12px; }
-.nl-pagina-outras svg { position: absolute; right: 16px; top: 50%; transform: translateY(-50%); color: #9a8044; }
+.nl-pagina-outras a { position: relative; display: block; padding: 18px 44px 18px 18px; border: 1px solid var(--nl-linha); border-radius: 12px; background: #fff; color: var(--nl-chumbo); text-decoration: none; transition: border-color .2s; }
+.nl-pagina-outras a:hover { border-color: var(--nl-laranja-texto); }
+.nl-pagina-outras b { display: block; font-size: 15px; font-weight: 600; }
+.nl-pagina-outras small { display: block; margin-top: 4px; color: var(--nl-chumbo-3); font-size: 12px; }
+.nl-pagina-outras svg { position: absolute; right: 16px; top: 50%; transform: translateY(-50%); color: var(--nl-laranja-texto); }
 @media (max-width: 700px) {
   .nl-pagina { padding: 22px 0 56px; }
   .nl-pagina-outras { margin-top: 44px; }
