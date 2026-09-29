@@ -61,3 +61,16 @@ test("garagem: veículo salvo pelo nome, resolvido para índices e usado no selo
   assert.equal(m.servePara(peca, { ...v, ano: 2015 }), false);
   assert.equal(m.servePara(peca, null), false);
 });
+
+test("frete: CEP inexistente e falha de conexão têm mensagens diferentes", async () => {
+  const original = globalThis.fetch;
+  try {
+    globalThis.fetch = async (url) => (String(url).includes("awesomeapi") ? new Response("{}", { status: 404 }) : new Response(JSON.stringify({ erro: true })));
+    await assert.rejects(m.consultarCep("99999-999"), /Não encontramos esse CEP/);
+    globalThis.fetch = async () => { throw new TypeError("Failed to fetch"); };
+    await assert.rejects(m.consultarCep("07110-000"), /Não conseguimos consultar o CEP agora/);
+    globalThis.fetch = async () => new Response(JSON.stringify({ city: "Guarulhos", state: "SP", address: "Rua Luiz Faccini", district: "Centro", lat: "-23.4673858", lng: "-46.5276569" }));
+    const r = await m.calcularFrete("07110-000");
+    assert.equal(r.opcoes[0].tipo, "entrega");
+  } finally { globalThis.fetch = original; }
+});

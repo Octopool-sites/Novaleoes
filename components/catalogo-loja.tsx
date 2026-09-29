@@ -250,7 +250,8 @@ function CartaoPeca({ peca, catalogo, live, veiculo, onSelecionar, onAdicionar }
   const serve = servePara(peca, veiculo);
   return (
     <article className="product-card nl-product-card">
-      <button type="button" className="product-photo photo-button" onClick={() => onSelecionar(peca)} aria-label={`${titulo}: ver detalhes${serve ? ", serve no seu carro" : ""}`}>
+      <button type="button" className="product-photo photo-button" onClick={() => onSelecionar(peca)}>
+        <span className="sr-only">{titulo}: ver detalhes{serve ? ", serve no seu carro" : ""}</span>
         {foto ? <img src={foto} alt="" loading="lazy" decoding="async" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} /> : <div className="nl-photo-placeholder" aria-hidden="true"><Package size={44} strokeWidth={1} /><small>Foto em breve</small></div>}
         <span aria-hidden="true">{peca.grupo}</span>
         {foto && fotoIlustrativa(peca, live) && <small className="nl-foto-ilustrativa" aria-hidden="true">Foto ilustrativa</small>}

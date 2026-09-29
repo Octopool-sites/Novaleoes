@@ -38,32 +38,42 @@ export function opcoesPorDistancia(km: number | null, mesmaCidade: boolean): Opc
   return [combinar, retirada];
 }
 
-async function buscarJson(url: string): Promise<any> {
+// "nao-existe": o serviço respondeu que o CEP não existe; qualquer outra falha é de conexão.
+class FalhaCep extends Error { constructor(readonly naoExiste: boolean) { super(naoExiste ? "nao-existe" : "conexao"); } }
+
+async function buscarJson(url: string, ms: number): Promise<any> {
   // AbortController + setTimeout em vez de AbortSignal.timeout, que não existe no Safari antes do iOS 16.
   const controle = new AbortController();
-  const limite = setTimeout(() => controle.abort(), 8000);
+  const limite = setTimeout(() => controle.abort(), ms);
   try {
     const r = await fetch(url, { signal: controle.signal });
-    if (!r.ok) throw new Error(String(r.status));
+    if (r.status === 400 || r.status === 404) throw new FalhaCep(true);
+    if (!r.ok) throw new FalhaCep(false);
     return await r.json();
+  } catch (e) {
+    throw e instanceof FalhaCep ? e : new FalhaCep(false);
   } finally { clearTimeout(limite); }
 }
 
 export async function consultarCep(valor: string): Promise<Endereco> {
   const cep = limparCep(valor);
   if (cep.length !== 8) throw new Error("Digite os 8 números do CEP.");
+  let naoExiste = 0;
   try {
-    const d = await buscarJson(`https://cep.awesomeapi.com.br/json/${cep}`);
+    const d = await buscarJson(`https://cep.awesomeapi.com.br/json/${cep}`, 5000);
     if (d && d.city) {
       const lat = Number(d.lat), lng = Number(d.lng);
       return { cep, logradouro: d.address || "", bairro: d.district || "", cidade: d.city, uf: d.state || "", lat: Number.isFinite(lat) && lat ? lat : null, lng: Number.isFinite(lng) && lng ? lng : null };
     }
-  } catch { /* tenta a reserva */ }
+    naoExiste++;
+  } catch (e) { if (e instanceof FalhaCep && e.naoExiste) naoExiste++; /* tenta a reserva */ }
   try {
-    const d = await buscarJson(`https://viacep.com.br/ws/${cep}/json/`);
+    const d = await buscarJson(`https://viacep.com.br/ws/${cep}/json/`, 6000);
     if (d && !d.erro) return { cep, logradouro: d.logradouro || "", bairro: d.bairro || "", cidade: d.localidade || "", uf: d.uf || "", lat: null, lng: null };
-  } catch { /* sem serviço */ }
-  throw new Error("Não encontramos esse CEP. Confira os números.");
+    naoExiste++;
+  } catch (e) { if (e instanceof FalhaCep && e.naoExiste) naoExiste++; }
+  // Só diz que o CEP não existe quando um serviço respondeu isso; lentidão da internet pede para tentar de novo.
+  throw new Error(naoExiste ? "Não encontramos esse CEP. Confira os números." : "Não conseguimos consultar o CEP agora. Toque em Calcular para tentar de novo.");
 }
 
 // Mesmo CEP na mesma visita (carrinho, checkout, página da peça): consulta uma vez só.

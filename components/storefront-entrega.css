@@ -75,6 +75,8 @@
 .nl-store .store-brand small { color: #5f6258; }
 .nl-vitrine-deps .nl-deps-grade button small { color: #5b6250; }
 .nl-store .nl-value-strip small { color: #5f6457; }
+.nl-store .category-nav button small { color: #5f6656; }
+.nl-store .category-nav button.active small { color: inherit; }
 
 /* Partes do carro: lista de verdade (leitor de tela anuncia os botões) */
 ul.nl-carro-zonas { list-style: none; margin: 0; padding: 0; }

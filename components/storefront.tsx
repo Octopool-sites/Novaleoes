@@ -494,7 +494,7 @@ export default function Storefront() {
             <a key={p} href={hrefPagina(p)} aria-current={pagina === p ? "page" : undefined} onClick={(e) => { e.preventDefault(); mudarPagina(p); }}>{rotulo}</a>
           ))}
         </nav>
-        <button className="cart-trigger" aria-label={`Meu pedido, ${count} ${count === 1 ? "peça" : "peças"}`} onClick={abrirCarrinho}>
+        <button className="cart-trigger" aria-label={`Meu pedido ${count} ${count === 1 ? "peça" : "peças"}`} onClick={abrirCarrinho}>
           <ShoppingBag size={23} />
           <span>Meu pedido</span>
           <b>{count}</b>
