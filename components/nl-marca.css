@@ -1,0 +1,103 @@
+/* Marca Nova Leões: tokens de cor e tipografia da vitrine e do login do Commerce.
+   Fonte: escudo de public/assets/logo.png (laranja #FF9E2F, chumbo #2F2E2E, creme #FFF4D5, filete #FFFFF5).
+   Carregado ANTES dos outros CSS (main.tsx). Os outros arquivos usam só var(--nl-*): cor com matiz escrita
+   direto no CSS da vitrine reprova em tests/marca.test.mjs. O painel /gestao (app/commerce.css) não usa estes tokens.
+   Contrastes (WCAG): conferidos em tests/marca.test.mjs. Regras: nunca texto branco sobre laranja; laranja da marca
+   só como superfície (botão, faixa, ponto) ou como texto sobre chumbo; texto/ícone de destaque em fundo claro = laranja-texto. */
+:root {
+  --nl-laranja: #FF9E2F;            /* botão primário (texto chumbo 6,57), faixas, ponto ativo; texto sobre chumbo 6,57 */
+  --nl-laranja-forte: #F08A12;      /* hover do primário (chumbo 5,38) */
+  --nl-laranja-texto: #A84F00;      /* texto, link, kicker e ícone de destaque em fundo claro (branco 5,55; creme 5,06) */
+  --nl-laranja-texto-forte: #8F4300;/* hover de link (creme 6,45) */
+  --nl-laranja-claro: #FFE9CC;      /* selo "tem", chip de destaque (chumbo 11,46) */
+  --nl-laranja-tinta: #FFF4E5;      /* fundo de aviso */
+  --nl-chumbo: #2F2E2E;             /* texto principal, rodapé, faixa, botão secundário, filtro ativo */
+  --nl-chumbo-2: #45423F;           /* hover sobre chumbo (creme 9,10) */
+  --nl-chumbo-3: #5C5853;           /* texto secundário forte (branco 7,06) */
+  --nl-muted: #6B645A;              /* texto secundário (branco 5,84; creme 5,33; papel 5,47) */
+  --nl-muted-claro: #8A8378;        /* só decorativo ou texto a partir de 24px (3,75) */
+  --nl-creme: #FFF4D5;              /* seção de destaque; texto sobre chumbo (12,35) */
+  --nl-creme-claro: #FFFAEE;
+  --nl-creme-suave: #D8CDB6;        /* texto secundário sobre chumbo (8,59) */
+  --nl-papel: #FBF7EF;              /* fundo de foto, painel e página */
+  --nl-branco: #FFFFFF;             /* cards */
+  --nl-linha: #E6DDCB;              /* divisória e borda (1,3; só decorativa) */
+  --nl-linha-forte: #CFC3AC;        /* borda de campo e divisória forte (1,74) */
+  --nl-linha-escura: #57534D;       /* divisória sobre chumbo */
+  --nl-erro: #B42318;               /* texto de erro (branco 6,57; fundo de erro 5,75) */
+  --nl-erro-fundo: #FDECEA;
+  --nl-sombra: rgb(47 46 46 / 10%);
+  --nl-sombra-forte: rgb(47 46 46 / 22%);
+  --nl-foco: 0 0 0 2px #fff, 0 0 0 4px var(--nl-chumbo);
+
+  --nl-fonte-titulo: "Barlow Semi Condensed", "Arial Narrow", Arial, sans-serif;
+  --nl-fonte-corpo: "Barlow", "Segoe UI", Roboto, Arial, sans-serif;
+  --nl-raio: 12px;                  /* cards e painéis */
+  --nl-raio-botao: 10px;            /* botões (não pílula) */
+
+  /* Nomes antigos (versão A, catálogo, institucional, editorial, variante): apontam para a marca. */
+  --nl-ink: var(--nl-chumbo);
+  --nl-paper: var(--nl-papel);
+  --nl-line: var(--nl-linha);
+  --nl-gold: var(--nl-laranja);
+  --nl-verde: var(--nl-chumbo);
+  --nl-verde-claro: var(--nl-laranja-tinta);
+  --nl-dourado: var(--nl-laranja-texto);
+  --inst-ink: var(--nl-chumbo);
+  --inst-muted: var(--nl-muted);
+  --inst-line: var(--nl-linha);
+  --editorial-ink: var(--nl-chumbo);
+  --editorial-muted: var(--nl-muted);
+  --editorial-line: var(--nl-linha);
+}
+
+/* Vitrine e login do Commerce (o painel /gestao não tem .nl-store nem .commerce-login): fonte e cores do shadcn.
+   :has() alcança os diálogos e gavetas, que abrem em portal fora de .nl-store. */
+:root:has(.nl-store), :root:has(.commerce-login) {
+  --background: var(--nl-branco);
+  --foreground: var(--nl-chumbo);
+  --card-foreground: var(--nl-chumbo);
+  --popover-foreground: var(--nl-chumbo);
+  --primary: var(--nl-laranja);
+  --primary-foreground: var(--nl-chumbo);
+  --secondary: var(--nl-papel);
+  --secondary-foreground: var(--nl-chumbo);
+  --muted: var(--nl-papel);
+  --muted-foreground: var(--nl-muted);
+  --accent: var(--nl-laranja-claro);
+  --accent-foreground: var(--nl-chumbo);
+  --destructive: var(--nl-erro);
+  --border: var(--nl-linha);
+  --input: var(--nl-linha-forte);
+  --ring: var(--nl-chumbo);
+  --font-sans: var(--nl-fonte-corpo);
+}
+:root:has(.nl-store) body { font-family: var(--nl-fonte-corpo); color: var(--nl-chumbo); }
+
+/* Títulos e preços na família condensada do logo; kickers em caixa alta espaçada, como "AUTOPEÇAS" no escudo.
+   :where() deixa especificidade zero: tamanho, peso e espaçamento continuam nas regras de cada componente. */
+:where(.nl-store, .nl-product-dialog, .nl-cart-sheet, .nl-menu-sheet, .nl-seletor, .commerce-login)
+  :where(h1, h2, h3, [data-slot="sheet-title"], [data-slot="dialog-title"], .detail-title, .detail-price, .product-bottom strong, .nl-total strong, .cart-line strong, .nl-sobre-numeros b) {
+  font-family: var(--nl-fonte-titulo);
+}
+:where(.nl-store, .nl-product-dialog, .nl-cart-sheet, .nl-seletor) :where(.nl-kicker, .nl-editorial-eyebrow, .nl-cart-eyebrow, .nl-seletor-passos, .eyebrow) {
+  font-family: var(--nl-fonte-corpo);
+  font-weight: 600;
+  letter-spacing: .2em;
+  text-transform: uppercase;
+  color: var(--nl-laranja-texto);
+}
+
+/* Foco visível: anel chumbo em fundo claro; laranja sobre chumbo (rodapé, faixa, botões escuros).
+   O prefixo :root:has() dá a especificidade para valer sobre os focos antigos de cada componente. */
+:root:has(.nl-store) :is(.nl-store, .nl-product-dialog, .nl-cart-sheet, .nl-menu-sheet, .nl-seletor) :focus-visible,
+.commerce-login :focus-visible {
+  outline: 2px solid var(--nl-chumbo);
+  outline-offset: 2px;
+}
+:root:has(.nl-store) .nl-store :is(.nl-footer, .nl-value-strip, .nl-vitrine-veiculo) :focus-visible,
+:root:has(.nl-store) .nl-store :is(.nl-button, .nl-header-carro.com-carro, .nl-whats-flutuante):focus-visible {
+  outline-color: var(--nl-laranja);
+}
+/* Campos dentro de uma caixa que já mostra o foco (a caixa ganha a borda chumbo). */
+:root:has(.nl-store) :is(.nl-store, .nl-seletor) :is(.searchbox, .nl-header-busca, .nl-seletor-busca) input:focus-visible { outline: none; }
