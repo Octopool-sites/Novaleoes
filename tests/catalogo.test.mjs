@@ -283,3 +283,12 @@ test("29/09: custo e imposto da loja e código com pontos não saem na descriç�
   for (const c of ["90.501.168", "0.280.155.929", "BRO.01.10.006", "032.115.611-H", "228.109-02"]) assert.equal(temCodigoDePeca(c), true, c);
   for (const ok of ["1.6", "2.0", "10.1991", "11.08", "1.250"]) assert.equal(temCodigoDePeca(ok), false, ok);
 });
+
+test("29/09 (verificação): chassi fica, código com pontos sai, preço de centavo vira consulta, nota de estoque sai", () => {
+  for (const c of ["Peugeot Nº 9.633.359.080", "Bico Injetor / 0280.155.288", "Fusca/kombi 113.115.611", "Fiat 51.736.529", "Oirg 93.284.788 / 93.287.964", "Variant 311.119.665.B", "Válvula Termostática 3494.100"]) assert.equal(temCodigoDePeca(c), true, c);
+  for (const ok of ["PALIO 1.4 8V FLEX - 06/.. ( ATE CHASSI 2.616.995 )", "UNO 1.5 8V FIASA - 97 / .. ( CHASSI A PARTIR Nº 5.912.671 )", "Rodas 5.5 X 14", "Correia 6PK 1.235"]) assert.equal(temCodigoDePeca(ok), false, ok);
+  assert.equal(removerCodigosDePeca("PALIO 1.4 8V FLEX - 06/.."), "PALIO 1.4 8V FLEX - 06/..");
+  assert.equal(precoPlaceholder(0.01, 4.5), true);
+  assert.equal(precoPlaceholder(0.22, 6), false);
+  assert.deepEqual(limparDescricao("TUCHO VELA CH19\nOBS: AJUSTE ESTOQUE 12/05/23\n07 PC ENFERRUJADAS").linhas, ["Tucho Vela CH19"]);
+});

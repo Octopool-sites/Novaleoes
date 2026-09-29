@@ -14,7 +14,7 @@
 import { createHash } from "node:crypto";
 import { mkdirSync, readFileSync, writeFileSync, rmSync, existsSync, statSync, readdirSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
-import { limparNome, limparGrupo, limparDescricao, removerCodigos, cortarCodigos, removerCodigosDePeca, temCodigoDePeca, VAZAMENTO_CODIGO } from "./nomes.mjs";
+import { limparNome, limparGrupo, limparDescricao, removerCodigos, cortarCodigos, removerCodigosDePeca, temCodigoDePeca, NOTA_CUSTO_ESTOQUE, VAZAMENTO_CODIGO } from "./nomes.mjs";
 import { classificar, DEPARTAMENTOS, GRUPOS_BALDE } from "./taxonomia.mjs";
 import { nomePublico, NOME_PUBLICO } from "./fotos-publicas.mjs";
 
@@ -108,11 +108,12 @@ export const GRUPOS_FORA_DO_SITE = /^(PATRIMONIO|CONSUMO LOJA)$/i;
 // Preço de mentira do legado: R$ 0,50 é "sem preço", e R$ 1,00 a R$ 1,99 numa família cuja mediana passa de R$ 15
 // ("Cabo Engate Comando Câmbio" a R$ 1,50, mediana R$ 215) também. Os dois viram "sob consulta" (precoCents 0).
 export const PRECO_PLACEHOLDER = 0.5;
+export const PRECO_MINIMO = 0.1;
 export const PRECO_SUSPEITO = 2;
 export const MEDIANA_MINIMA = 15;
 export const FATOR_OUTLIER = 15;
 export function precoPlaceholder(preco, mediana) {
-  return preco === PRECO_PLACEHOLDER || (preco > 0 && preco < PRECO_SUSPEITO && mediana >= MEDIANA_MINIMA);
+  return preco === PRECO_PLACEHOLDER || (preco > 0 && preco < PRECO_MINIMO) || (preco > 0 && preco < PRECO_SUSPEITO && mediana >= MEDIANA_MINIMA);
 }
 function mediana(valores) {
   if (!valores.length) return 0;
@@ -309,7 +310,7 @@ export function construir(exportacao) {
 const NUMERO_CODIGO_NOME = /\b\d{5,}\b(?!\s*(?:MM|CM|MT|M|ML|L|LT|KM|W|V|A|AH|KG|G|RPM|MAH|BTU|PSI|CV)\b)/i;
 export function vazamentos({ meta, indice, detalhes }) {
   const achados = [];
-  const conferir = (t, extra) => { if (t && (VAZAMENTO_CODIGO.test(t) || temCodigoDePeca(t) || (extra && extra.test(t)))) achados.push(t); };
+  const conferir = (t, extra) => { if (t && (VAZAMENTO_CODIGO.test(t) || temCodigoDePeca(t) || NOTA_CUSTO_ESTOQUE.test(t) || (extra && extra.test(t)))) achados.push(t); };
   for (const p of indice.pecas) conferir(p[1], NUMERO_CODIGO_NOME);
   for (const d of detalhes.values()) {
     for (const t of [...d.d, ...d.h, ...d.a.flatMap((a) => [a[1], a[2], a[5]])]) conferir(t);

@@ -293,14 +293,15 @@ export function limparGrupo(grupo) {
 // C180, CG125, TITAN150) e ano com marca (97VW).
 const TOKEN_PECA = /(?<![\w.\-])(?:[A-Z]{1,5}-?\d{3,}[A-Z0-9-]*|\d{2,}[A-Z]{2,}[A-Z0-9-]*|\d{3,}[A-Z]\d[A-Z0-9-]*|\d{5,}[A-Z0-9-]*|\d{3,}-[A-Z]{1,2})(?![\w.\-])/gi;
 const TOKEN_LEGITIMO = /^(?:\d+(?:MM|CM|CC|CV|HP|AH|MAH|ML|KG|MT|LT|KM|RPM|BAR|PSI|W|V|A|L|G)|\d+X\d+[A-Z]{0,2}|(?:EA|AE|AP|EP|EC|EB|EF)-?\d{3,4}|F-?\d{2,4}|[ABCDGHKLMQRSTWX]\d{2,4}|(?:CG|FAN|TITAN|NXR|YBR|CB|CBX|XRE|XR|NX|BIZ|POP|PCX|TWISTER|FAZER|FACTOR|BROS|CRYPTON|LEAD|GX|BR|ECO)-?\d{2,3}|\d{2,4}VW)$/i;
-const PONTILHADO = /(?<![\w.,])(?:[A-Z]{2,5}\.)?\d{1,4}(?:\.\d{1,4}){1,4}(?:-[0-9A-Z]{1,3}|[A-Z])?(?![\w.,]|\s*KM\b)/gi;
+const PONTILHADO = /(?<![\w.,])(?<!\bCHASSIS?\s+(?:A\s+PARTIR\s+(?:D[OE]\s+)?|AT[EÉ]\s+|DE\s+)?(?:N[º°R]\.?\s*)?)(?:[A-Z]{2,5}\.)?\d{1,4}(?:\.\d{1,4}){1,4}(?:[-.][0-9A-Z]{1,3}|[A-Z])?(?![\w.,]|\s*KM\b)/gi;
 function codigoPontilhado(t) {
   const s = t.replace(/^[A-Z]+\./i, "");
   if (/^\d{1,2}\.(?:19|20)?\d{2}$/.test(s)) return false; // mês/ano
   const digitos = s.replace(/\D/g, "").length, pontos = (s.match(/\./g) || []).length;
-  return /^[A-Z]/i.test(t) || /(?:-[0-9A-Z]{1,3}|[A-Z])$/i.test(s) || pontos >= 2 || digitos >= 6;
+  return /^[A-Z]/i.test(t) || /(?:[-.][0-9A-Z]{1,3}|[A-Z])$/i.test(s) && !/^\d+(?:\.\d+)?$/.test(s) || pontos >= 2 || digitos >= 6;
 }
 const NUMERO_LONGO = /(?<![\d,])\d{5,}(?:\/\d{2,})*(?!\d|,\d{1,2}\b|\s*(?:MM|CM|KM|ML|RPM)\b)/gi;
+export const NOTA_CUSTO_ESTOQUE = /\bPRE[CÇ]O\s+(?:DE\s+)?CUSTO\b|\bCUSTO\b|\bIMPOSTO\b|\bMULTIPLICAR\s*=|\bAJUSTE\s+(?:DE\s+)?ESTOQUE\b|\bENFERRUJ/i;
 export function temCodigoDePeca(texto) {
   const t = String(texto || "");
   for (const m of t.matchAll(TOKEN_PECA)) if (!TOKEN_LEGITIMO.test(m[0])) return true;
@@ -315,14 +316,14 @@ export function removerCodigosDePeca(texto) {
     .replace(/\(\s*(?:[A-Za-z]{1,3}\s*){0,2}[\/\-,;\s]*\)/g, " ") // parênteses vazios ou só com sigla
     .replace(/(?:\s*\/\s*){2,}/g, " / ")
     .replace(/\s+([.,;:])(?=\s|$)/g, "$1")
-    .replace(/\.{2}(?!\.)/g, ".")
+    .replace(/([A-Za-zÀ-ú])\.{2}(?!\.)/g, "$1.") // "Carb.." vira "Carb."; "06/.." (em diante) fica
     .replace(/\bN[º°]\.?\s*(?=$|[\/,;)])/g, "")
     .replace(/\s+/g, " ")
     .replace(/^[\s\/\-,;:·]+|[\s\/\-,;:·(]+$/g, "")
     .trim();
 }
 // Recado da equipe para a equipe ("Pedir Foto", "Solicitar Amostra", "Confirma se a bucha é de ferro"): não é do cliente.
-const NOTA_INTERNA = /\bPEDIR (?:FOTO|AMOSTRA)\b|\bSOLICI?T?AR AMOSTRA\b|\bCONFIRMAR SEMPRE\b|\bCONFIRMA(?:R)? SE\b|\bA CONFIRMAR\b|\bVERIFICAR\b|\bPERGUNTAR\b|\bCONSULTAR (?:O )?ESTOQUE\b/i;
+const NOTA_INTERNA = /\bAJUSTE (?:DE )?ESTOQUE\b|\bENFERRUJ|\bPEDIR (?:FOTO|AMOSTRA)\b|\bSOLICI?T?AR AMOSTRA\b|\bCONFIRMAR SEMPRE\b|\bCONFIRMA(?:R)? SE\b|\bA CONFIRMAR\b|\bVERIFICAR\b|\bPERGUNTAR\b|\bCONSULTAR (?:O )?ESTOQUE\b/i;
 // Setas do balcão (">> Transmissão Manual", "Farol << Lâmpada", "Parcial --->", "1991>1996"): viram separador.
 function trocarSetas(linha) {
   return linha
