@@ -1,9 +1,12 @@
 // Bateria de testes de ponta a ponta da vitrine (versão A), num Chrome/Edge sem janela.
 // Uso: npm run e2e -- [url] [pasta-de-saída]   (padrão: http://localhost:5190/ e outputs/e2e)
+// Só alguns cenários: SO="frete|checkout" npm run e2e -- <url>
 // Percorre os fluxos do cliente: abertura e carro 3D, busca, carro, filtros, detalhe da peça, carrinho,
 // frete por CEP, checkout pelo WhatsApp, páginas da loja, rolagem lateral de 320 a 1920 px, SEO e teclado.
 // Não envia pedido: window.open é interceptado e o link do WhatsApp só é conferido.
-// O frete consulta a AwesomeAPI/ViaCEP de verdade: numa rede lenta esses dois cenários podem falhar sozinhos.
+// O frete consulta a AwesomeAPI/ViaCEP de verdade. Na rodada completa (várias sessões pesadas seguidas no mesmo
+// Chrome sem janela) a primeira consulta de CEP às vezes fica presa até o limite de tempo; numa visita real e
+// com SO="frete|checkout" ela responde em milissegundos. Se só esses dois falharem, rode-os separados.
 import puppeteer from "puppeteer-core";
 import fs from "node:fs";
 import path from "node:path";
@@ -48,7 +51,10 @@ async function novaPagina({ largura = 1440, altura = 900, celular = false, limpa
   return { page, ctx, log };
 }
 
+// SO="frete|checkout" roda só os cenários cujo nome casa com a expressão.
+const SO = process.env.SO ? new RegExp(process.env.SO, "i") : null;
 async function teste(nome, fn, opcoes) {
+  if (SO && !SO.test(nome)) return;
   const t0 = Date.now();
   const { page, ctx, log } = await novaPagina(opcoes);
   const r = { nome, ok: true, detalhes: [], erros: [] };
