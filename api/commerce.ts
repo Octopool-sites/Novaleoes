@@ -1,7 +1,8 @@
 import { handleApi } from "../server/handler.js";
+import { disponibilidade } from "../server/disponibilidade.js";
 
 const ROUTE_PARAMETER = "__commerce_route";
-const routePattern = /^\/api\/(?:auth\/(?:status|login|logout|recover|activate)|public\/(?:catalog|orders|placa)|maintenance|session|orders(?:\/[a-zA-Z0-9-]+(?:\/(?:approve|export))?)?|manage\/catalog(?:\/[a-zA-Z0-9-]+)?|integration(?:\/reconcile)?)$/;
+const routePattern = /^\/api\/(?:auth\/(?:status|login|logout|recover|activate)|public\/(?:catalog|orders|placa|disponibilidade)|maintenance|session|orders(?:\/[a-zA-Z0-9-]+(?:\/(?:approve|export))?)?|manage\/catalog(?:\/[a-zA-Z0-9-]+)?|integration(?:\/reconcile)?)$/;
 
 export function commerceRequest(request: Request): Request | null {
   const url = new URL(request.url);
@@ -25,6 +26,8 @@ export default {
   async fetch(request: Request): Promise<Response> {
     const routed = commerceRequest(request);
     if (!routed) return Response.json({ error: "Endereço não encontrado." }, { status: 404, headers: { "Cache-Control": "no-store" } });
+    // Estoque ao vivo: público, sem sessão nem Firestore, e com cache de CDN (o route() do handler força no-store).
+    if (new URL(routed.url).pathname === "/api/public/disponibilidade") return disponibilidade(routed);
     return handleApi(routed);
   },
 };

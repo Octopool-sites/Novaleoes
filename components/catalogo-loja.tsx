@@ -39,9 +39,14 @@ export function precoDaPeca(peca: Peca, live: Map<string, Product>) {
 // O site só sabe se tem ou não tem (a quantidade não é pública). Sem estoque, a peça continua pedível:
 // o pedido vira consulta e a loja responde se consegue. Não prometer encomenda (a loja não confirmou).
 export const TEXTO_SEM_ESTOQUE = "Sem estoque agora · consulte a loja";
+// Sem o estoque ao vivo e com o catálogo de mais de 30 h (PC desligado no fim de semana), o site não afirma que tem.
+export const TEXTO_ESTOQUE_A_CONFIRMAR = "Estoque a confirmar com a loja";
 export function disponibilidadeDaPeca(peca: Peca, live: Map<string, Product>) {
   const atual = peca.externalId ? live.get(peca.externalId) : undefined;
-  if (atual ? atual.stock > 0 : peca.disponivel > 0) return { texto: "Em estoque na loja", classe: atual ? "nl-disp-online" : "nl-disp-loja", estoque: 1 };
+  if (atual ? atual.stock > 0 : peca.disponivel > 0) {
+    if (!atual && peca.estoqueIncerto) return { texto: TEXTO_ESTOQUE_A_CONFIRMAR, classe: "nl-disp-consulta", estoque: 1 };
+    return { texto: "Em estoque na loja", classe: atual ? "nl-disp-online" : "nl-disp-loja", estoque: 1 };
+  }
   return { texto: TEXTO_SEM_ESTOQUE, classe: "nl-disp-consulta", estoque: 0 };
 }
 
@@ -67,14 +72,19 @@ export function fotoIlustrativa(peca: Peca, live: Map<string, Product>) {
   return peca.fotoIlustrativa && !(peca.externalId && live.get(peca.externalId)?.image);
 }
 
-export function dataEstoque(catalogo: Catalogo | null) {
-  const iso = catalogo?.meta.exportadoEm;
+// Rótulo do estoque no topo da lista. Ao vivo do ERP: "estoque atualizado às 14:05". Do catálogo (ERP fora do ar):
+// "estoque de 28/09, 13h", e com mais de 30 h ganha "· a loja confirma".
+export function rotuloEstoque(catalogo: Catalogo | null) {
+  const meta = catalogo?.meta;
+  const iso = meta?.estoqueEm ?? meta?.exportadoEm;
   if (!iso) return "";
-  // O estoque é atualizado mais de uma vez por dia: "28/09, 13h".
   const d = new Date(iso);
-  const dia = d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", timeZone: "America/Sao_Paulo" });
-  const hora = d.toLocaleTimeString("pt-BR", { hour: "2-digit", hour12: false, timeZone: "America/Sao_Paulo" });
-  return `${dia}, ${hora.replace(/\D/g, "")}h`;
+  if (Number.isNaN(d.getTime())) return "";
+  const fuso = { timeZone: "America/Sao_Paulo" } as const;
+  if (meta?.estoqueAoVivo) return `estoque atualizado às ${d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", hour12: false, ...fuso })}`;
+  const dia = d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", ...fuso });
+  const hora = d.toLocaleTimeString("pt-BR", { hour: "2-digit", hour12: false, ...fuso });
+  return `estoque de ${dia}, ${hora.replace(/\D/g, "")}h${meta?.estoqueIncerto ? " · a loja confirma" : ""}`;
 }
 
 export default function CatalogoLoja({ catalogo, carregando, erro, live, filtro, veiculo, onFiltro, onSelecionar, onAdicionar, onTentarNovamente, onVeiculo }: CatalogoLojaProps) {
@@ -139,7 +149,7 @@ export default function CatalogoLoja({ catalogo, carregando, erro, live, filtro,
   };
   const filtrosAtivos = [filtro.marca >= 0, filtro.somenteEstoque, filtro.ordem !== "relevancia"].filter(Boolean).length;
   const visiveis = resultados.slice(0, limite);
-  const estoqueEm = dataEstoque(catalogo);
+  const estoqueEm = rotuloEstoque(catalogo);
 
   return (
     <div className="nl-catalogo">
@@ -178,7 +188,7 @@ export default function CatalogoLoja({ catalogo, carregando, erro, live, filtro,
           <SlidersHorizontal size={16} /> Filtros{filtrosAtivos > 0 && <b>{filtrosAtivos}</b>}
         </button>
         <span className="subtle" aria-live="polite">
-          {carregando ? "Carregando catálogo…" : erro ? "Catálogo indisponível" : `${resultados.length.toLocaleString("pt-BR")} ${resultados.length === 1 ? "peça" : "peças"}${estoqueEm ? ` · estoque de ${estoqueEm}` : ""}`}
+          {carregando ? "Carregando catálogo…" : erro ? "Catálogo indisponível" : `${resultados.length.toLocaleString("pt-BR")} ${resultados.length === 1 ? "peça" : "peças"}${estoqueEm ? ` · ${estoqueEm}` : ""}`}
         </span>
       </div>
 

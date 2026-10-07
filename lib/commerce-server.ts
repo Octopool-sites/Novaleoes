@@ -2,6 +2,7 @@ import { context } from "../worker/context.js";
 import { operator } from "../worker/auth.js";
 import { type Product } from "./catalog.js";
 import { STORE, type Order } from "./commerce-contracts.js";
+import { fotoIntegrada } from "./fotos-integradas.js";
 import { ZodError } from "zod";
 export class HttpError extends Error {
   constructor(
@@ -104,7 +105,7 @@ export function mapProduct(row: Record<string, unknown>): Product {
     category: String(row.category),
     priceCents: Number(row.price_cents),
     stock: Number(row.stock),
-    image: String(row.image),
+    image: fotoIntegrada(String(row.id), row.image == null ? "" : String(row.image)),
     description: String(row.description),
     published: !!row.published,
   };

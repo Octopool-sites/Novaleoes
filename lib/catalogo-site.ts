@@ -44,6 +44,9 @@ const GRUPO_OLEO = /^(\d{1,2}w(\d{2})?|atf|sae|oleo.*)$/i;
 export type Departamento = { id: string; nome: string; resumo: string; n: number; grupos: number[]; capa: string };
 export type Meta = {
   versao: number; exportadoEm: string | null; geradoEm: string; empresa: string; total: number; comEstoque: number; comFoto: number;
+  // Preenchidos no navegador por aplicarDisponibilidade (não vêm do arquivo): de quando é o "tem / não tem" em uso,
+  // se veio ao vivo do ERP e se é velho demais para afirmar "em estoque" (sem o ERP e com o catálogo de mais de 30 h).
+  estoqueEm?: string | null; estoqueAoVivo?: boolean; estoqueIncerto?: boolean;
   fotoBase: string; buckets: number; departamentos: Departamento[];
   grupos: [nome: string, departamentoIdx: number, n: number][];
   marcas: [nome: string, n: number][];
@@ -62,6 +65,7 @@ export type Peca = {
   id: string; nome: string; marca: string; grupo: string; grupoIdx: number; departamento: Departamento;
   precoCents: number; disponivel: number; foto: string; aplicacoes: [number, number, number][];
   externalId: string | null; unidade: string; quantidadeMinima: number; busca: string; fotoIlustrativa: boolean;
+  estoqueIncerto: boolean;
 };
 
 export type Catalogo = { meta: Meta; pecas: Peca[]; porId: Map<string, Peca>; porExternalId: Map<string, Peca> };
@@ -92,6 +96,7 @@ export function montarCatalogo(meta: Meta, linhas: LinhaIndice[]): Catalogo {
     return {
       id: l[0], nome: l[1], marca, grupo, grupoIdx: l[3], departamento, precoCents: l[4], disponivel: l[5], foto: l[6], aplicacoes: l[7],
       externalId: l[8] || null, unidade: meta.unidades[l[9]] || "", quantidadeMinima: l[10] || 1, fotoIlustrativa: l[11] === 1,
+      estoqueIncerto: !!meta.estoqueIncerto,
       busca: `${textoBusca(l[1])} ${l[2] >= 0 ? marcaBusca[l[2]] : ""} ${grupoBusca[l[3]]} ${modelos}`,
       depOrdem: meta.departamentos.indexOf(departamento), grupoN: meta.grupos[l[3]][2],
     };
@@ -101,6 +106,38 @@ export function montarCatalogo(meta: Meta, linhas: LinhaIndice[]): Catalogo {
   return { meta, pecas, porId, porExternalId };
 }
 
+// Estoque ao vivo (GET /api/public/disponibilidade, server/disponibilidade.ts): ids das peças com saldo agora no ERP.
+// O catálogo estático (tarefa do PC às 7h e 13h) segue valendo se a consulta falhar ou demorar mais de 3 s.
+export type Disponibilidade = { geradoEm: string; ids: string[] };
+export const ESTOQUE_VELHO_MS = 30 * 3600_000;
+const ESPERA_DISPONIBILIDADE = 3000;
+
+async function carregarDisponibilidade(): Promise<Disponibilidade | null> {
+  // AbortSignal.timeout não existe no iOS 15 (ver o frete): temporizador na mão.
+  const controle = new AbortController();
+  const timer = setTimeout(() => controle.abort(), ESPERA_DISPONIBILIDADE);
+  try {
+    const r = await fetch("/api/public/disponibilidade", { signal: controle.signal, headers: { Accept: "application/json" } });
+    if (!r.ok) return null;
+    const j = (await r.json()) as Disponibilidade;
+    return j && typeof j.geradoEm === "string" && Array.isArray(j.ids) ? j : null;
+  } catch { return null; } finally { clearTimeout(timer); }
+}
+
+// Põe o "tem / não tem" ao vivo por cima do catálogo (posição 5 de cada linha) e registra de quando ele é.
+// Sem resposta do ERP, fica o do catálogo; se ele tiver mais de 30 h, o site para de afirmar "em estoque".
+export function aplicarDisponibilidade(meta: Meta, linhas: LinhaIndice[], disp: Disponibilidade | null, agora = Date.now()) {
+  if (disp) {
+    const comSaldo = new Set(disp.ids);
+    let n = 0;
+    for (const l of linhas) { l[5] = comSaldo.has(l[0]) ? 1 : 0; n += l[5]; }
+    Object.assign(meta, { comEstoque: n, estoqueEm: disp.geradoEm, estoqueAoVivo: true, estoqueIncerto: false });
+    return meta;
+  }
+  const exportado = meta.exportadoEm ? Date.parse(meta.exportadoEm) : NaN;
+  return Object.assign(meta, { estoqueEm: meta.exportadoEm, estoqueAoVivo: false, estoqueIncerto: !Number.isFinite(exportado) || agora - exportado > ESTOQUE_VELHO_MS });
+}
+
 let carregamento: Promise<Catalogo> | null = null;
 // Prefixo "/" na Vercel ou a subpasta da prévia (VITE_BASE). Sem import para os testes rodarem no Node.
 const BASE_CATALOGO = `${((import.meta as unknown as { env?: { BASE_URL?: string } }).env?.BASE_URL) ?? "/"}catalogo`;
@@ -108,10 +145,12 @@ const BASE_CATALOGO = `${((import.meta as unknown as { env?: { BASE_URL?: string
 export function carregarCatalogo(base = BASE_CATALOGO): Promise<Catalogo> {
   if (!carregamento) {
     carregamento = (async () => {
-      const [meta, indice] = await Promise.all([
+      const [meta, indice, disp] = await Promise.all([
         fetch(`${base}/meta.json`).then((r) => { if (!r.ok) throw new Error("meta"); return r.json() as Promise<Meta>; }),
         fetch(`${base}/indice.json`).then((r) => { if (!r.ok) throw new Error("indice"); return r.json() as Promise<{ pecas: LinhaIndice[] }>; }),
+        carregarDisponibilidade(),
       ]);
+      aplicarDisponibilidade(meta, indice.pecas, disp);
       return montarCatalogo(meta, indice.pecas);
     })().catch((e) => { carregamento = null; throw e; });
   }
@@ -173,6 +212,8 @@ function ordenar(pecas: Peca[], filtro: Filtro, termos: string[][]) {
   if (filtro.ordem === "menor-preco") return pecas.sort((a, b) => (valor(a) || Infinity) - (valor(b) || Infinity) || nome(a, b));
   if (filtro.ordem === "maior-preco") return pecas.sort((a, b) => valor(b) - valor(a) || nome(a, b));
   // Relevância: com foto e em estoque primeiro; busca pelo nome pesa mais que pela aplicação.
+  // Palavra inteira pesa mais que pedaço de palavra: "pastilha gol" põe o Gol antes do Golf (que também contém "gol"),
+  // sem tirar o Golf da lista. Vale mais que estoque e foto: peça de outro carro não serve, mesmo com estoque.
   const pontos = (p: Peca) => {
     let s = 0;
     if (p.disponivel > 0) s += 4;
@@ -183,6 +224,8 @@ function ordenar(pecas: Peca[], filtro: Filtro, termos: string[][]) {
       const noNome = (formas: string[]) => formas.some((t) => nomeNorm.includes(t));
       if (termos.every(noNome)) s += 6;
       else if (termos.some(noNome)) s += 2;
+      const palavras = ` ${p.busca} `;
+      for (const formas of termos) if (formas.some((t) => palavras.includes(` ${t} `))) s += 7;
     }
     return s;
   };

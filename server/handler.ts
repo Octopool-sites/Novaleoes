@@ -10,6 +10,7 @@ import { createStoreContext, createRateLimiter } from "./firestore.js";
 import * as store from "./store.js";
 import * as inventory from "./inventory.js";
 import * as placa from "./placa.js";
+import { produtoPublico } from "./produto-publico.js";
 import type { StoreContext } from "./types.js";
 
 export function runtimeEnv(): RuntimeEnv {
@@ -95,8 +96,8 @@ export async function handleApi(originalRequest: Request): Promise<Response> {
         if (process.env.COMMERCE_READ_ONLY !== "1") await inventory.refreshCatalog(ctx);
         return Response.json({
           // Público vê só se tem ou não tem; a quantidade real fica no servidor e é conferida no pedido.
-          // O código interno do ERP (sku) não sai para o site (AGENTS.md).
-          products: (await store.listProducts(ctx)).filter(p => p.published).map(p => ({ ...p, sku: "", stock: p.stock > 0 ? 1 : 0 })), requiresApproval: true,
+          // Sem código interno (sku) e com nome e marca limpos como no catálogo (server/produto-publico.ts).
+          products: (await store.listProducts(ctx)).filter(p => p.published).map(produtoPublico), requiresApproval: true,
           ordersEnabled: await intakeEnabled(ctx),
         });
       }

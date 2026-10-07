@@ -18,7 +18,8 @@ export const LOJA = {
   // O centro do CEP 07080-000 (-23.4379981, -46.5476991) fica ~900 m ao norte da loja e mudava a faixa de alguns bairros.
   coordenadas: { lat: -23.4459205, lng: -46.5476205 },
   telefone: "(11) 2452-8939",
-  // CONFIRMAR COM A LOJA: número que tem WhatsApp (DDI + DDD + número, só dígitos).
+  // Número com WhatsApp (DDI + DDD + número, só dígitos). Confirmado em 06/10/2026: o fixo do cupom é o WhatsApp
+  // Business da loja (perfil "Nova Leões Autopeças", print do Luca). O 99708-6615 do Google não é o canal de pedidos.
   whatsapp: "551124528939",
   // Vazio = não exibir. O e-mail do ERP não é canal público.
   email: "",

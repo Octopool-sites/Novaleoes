@@ -1,5 +1,20 @@
 # Octopool Commerce — Nova Leões
 
+## Pente fino de 06/10/2026
+
+- **Estoque ao vivo.** O "tem / não tem" vem do ERP pela rota `GET /api/public/disponibilidade`
+  (`server/disponibilidade.ts`, com cache de 5 min na CDN). A rota consulta `GET /api/commerce-stock/disponibilidade`
+  com a credencial do estoque. Se o ERP não responder, vale o catálogo estático. Com mais de 30 h, o site troca
+  "Em estoque na loja" por "Estoque a confirmar com a loja". A tarefa do PC (7h e 13h) continua atualizando preço,
+  peças novas e fotos, e agora também roda na bateria e tenta de novo se falhar.
+- **Busca.** Palavra inteira pesa mais: "pastilha gol" põe o Gol antes do Golf.
+- **Peças integradas.** As 7 peças do piloto saem da API pública com nome e marca limpos
+  (`server/produto-publico.ts`). As fotos foram renomeadas pelo id da peça (`public/assets/pecas/`), e o caminho
+  antigo, que tinha o código interno no nome do arquivo, deixou de existir.
+- **WhatsApp confirmado:** o fixo (11) 2452-8939 é o WhatsApp Business da loja.
+- **Pendente com o Berna:** horário, frete, pagamentos, trocas e o perfil do Google. Domínio próprio: decidido
+  esperar (06/10).
+
 ## Pente fino para entrega — 28/09/2026
 
 A vitrine foi revisada inteira para ser entregue ao Berna. Foram corrigidos:
