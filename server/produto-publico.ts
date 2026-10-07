@@ -3,6 +3,8 @@
 // passa pela mesma limpeza do catálogo do site (código de fabricante e abreviação do balcão saem) e a marca vira só o
 // fabricante. A gestão continua vendo o cadastro como está. A foto já vem sem código (lib/fotos-integradas.ts).
 import type { Product } from "../lib/catalog.js";
+import type { Order } from "../lib/commerce-contracts.js";
+import { fotoIntegrada } from "../lib/fotos-integradas.js";
 import { limparMarca, limparNome, removerCodigosDePeca, temCodigoDePeca, VAZAMENTO_CODIGO } from "../scripts/catalogo/nomes.mjs";
 
 const vaza = (texto: string) => VAZAMENTO_CODIGO.test(texto) || temCodigoDePeca(texto);
@@ -22,5 +24,14 @@ export function produtoPublico(p: Product): Product {
     name: nomeDaPecaPublica(p.name, p.category),
     brand: limparMarca(p.brand),
     description: vaza(p.description) ? "" : p.description,
+  };
+}
+
+// Resposta do POST /api/public/orders ao navegador do cliente: os itens gravados no pedido levam sku e nome do ERP
+// (a gestão precisa deles); para o público saem como no catálogo. Hoje os pedidos online estão desligados.
+export function pedidoPublico(order: Order): Order {
+  return {
+    ...order,
+    items: order.items.map((i) => ({ ...i, sku: "", name: nomeDaPecaPublica(i.name, "Peça"), image: fotoIntegrada(i.productId, i.image) })),
   };
 }

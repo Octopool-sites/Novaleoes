@@ -1,7 +1,7 @@
 // Pente fino de 06/10/2026: estoque ao vivo do ERP, busca Gol x Golf e as 7 peças integradas sem código interno.
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
-import { existsSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
 import { build } from "esbuild";
 import { idCurto as idCurtoConstruir } from "../scripts/catalogo/construir.mjs";
 import { aplicarDisponibilidade, filtrar, montarCatalogo, FILTRO_VAZIO, ESTOQUE_VELHO_MS } from "../lib/catalogo-site.ts";
@@ -70,17 +70,24 @@ test("disponibilidade: 60 s de memória por instância e consultas simultâneas 
   assert.equal(n, 2);
 });
 
-test("disponibilidade: ERP fora usa a última resposta boa por até 30 min; depois, 503 sem cache", async () => {
+test("disponibilidade: ERP fora usa a última resposta boa por até 30 min; depois, 'indisponível' sem erro", async () => {
   comErp();
   await disp.disponibilidade(pedir(), { transport: async () => respostaErp(["a"]), agora: () => 0 });
-  const falha = async () => new Response("{}", { status: 502 });
+  let n = 0;
+  const falha = async () => { n++; return new Response("{}", { status: 502 }); };
   const r1 = await disp.disponibilidade(pedir(), { transport: falha, agora: () => 10 * 60_000 });
   assert.equal(r1.status, 200);
   assert.equal(r1.headers.get("cache-control"), "public, max-age=0, s-maxage=60");
   assert.deepEqual((await r1.json()).ids, [disp.idCurto("a")]);
   const r2 = await disp.disponibilidade(pedir(), { transport: falha, agora: () => 31 * 60_000 });
-  assert.equal(r2.status, 503);
-  assert.equal(r2.headers.get("cache-control"), "no-store");
+  assert.equal(r2.status, 200, "200 com aviso: o visitante não vê erro no console");
+  assert.deepEqual(await r2.json(), { indisponivel: true });
+  assert.equal(r2.headers.get("cache-control"), "public, max-age=0, s-maxage=30");
+  assert.equal(n, 2);
+  await disp.disponibilidade(pedir(), { transport: falha, agora: () => 31 * 60_000 + 20_000 });
+  assert.equal(n, 2, "falha lembrada por 30 s: não insiste no ERP a cada visita");
+  await disp.disponibilidade(pedir(), { transport: falha, agora: () => 31 * 60_000 + 31_000 });
+  assert.equal(n, 3);
 });
 
 test("disponibilidade: sem credencial, resposta fora do contrato, query string e POST não consultam ou não passam", async () => {
@@ -88,18 +95,20 @@ test("disponibilidade: sem credencial, resposta fora do contrato, query string e
   disp.esquecerDisponibilidade();
   let n = 0;
   const transport = async () => { n++; return respostaErp(["a"]); };
-  assert.equal((await disp.disponibilidade(pedir(), { transport })).status, 503, "prévia/dev sem credencial");
+  const semCredencial = await disp.disponibilidade(pedir(), { transport });
+  assert.deepEqual(await semCredencial.json(), { indisponivel: true }, "prévia/dev sem credencial");
   assert.equal(n, 0);
   comErp();
   assert.equal((await disp.disponibilidade(pedir("/api/public/disponibilidade?x=1"), { transport })).status, 404, "cada URL nova seria uma consulta ao ERP");
   assert.equal((await disp.disponibilidade(pedir("/api/public/disponibilidade", { method: "POST" }), { transport })).status, 405);
   assert.equal(n, 0);
   const fora = await disp.disponibilidade(pedir(), { transport: async () => respostaErp(["a"], { contract: "outro" }) });
-  assert.equal(fora.status, 503);
+  assert.deepEqual(await fora.json(), { indisponivel: true });
   const credencialRuim = process.env.COMMERCE_ERP_ORIGIN;
   process.env.COMMERCE_ERP_ORIGIN = "https://outro-host.example";
   disp.esquecerDisponibilidade();
-  assert.equal((await disp.disponibilidade(pedir(), { transport })).status, 503, "só fala com api.octopool.com.br");
+  assert.deepEqual(await (await disp.disponibilidade(pedir(), { transport })).json(), { indisponivel: true }, "só fala com api.octopool.com.br");
+  assert.equal(n, 0);
   process.env.COMMERCE_ERP_ORIGIN = credencialRuim;
   assert.ok(avisos.every((a) => !a.includes(TOKEN)), "token nunca vai para o log");
 });
@@ -134,6 +143,27 @@ test("estoque ao vivo substitui o tem / não tem do catálogo e marca de quando 
   assert.equal(meta.estoqueIncerto, false);
   const c = montarCatalogo(meta, linhas);
   assert.deepEqual(filtrar(c, { ...FILTRO_VAZIO, somenteEstoque: true }).map((p) => p.id).sort(), ["bbbb2222", "cccc3333"]);
+});
+
+test("lista ao vivo com queda suspeita (menos de 30% do catálogo) é ignorada", () => {
+  const agora = Date.parse("2026-10-06T23:55:00.000Z");
+  const meta = { ...metaBase(), comEstoque: 100 };
+  const linhas = [linha("aaaa1111", 1), linha("bbbb2222", 1)];
+  aplicarDisponibilidade(meta, linhas, { geradoEm: "2026-10-06T23:50:00.000Z", ids: [] }, agora);
+  assert.equal(meta.estoqueAoVivo, false);
+  assert.deepEqual(linhas.map((l) => l[5]), [1, 1], "não marca tudo 'sem estoque' por defeito do ERP");
+  // Lista grande que não bate com o catálogo (id curto divergente, outra empresa) também é ignorada.
+  const outra = { ...metaBase(), comEstoque: 2 };
+  aplicarDisponibilidade(outra, linhas, { geradoEm: "2026-10-06T23:50:00.000Z", ids: Array.from({ length: 500 }, (_, i) => `x${i}`) }, agora);
+  assert.equal(outra.estoqueAoVivo, false);
+  assert.deepEqual(linhas.map((l) => l[5]), [1, 1]);
+});
+
+test("disponibilidade: credencial recusada pelo ERP (módulo desligado) derruba a memória na hora", async () => {
+  comErp();
+  await disp.disponibilidade(pedir(), { transport: async () => respostaErp(["a"]), agora: () => 0 });
+  const r = await disp.disponibilidade(pedir(), { transport: async () => new Response("{}", { status: 403 }), agora: () => 61_000 });
+  assert.deepEqual(await r.json(), { indisponivel: true }, "não serve a lista antiga depois da parada");
 });
 
 test("sem o ERP: catálogo recente vale; com mais de 30 h o site para de afirmar estoque", () => {
@@ -188,5 +218,15 @@ test("foto de peça integrada: caminho com código interno vira o arquivo novo, 
   assert.equal(fotos.fotoIntegrada("peca-nova", "/assets/1234.567.jpg"), "", "sem arquivo novo, sem foto (o antigo não existe mais)");
   assert.equal(fotos.fotoIntegrada("bomba", ""), "");
   assert.equal(fotos.fotoIntegrada("bomba", "/assets/pecas/bomba.jpg"), "/assets/pecas/bomba.jpg");
-  assert.ok(!existsSync(new URL("../public/assets/9000.398.jpg", import.meta.url)), "arquivo com código interno saiu do site");
+  assert.equal(fotos.fotoIntegrada("bomba", "https://exemplo.invalid/fotos/1234.567.jpg?v=2"), "/assets/pecas/bomba.jpg", "código em qualquer formato de caminho");
+  const comCodigo = readdirSync(new URL("../public/assets", import.meta.url), { recursive: true }).map(String).filter((f) => /\d{4}\.\d{3}/.test(f));
+  assert.deepEqual(comCodigo, [], "nenhum arquivo do site com código interno no nome");
+});
+
+test("resposta do pedido online ao cliente: itens sem sku e com nome limpo", () => {
+  const order = { id: "o1", number: 1, status: "PENDING", totalCents: 2200, customerName: "Cliente",
+    items: [{ productId: "filtro-ar", name: "FILTRO AR / 4150", sku: "codigo-interno", image: "/assets/1234.567.jpg", quantity: 1, priceCents: 2200 }] };
+  const p = publico.pedidoPublico(order);
+  assert.deepEqual(p.items[0], { productId: "filtro-ar", name: "Filtro Ar", sku: "", image: "/assets/pecas/filtro-ar.jpg", quantity: 1, priceCents: 2200 });
+  assert.equal(p.customerName, "Cliente");
 });

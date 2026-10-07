@@ -11,7 +11,8 @@ export const FOTOS_INTEGRADAS: Record<string, string> = {
   palheta: "/assets/pecas/palheta.jpg",
 };
 
-const CAMINHO_COM_CODIGO = /^\/assets\/\d+(?:\.\d+)+\.(?:jpe?g|png|webp)$/i;
+// Código interno do ERP tem o formato NNNN.NNN: qualquer caminho com ele (absoluto, com ?v=, outra pasta) é trocado.
+const CAMINHO_COM_CODIGO = /\d{4}\.\d{3}/;
 
 export function fotoIntegrada(id: string, image: string) {
   if (!image) return "";

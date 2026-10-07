@@ -107,10 +107,11 @@ export function montarCatalogo(meta: Meta, linhas: LinhaIndice[]): Catalogo {
 }
 
 // Estoque ao vivo (GET /api/public/disponibilidade, server/disponibilidade.ts): ids das peças com saldo agora no ERP.
-// O catálogo estático (tarefa do PC às 7h e 13h) segue valendo se a consulta falhar ou demorar mais de 3 s.
+// O catálogo estático (tarefa do PC às 7h e 13h) segue valendo se a consulta falhar ou demorar mais de 2 s
+// (a espera corre junto com o download do índice, que costuma levar mais que isso no celular).
 export type Disponibilidade = { geradoEm: string; ids: string[] };
 export const ESTOQUE_VELHO_MS = 30 * 3600_000;
-const ESPERA_DISPONIBILIDADE = 3000;
+const ESPERA_DISPONIBILIDADE = 2000;
 
 async function carregarDisponibilidade(): Promise<Disponibilidade | null> {
   // AbortSignal.timeout não existe no iOS 15 (ver o frete): temporizador na mão.
@@ -119,20 +120,26 @@ async function carregarDisponibilidade(): Promise<Disponibilidade | null> {
   try {
     const r = await fetch("/api/public/disponibilidade", { signal: controle.signal, headers: { Accept: "application/json" } });
     if (!r.ok) return null;
-    const j = (await r.json()) as Disponibilidade;
-    return j && typeof j.geradoEm === "string" && Array.isArray(j.ids) ? j : null;
+    const j = (await r.json()) as Disponibilidade & { indisponivel?: boolean };
+    return j && !j.indisponivel && typeof j.geradoEm === "string" && Array.isArray(j.ids) ? j : null;
   } catch { return null; } finally { clearTimeout(timer); }
 }
 
 // Põe o "tem / não tem" ao vivo por cima do catálogo (posição 5 de cada linha) e registra de quando ele é.
 // Sem resposta do ERP, fica o do catálogo; se ele tiver mais de 30 h, o site para de afirmar "em estoque".
+// Lista ao vivo em que menos de 30% das peças em estoque do catálogo aparecem é tratada como defeito (lista vazia,
+// id curto divergente, credencial de outra empresa): o estoque da loja não cai assim de um dia para o outro, então
+// o site fica com o catálogo em vez de mostrar tudo "sem estoque".
+export const QUEDA_SUSPEITA = 0.3;
 export function aplicarDisponibilidade(meta: Meta, linhas: LinhaIndice[], disp: Disponibilidade | null, agora = Date.now()) {
   if (disp) {
     const comSaldo = new Set(disp.ids);
-    let n = 0;
-    for (const l of linhas) { l[5] = comSaldo.has(l[0]) ? 1 : 0; n += l[5]; }
-    Object.assign(meta, { comEstoque: n, estoqueEm: disp.geradoEm, estoqueAoVivo: true, estoqueIncerto: false });
-    return meta;
+    const n = linhas.reduce((t, l) => t + (comSaldo.has(l[0]) ? 1 : 0), 0);
+    if (n >= meta.comEstoque * QUEDA_SUSPEITA) {
+      for (const l of linhas) l[5] = comSaldo.has(l[0]) ? 1 : 0;
+      Object.assign(meta, { comEstoque: n, estoqueEm: disp.geradoEm, estoqueAoVivo: true, estoqueIncerto: false });
+      return meta;
+    }
   }
   const exportado = meta.exportadoEm ? Date.parse(meta.exportadoEm) : NaN;
   return Object.assign(meta, { estoqueEm: meta.exportadoEm, estoqueAoVivo: false, estoqueIncerto: !Number.isFinite(exportado) || agora - exportado > ESTOQUE_VELHO_MS });
