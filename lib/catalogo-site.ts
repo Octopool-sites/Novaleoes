@@ -46,7 +46,7 @@ export type Meta = {
   versao: number; exportadoEm: string | null; geradoEm: string; empresa: string; total: number; comEstoque: number; comFoto: number;
   // Preenchidos no navegador por aplicarDisponibilidade (não vêm do arquivo): de quando é o "tem / não tem" em uso,
   // se veio ao vivo do ERP e se é velho demais para afirmar "em estoque" (sem o ERP e com o catálogo de mais de 30 h).
-  estoqueEm?: string | null; estoqueAoVivo?: boolean; estoqueIncerto?: boolean;
+  estoqueEm?: string | null; estoqueAoVivo?: boolean; estoqueIncerto?: boolean; precosAoVivo?: number;
   fotoBase: string; buckets: number; departamentos: Departamento[];
   grupos: [nome: string, departamentoIdx: number, n: number][];
   marcas: [nome: string, n: number][];
@@ -54,17 +54,19 @@ export type Meta = {
   modelos: [montadoraIdx: number, nome: string, n: number][];
   unidades: string[];
 };
-// [id, nome, marcaIdx, grupoIdx, precoCents, disponivel, foto, aplicacoes[modeloIdx, anoInicio, anoFim], externalId|0, unidadeIdx, qtdMinima]
-// Posição 5 é 0/1 (tem/não tem); posição 11 = 1 quando a foto é ilustrativa (de outra peça do mesmo grupo).
-export type LinhaIndice = [string, string, number, number, number, number, string, [number, number, number][], string | 0, number, number, number?];
-// t: desenho técnico do fabricante, mostrado só no detalhe.
-export type Detalhe = { d: string[]; h: string[]; a: [modeloIdx: number, versao: string, motor: string, anoInicio: number, anoFim: number, obs: string][]; t?: string };
+// [id, nome, marcaIdx, grupoIdx, precoCents, disponivel, foto, aplicacoes[modeloIdx, anoInicio, anoFim], externalId|0, unidadeIdx, qtdMinima,
+//  fotoIlustrativa, codigoFabricante]
+// Posição 5 é 0/1 (tem/não tem); posição 11 = 1 quando a foto é ilustrativa (de outra peça do mesmo grupo);
+// posição 12 = código do fabricante ("" quando o cadastro não tem um código de verdade).
+export type LinhaIndice = [string, string, number, number, number, number, string, [number, number, number][], string | 0, number, number, number?, string?];
+// t: desenho técnico do fabricante, mostrado só no detalhe. s: ids curtos dos similares (mesma função, outra marca).
+export type Detalhe = { d: string[]; h: string[]; a: [modeloIdx: number, versao: string, motor: string, anoInicio: number, anoFim: number, obs: string][]; t?: string; s?: string[] };
 
 export type Peca = {
   depOrdem: number; grupoN: number;
   id: string; nome: string; marca: string; grupo: string; grupoIdx: number; departamento: Departamento;
   precoCents: number; disponivel: number; foto: string; aplicacoes: [number, number, number][];
-  externalId: string | null; unidade: string; quantidadeMinima: number; busca: string; fotoIlustrativa: boolean;
+  externalId: string | null; unidade: string; quantidadeMinima: number; busca: string; fotoIlustrativa: boolean; codigo: string;
   estoqueIncerto: boolean;
 };
 
@@ -82,6 +84,15 @@ export function urlFoto(meta: Meta, foto: string) {
   return foto.startsWith("http") ? foto : meta.fotoBase + foto;
 }
 
+// Código do fabricante na busca: como está ("bc855 0,25") e colado, sem ponto, hífen, barra ou espaço
+// ("N-1464", "n 1464" e "N1464" acham a mesma peça; "6PK 1580" acha "6PK1580").
+const colado = (s: string) => normalizeSearch(s).replace(/[^a-z0-9]/g, "");
+export function buscaDoCodigo(codigo: string) {
+  const texto = textoBusca(codigo);
+  const junto = colado(codigo);
+  return junto && junto !== texto ? `${texto} ${junto}` : texto;
+}
+
 export function montarCatalogo(meta: Meta, linhas: LinhaIndice[]): Catalogo {
   const departamentoDoGrupo = meta.grupos.map((g) => meta.departamentos[g[1]]);
   // Texto de busca de marca, grupo e modelo calculado uma vez por item da lista, não uma vez por peça.
@@ -97,7 +108,8 @@ export function montarCatalogo(meta: Meta, linhas: LinhaIndice[]): Catalogo {
       id: l[0], nome: l[1], marca, grupo, grupoIdx: l[3], departamento, precoCents: l[4], disponivel: l[5], foto: l[6], aplicacoes: l[7],
       externalId: l[8] || null, unidade: meta.unidades[l[9]] || "", quantidadeMinima: l[10] || 1, fotoIlustrativa: l[11] === 1,
       estoqueIncerto: !!meta.estoqueIncerto,
-      busca: `${textoBusca(l[1])} ${l[2] >= 0 ? marcaBusca[l[2]] : ""} ${grupoBusca[l[3]]} ${modelos}`,
+      codigo: l[12] || "",
+      busca: `${textoBusca(l[1])} ${l[2] >= 0 ? marcaBusca[l[2]] : ""} ${grupoBusca[l[3]]} ${modelos}${l[12] ? ` ${buscaDoCodigo(l[12])}` : ""}`,
       depOrdem: meta.departamentos.indexOf(departamento), grupoN: meta.grupos[l[3]][2],
     };
   });
@@ -109,7 +121,18 @@ export function montarCatalogo(meta: Meta, linhas: LinhaIndice[]): Catalogo {
 // Estoque ao vivo (GET /api/public/disponibilidade, server/disponibilidade.ts): ids das peças com saldo agora no ERP.
 // O catálogo estático (tarefa do PC às 7h e 13h) segue valendo se a consulta falhar ou demorar mais de 2 s
 // (a espera corre junto com o download do índice, que costuma levar mais que isso no celular).
-export type Disponibilidade = { geradoEm: string; ids: string[] };
+// precos (07/10/2026): preço de venda ao vivo em centavos, só das peças com saldo; ausente = vale o do catálogo.
+export type Disponibilidade = { geradoEm: string; ids: string[]; precos?: Record<string, number> };
+
+// Preço ao vivo por cima do catálogo. "Consultar preço" do catálogo (0: preço de mentira do legado) continua 0;
+// preço ao vivo de mentira (R$ 0,50, abaixo de R$ 1) ou 10x longe do catálogo (erro de digitação, unidade trocada)
+// é ignorado e fica o do catálogo, que a tarefa das 7h/13h refaz com a régua completa (mediana do grupo).
+export function precoAoVivo(catalogoCents: number, vivoCents: number | undefined) {
+  if (!catalogoCents || vivoCents === undefined || !Number.isInteger(vivoCents)) return catalogoCents;
+  if (vivoCents < 100 || vivoCents === 50) return catalogoCents;
+  if (vivoCents > catalogoCents * 10 || vivoCents * 10 < catalogoCents) return catalogoCents;
+  return vivoCents;
+}
 export const ESTOQUE_VELHO_MS = 30 * 3600_000;
 const ESPERA_DISPONIBILIDADE = 2000;
 
@@ -136,8 +159,15 @@ export function aplicarDisponibilidade(meta: Meta, linhas: LinhaIndice[], disp: 
     const comSaldo = new Set(disp.ids);
     const n = linhas.reduce((t, l) => t + (comSaldo.has(l[0]) ? 1 : 0), 0);
     if (n >= meta.comEstoque * QUEDA_SUSPEITA) {
-      for (const l of linhas) l[5] = comSaldo.has(l[0]) ? 1 : 0;
-      Object.assign(meta, { comEstoque: n, estoqueEm: disp.geradoEm, estoqueAoVivo: true, estoqueIncerto: false });
+      let precos = 0;
+      for (const l of linhas) {
+        l[5] = comSaldo.has(l[0]) ? 1 : 0;
+        if (disp.precos && l[5]) {
+          const novo = precoAoVivo(l[4], disp.precos[l[0]]);
+          if (novo !== l[4]) { l[4] = novo; precos++; }
+        }
+      }
+      Object.assign(meta, { comEstoque: n, estoqueEm: disp.geradoEm, estoqueAoVivo: true, estoqueIncerto: false, precosAoVivo: precos });
       return meta;
     }
   }
@@ -221,8 +251,14 @@ function ordenar(pecas: Peca[], filtro: Filtro, termos: string[][]) {
   // Relevância: com foto e em estoque primeiro; busca pelo nome pesa mais que pela aplicação.
   // Palavra inteira pesa mais que pedaço de palavra: "pastilha gol" põe o Gol antes do Golf (que também contém "gol"),
   // sem tirar o Golf da lista. Vale mais que estoque e foto: peça de outro carro não serve, mesmo com estoque.
+  // Digitou o código do fabricante (com ou sem a marca: "N1464", "syl 2095"): essa peça vem antes de tudo.
+  const qColado = colado(filtro.q);
   const pontos = (p: Peca) => {
     let s = 0;
+    if (qColado && p.codigo) {
+      const c = colado(p.codigo);
+      if (qColado === c || qColado === colado(`${p.marca} ${p.codigo}`) || qColado === colado(`${p.codigo} ${p.marca}`)) s += 40;
+    }
     if (p.disponivel > 0) s += 4;
     if (p.foto) s += 2;
     if (p.externalId) s += 3;

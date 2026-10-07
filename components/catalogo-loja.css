@@ -102,3 +102,24 @@
   .nl-filtro-outros { grid-template-columns: 1fr; }
   .nl-limpar { justify-self: start; }
 }
+
+/* 07/10/2026 — código do fabricante e similares no detalhe da peça. */
+.nl-detail-codigo { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin: 2px 0 10px; font-size: 12px; color: var(--nl-chumbo-3); }
+.nl-detail-codigo b { font-size: 14px; font-weight: 700; letter-spacing: .03em; color: var(--nl-chumbo); font-variant-numeric: tabular-nums; }
+.nl-detail-codigo button { display: inline-flex; align-items: center; gap: 4px; height: 24px; padding: 0 8px; border: 1px solid var(--nl-linha); border-radius: 999px; background: white; font-size: 11px; color: var(--nl-chumbo-3); cursor: pointer; }
+.nl-detail-codigo button:hover { border-color: var(--nl-linha-forte); color: var(--nl-chumbo); }
+.nl-similares { margin: 4px 0 16px; }
+.nl-similares ul { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--nl-linha); }
+.nl-similares li { border-bottom: 1px solid var(--nl-linha); }
+.nl-similares li > button { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; align-items: center; gap: 10px; width: 100%; padding: 7px 4px; border: 0; background: none; text-align: left; cursor: pointer; color: var(--nl-chumbo); }
+.nl-similares li > button:hover { background: var(--nl-papel); }
+.nl-similar-foto { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 6px; background: var(--nl-papel); color: var(--nl-muted); overflow: hidden; }
+.nl-similar-foto img { width: 100%; height: 100%; object-fit: contain; }
+.nl-similar-texto { display: grid; min-width: 0; }
+.nl-similar-texto small { font-size: 10px; letter-spacing: .03em; color: var(--nl-chumbo-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nl-similar-texto span { font-size: 12.5px; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nl-similar-preco { display: grid; justify-items: end; gap: 1px; }
+.nl-similar-preco b { font-size: 13px; }
+.nl-similar-preco small { font-size: 10px; }
+.nl-similar-preco small:is(.nl-disp-loja, .nl-disp-online) { color: var(--nl-chumbo); font-weight: 600; }
+.nl-similar-preco small.nl-disp-consulta { color: var(--nl-muted); }

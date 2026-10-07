@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { limparNome, limparGrupo, limparDescricao, unidadeLegivel, VAZAMENTO_CODIGO, removerCodigosDePeca, temCodigoDePeca } from "../scripts/catalogo/nomes.mjs";
 import { classificar, DEPARTAMENTOS, normalizarTexto } from "../scripts/catalogo/taxonomia.mjs";
-import { construir, vazamentos, grupoDerivado, limparMarca, nomeModelo, chaveModelo, idCurto, bucketDe, normalizarAno, BUCKETS, faixaDeAnos, precoPlaceholder, GRUPOS_FORA_DO_SITE, fotosComCodigo } from "../scripts/catalogo/construir.mjs";
+import { construir, vazamentos, grupoDerivado, limparMarca, nomeModelo, chaveModelo, idCurto, bucketDe, normalizarAno, BUCKETS, faixaDeAnos, precoPlaceholder, GRUPOS_FORA_DO_SITE, fotosComCodigo, codigoFabricante, similarCompativel, SIMILARES_MAX } from "../scripts/catalogo/construir.mjs";
 import { filtrar, montarCatalogo, filtroDaUrl, filtroParaUrl, FILTRO_VAZIO, resumoAplicacoes, faixaAnos, separarDescricao, termosDe, textoBusca } from "../lib/catalogo-site.ts";
 
 test("nomes: expande abreviações do balcão, restaura acentos e remove código de fabricante do fim", () => {
@@ -291,4 +291,80 @@ test("29/09 (verificação): chassi fica, código com pontos sai, preço de cent
   assert.equal(precoPlaceholder(0.01, 4.5), true);
   assert.equal(precoPlaceholder(0.22, 6), false);
   assert.deepEqual(limparDescricao("TUCHO VELA CH19\nOBS: AJUSTE ESTOQUE 12/05/23\n07 PC ENFERRUJADAS").linhas, ["Tucho Vela CH19"]);
+});
+
+test("07/10: código do fabricante sai limpo, sem a sigla que o legado colou e sem o código interno", () => {
+  // Casos reais do cadastro (conferidos no catálogo da marca: Contitech 6PK1580, SYL 2095, Cobreq N1464).
+  assert.equal(codigoFabricante("6PK1580-CTT", "CONTITECH"), "6PK1580");
+  assert.equal(codigoFabricante("3037-NFX", "NORFLEX"), "3037");
+  assert.equal(codigoFabricante("1507-16V-DOF", "DOFAB"), "1507-16V");
+  assert.equal(codigoFabricante("M04976+MS", "MS"), "M04976");
+  assert.equal(codigoFabricante("M06059+A", "AXIOS BIELETA"), "M06059");
+  assert.equal(codigoFabricante("2095", "SYL PASTILHA"), "2095");
+  assert.equal(codigoFabricante(" n1464 ", "COBREQ"), "N1464");
+  assert.equal(codigoFabricante("M04585*", "SUMEC GERAL"), "M04585");
+  // Sigla que não é da marca pode ser parte do código: fica.
+  assert.equal(codigoFabricante("08165-AR", "CBOR"), "08165-AR");
+  assert.equal(codigoFabricante("4150-B", "BOSCH"), "4150-B", "uma letra depois do hífen é variante do fabricante");
+  // Texto que não é código não sai.
+  assert.equal(codigoFabricante("0W20 ACDELCO", "ACDELCO"), "");
+  assert.equal(codigoFabricante("5W30 (D) MOTORCRAFT", "FORD"), "");
+  assert.equal(codigoFabricante("ROSA 33% P USO WURTH", "WURTH"), "");
+  assert.equal(codigoFabricante("", "X"), "");
+  assert.equal(codigoFabricante("AB", "X"), "");
+  assert.equal(codigoFabricante("9029.318", "SYL", true), "", "código interno da loja nunca sai");
+  assert.equal(codigoFabricante("1055-MANG", "DV LOJA"), "", "rótulo interno não é fabricante");
+  assert.equal(codigoFabricante("6620-DIV", "DIVERSOS"), "");
+  assert.equal(codigoFabricante("0211545", "AXIOS BATENTE"), "0211545", "Axios usa 7 dígitos começando em 0");
+});
+
+test("07/10: similares nos dois sentidos, só entre peças do site e do mesmo grupo; busca acha pelo código", () => {
+  const prod = (id, nome, marca, grupo, ref, disp = 1, preco = 50) => ({ id, nome, marca, grupo, ref, descricao: "", preco, disp, foto: null, unidade: "JG", qmin: 1 });
+  const exportacao = {
+    prods: [
+      prod("syl", "PAST FREIO DT / 2095", "SYL PASTILHA", "PASTILHA FREIO", "2095", 0, 95),
+      prod("cob", "PAST FREIO DT / 2095", "COBREQ", "PASTILHA FREIO", "N1464", 1, 227),
+      prod("fras", "PAST FREIO DT", "FRAS-LE", "PASTILHA FREIO", "PD/598", 0, 120),
+      prod("kit", "KIT CORREIA DENT", "CONTITECH", "KIT CORREIA DENTADA", "CT1028K1", 1, 300),
+      prod("corr", "CORREIA DENT", "CONTITECH", "CORREIA DENTADA", "CT1028-CTT", 1, 90),
+      prod("loja", "MOVEL BALCAO", "", "PATRIMONIO", "X100", 1, 10),
+    ],
+    apl: [],
+    // A SYL lista a Cobreq; a Fras-le lista a SYL (o outro sentido); kit × correia avulsa não é similar; o móvel não está no site.
+    sim: [{ pid: "syl", sid: "cob" }, { pid: "fras", sid: "syl" }, { pid: "kit", sid: "corr" }, { pid: "syl", sid: "loja" }, { pid: "syl", sid: "syl" }],
+    bind: [],
+  };
+  const { meta, indice, detalhes, similaresForaDoGrupo } = construir(exportacao);
+  const id = (pid) => idCurto(pid);
+  // Com estoque primeiro: a Cobreq antes da Fras-le.
+  assert.deepEqual(detalhes.get(id("syl")).s, [id("cob"), id("fras")]);
+  assert.deepEqual(detalhes.get(id("cob")).s, [id("syl")]);
+  assert.deepEqual(detalhes.get(id("fras")).s, [id("syl")]);
+  assert.equal(detalhes.get(id("kit")).s, undefined, "kit de correia não é similar da correia avulsa");
+  assert.equal(similaresForaDoGrupo.length, 1);
+  const linha = (pid) => indice.pecas.find((p) => p[0] === id(pid));
+  assert.equal(linha("syl")[12], "2095");
+  assert.equal(linha("corr")[12], "CT1028", "sigla da marca sai do código");
+  assert.equal(linha("fras")[12], "PD/598");
+  // O nome continua sem código: a trava de vazamento vale para nome, descrição e aplicação.
+  assert.deepEqual(vazamentos({ meta, indice, detalhes }), []);
+  assert.ok(!JSON.stringify(indice).includes("syl\""), "id do ERP não vaza");
+  assert.equal(similarCompativel({ grupo: "LUBRIFICANTES" }, { grupo: "AMORTECEDOR" }), true, "balde do legado não diz nada: vale o cadastro");
+  assert.ok(SIMILARES_MAX >= 6);
+
+  const catalogo = montarCatalogo(meta, indice.pecas);
+  const achados = (q) => filtrar(catalogo, { ...FILTRO_VAZIO, q }).map((p) => p.id);
+  for (const q of ["N1464", "n-1464", "N 1464", "cobreq n1464"]) assert.equal(achados(q)[0], id("cob"), q);
+  assert.equal(achados("2095")[0], id("syl"));
+  assert.equal(achados("syl 2095")[0], id("syl"));
+  assert.equal(achados("PD598")[0], id("fras"), "barra do código não atrapalha");
+  assert.equal(achados("pd/598")[0], id("fras"));
+  assert.equal(catalogo.porId.get(id("syl")).codigo, "2095");
+});
+
+test("07/10: catálogo antigo (sem código e sem similares) continua abrindo", () => {
+  const meta = { versao: 1, total: 1, comEstoque: 1, departamentos: [{ id: "freios", nome: "Freios", resumo: "", n: 1, grupos: [0], capa: "" }], grupos: [["Pastilha", 0, 1]], marcas: [["Cobreq", 1]], montadoras: [], modelos: [], unidades: ["JG"] };
+  const catalogo = montarCatalogo(meta, [["abc12345", "Pastilha Freio Dianteiro", 0, 0, 9000, 1, "", [], 0, 0, 1, 0]]);
+  assert.equal(catalogo.pecas[0].codigo, "");
+  assert.equal(filtrar(catalogo, { ...FILTRO_VAZIO, q: "pastilha" }).length, 1);
 });

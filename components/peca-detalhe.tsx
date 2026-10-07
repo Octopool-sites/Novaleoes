@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { CarFront, Check, ChevronDown, Link2, MessageCircle, Package, Share2, ShoppingBag, TriangleAlert } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { ArrowLeftRight, CarFront, Check, ChevronDown, Copy, Link2, MessageCircle, Package, Share2, ShoppingBag, TriangleAlert } from "lucide-react";
 import { DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import type { Product } from "@/lib/catalog";
 import { productBenefits } from "./storefront-editorial";
@@ -13,22 +13,32 @@ import { BASE_URL } from "@/lib/base";
 // Até ~180 caracteres de texto do cadastro à vista; o resto fica em "Mais informações".
 const LIMITE_TEXTO = 180;
 const VEICULOS_A_VISTA = 8;
+const SIMILARES_A_VISTA = 4;
 
 export function linkDaPeca(peca: Peca) {
   return `${location.origin}${BASE_URL}?peca=${peca.id}`;
 }
 
-export default function PecaDetalhe({ peca, catalogo, live, veiculo, onAdicionar, onWhatsApp, onEscolherVeiculo }: {
+export default function PecaDetalhe({ peca, catalogo, live, veiculo, onAdicionar, onWhatsApp, onEscolherVeiculo, onAbrir }: {
   peca: Peca; catalogo: Catalogo; live: Map<string, Product>; veiculo: Veiculo | null;
-  onAdicionar: (peca: Peca) => void; onWhatsApp: (peca: Peca) => string; onEscolherVeiculo: () => void;
+  onAdicionar: (peca: Peca) => void; onWhatsApp: (peca: Peca) => string; onEscolherVeiculo: () => void; onAbrir: (peca: Peca) => void;
 }) {
   const [detalhe, setDetalhe] = useState<Detalhe | null | undefined>(undefined);
   const [copiado, setCopiado] = useState(false);
+  const [codigoCopiado, setCodigoCopiado] = useState(false);
   const [todosVeiculos, setTodosVeiculos] = useState(false);
+  const [todosSimilares, setTodosSimilares] = useState(false);
+  const topo = useRef<HTMLDivElement>(null);
   useEffect(() => {
     let ativo = true;
     setDetalhe(undefined);
     setTodosVeiculos(false);
+    setTodosSimilares(false);
+    setCodigoCopiado(false);
+    // Trocou para um similar: a janela volta ao topo da nova peça.
+    const janela = topo.current?.closest<HTMLElement>("[role=dialog]");
+    janela?.scrollTo({ top: 0 });
+    janela?.querySelector<HTMLElement>(".nl-detail-content")?.scrollTo({ top: 0 });
     carregarDetalhe(catalogo, peca.id).then((d) => ativo && setDetalhe(d)).catch(() => ativo && setDetalhe(null));
     return () => { ativo = false; };
   }, [catalogo, peca.id]);
@@ -68,6 +78,12 @@ export default function PecaDetalhe({ peca, catalogo, live, veiculo, onAdicionar
   const listaDescritos = [...descritos].sort((x, y) => Number(descritoDoCarro(y)) - Number(descritoDoCarro(x)) || x.nome.localeCompare(y.nome, "pt-BR"));
   const totalVeiculos = usarDescritos ? descritos.length : aplicacoes.length;
   const limite = todosVeiculos ? Infinity : VEICULOS_A_VISTA;
+  // Similares que estão no site; os com estoque primeiro (a lista já vem nessa ordem do catálogo).
+  const similares = (detalhe?.s ?? []).map((id) => catalogo.porId.get(id)).filter((p): p is Peca => !!p && p.id !== peca.id);
+
+  async function copiarCodigo() {
+    try { await navigator.clipboard.writeText(peca.codigo); setCodigoCopiado(true); setTimeout(() => setCodigoCopiado(false), 2000); } catch {}
+  }
 
   async function compartilhar() {
     const url = linkDaPeca(peca);
@@ -80,7 +96,7 @@ export default function PecaDetalhe({ peca, catalogo, live, veiculo, onAdicionar
 
   return (
     <>
-      <div className="detail-photo"><span className="nl-detail-category">{peca.departamento.nome} · {peca.grupo}</span>
+      <div className="detail-photo" ref={topo}><span className="nl-detail-category">{peca.departamento.nome} · {peca.grupo}</span>
         {foto ? <img src={foto} alt={titulo} onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} /> : <div className="nl-photo-placeholder"><Package size={64} strokeWidth={1} /><small>Foto em breve</small></div>}
         {foto && fotoIlustrativa(peca, live) && <small className="nl-foto-ilustrativa">Foto ilustrativa · peça do mesmo grupo</small>}
         {detalhe?.t && <figure className="nl-desenho-tecnico"><img src={detalhe.t.startsWith("http") ? detalhe.t : catalogo.meta.fotoBase + detalhe.t} alt={`Desenho técnico de ${titulo}`} loading="lazy" /><figcaption>Desenho técnico do fabricante</figcaption></figure>}
@@ -88,6 +104,12 @@ export default function PecaDetalhe({ peca, catalogo, live, veiculo, onAdicionar
       <div className="nl-detail-content">
         <p className="eyebrow">{peca.marca || "Marca conferida no atendimento"}{unidade ? ` · ${unidade}` : ""}</p>
         <DialogTitle className="detail-title">{titulo}</DialogTitle>
+        {peca.codigo && (
+          <p className="nl-detail-codigo">
+            <span>Código do fabricante</span> <b translate="no">{peca.codigo}</b>
+            <button type="button" onClick={copiarCodigo} aria-label={`Copiar o código ${peca.codigo}`}>{codigoCopiado ? <><Check size={13} /> Copiado</> : <><Copy size={13} /> Copiar</>}</button>
+          </p>
+        )}
         {veiculo && (serve
           ? <p className="nl-detail-serve"><Check size={16} /> Serve no seu {veiculo.rotulo}</p>
           : <p className="nl-detail-nao-serve"><TriangleAlert size={16} /> Sem aplicação cadastrada para o seu {veiculo.rotulo}. Confirme com a loja.</p>)}
@@ -147,6 +169,38 @@ export default function PecaDetalhe({ peca, catalogo, live, veiculo, onAdicionar
             </button>
           )}
         </div>
+        {similares.length > 0 && (
+          <div className="nl-similares">
+            <p className="nl-detail-subtitulo"><ArrowLeftRight size={16} /> Similares · {similares.length} {similares.length === 1 ? "peça" : "peças"} com a mesma função</p>
+            <ul>
+              {similares.slice(0, todosSimilares ? Infinity : SIMILARES_A_VISTA).map((s) => {
+                const fotoS = fotoDaPeca(s, catalogo, live);
+                const precoS = precoDaPeca(s, live);
+                const dispS = disponibilidadeDaPeca(s, live);
+                return (
+                  <li key={s.id}>
+                    <button type="button" onClick={() => onAbrir(s)}>
+                      <span className="nl-similar-foto" aria-hidden="true">{fotoS ? <img src={fotoS} alt="" loading="lazy" /> : <Package size={18} strokeWidth={1.4} />}</span>
+                      <span className="nl-similar-texto">
+                        <small>{[s.marca, s.codigo].filter(Boolean).join(" · ") || s.grupo}</small>
+                        <span>{tituloDaPeca(s)}</span>
+                      </span>
+                      <span className="nl-similar-preco">
+                        <b>{precoS > 0 ? money(compraMinima(precoS, s.quantidadeMinima).totalCents) : "Consultar"}</b>
+                        <small className={dispS.classe}>{dispS.estoque ? "Em estoque" : "Consultar estoque"}</small>
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+            {similares.length > SIMILARES_A_VISTA && (
+              <button type="button" className="nl-aplic-mais" aria-expanded={todosSimilares} onClick={() => setTodosSimilares((v) => !v)}>
+                {todosSimilares ? "Mostrar menos" : `Ver os ${similares.length} similares`} <ChevronDown size={14} />
+              </button>
+            )}
+          </div>
+        )}
         <div className="compatibility-note">
           <CarFront size={21} />
           <span><b>A loja confere antes de aprovar</b>Com modelo, ano e motor informados no pedido, a equipe confirma a aplicação antes de separar a peça.</span>

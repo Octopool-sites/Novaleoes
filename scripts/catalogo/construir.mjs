@@ -9,7 +9,9 @@
 //   indice.json          uma linha compacta por peça, para busca e filtros no navegador
 //   detalhes/NNN.json    descrição limpa e aplicações completas, carregadas ao abrir a peça
 //
-// O que NÃO sai daqui: código interno, código do fabricante/OEM, custo, curva ABC, localização.
+// O que NÃO sai daqui: código interno, custo, curva ABC, localização.
+// Código do fabricante e similares saem desde 07/10/2026 (pedido do Luca), cada um no seu campo: nome, descrição e
+// aplicação continuam sem código (a trava vazamentos() segue valendo para eles).
 
 import { createHash } from "node:crypto";
 import { mkdirSync, readFileSync, writeFileSync, rmSync, existsSync, statSync, readdirSync } from "node:fs";
@@ -124,6 +126,42 @@ function fotoPublica(url) {
   return ""; // hosts de terceiros ficam fora (CSP e direitos de imagem)
 }
 
+// Código do fabricante como o mecânico conhece. O legado colava no fim a sigla da própria marca para não repetir
+// código entre fornecedores ("6PK1580-CTT" da Contitech, "3037-NFX" da Norflex, "M04976+MS" da MS): a sigla sai só
+// quando as letras dela aparecem, em ordem, na marca da peça (CTT em CONTITECH). Sigla que não é da marca
+// ("08165-AR" da CBOR) fica, porque pode ser parte do código. Texto que não é código ("0W20 ACDELCO",
+// "5W30 (D) MOTORCRAFT") não sai: cada pedaço tem que ter número. O código interno da loja nunca sai: a exportação marca
+// refInterno quando o campo tem o formato interno (9001.234, 0123456) e é o código de alguma peça da loja; e peça sem
+// fabricante (rótulo interno "DV LOJA", "DIVERSOS") não tem código de fabricante.
+// Hífen: sigla de 2 a 5 letras (uma letra só, "4150-B", costuma ser variante do próprio fabricante). Mais: sempre sigla.
+const SIGLA_DA_MARCA = /^(.*\d.*?)(?:-([A-Z]{2,5})|\+([A-Z]{1,5}))$/;
+function siglaDaMarca(sigla, marca) {
+  const letras = String(marca || "").toUpperCase().replace(/[^A-Z]/g, "");
+  if (!letras || letras[0] !== sigla[0]) return false;
+  let i = 0;
+  for (const c of letras) if (c === sigla[i]) i++;
+  return i === sigla.length;
+}
+export function codigoFabricante(ref, marca, ehCodigoInterno = false) {
+  if (ehCodigoInterno || !limparMarca(marca)) return "";
+  let c = String(ref || "").toUpperCase().replace(/\s+/g, " ").trim().replace(/[\s*]+$/, "").replace(/\+$/, "").trim();
+  const m = c.match(SIGLA_DA_MARCA);
+  if (m && siglaDaMarca(m[2] || m[3], marca)) c = m[1].trim();
+  if (c.length < 3 || c.length > 24) return "";
+  if (!/^[A-Z0-9][A-Z0-9.,\-/ ]*$/.test(c)) return "";
+  if (c.split(" ").some((t) => !/\d/.test(t))) return "";
+  return c;
+}
+
+// Similar que vai ao site: o mesmo grupo do ERP. Se um dos dois está num balde do legado (LUBRIFICANTES, DIVERSOS),
+// o grupo não diz nada e vale o cadastro. Kit de correia × correia avulsa e afins ficam fora (não fazem a mesma função);
+// a lista dessas divergências vai para a loja conferir (outputs/, fora do site).
+export function similarCompativel(a, b) {
+  const ga = String(a.grupo || "").trim(), gb = String(b.grupo || "").trim();
+  return ga === gb || GRUPOS_BALDE.test(ga) || GRUPOS_BALDE.test(gb) || !ga || !gb;
+}
+export const SIMILARES_MAX = 12;
+
 function indexador() {
   const mapa = new Map();
   const lista = [];
@@ -217,9 +255,31 @@ export function construir(exportacao) {
     }
     aplicacoes.sort((x, y) => x[0] - y[0] || x[3] - y[3]);
 
-    pecas.push([id, nome, mIdx, gIdx, precoCents, disp, foto, [...resumo.values()].sort((x, y) => x[0] - y[0] || x[1] - y[1]), extPorProduto.get(p.id) || 0, uIdx, qmin, 0]);
+    pecas.push([id, nome, mIdx, gIdx, precoCents, disp, foto, [...resumo.values()].sort((x, y) => x[0] - y[0] || x[1] - y[1]), extPorProduto.get(p.id) || 0, uIdx, qmin, 0, codigoFabricante(p.ref, p.marca, p.refInterno)]);
     const { linhas, destaques } = limparDescricao(p.descricao);
     detalhes.set(id, desenho ? { d: linhas, h: destaques, a: aplicacoes, t: fotoCadastro } : { d: linhas, h: destaques, a: aplicacoes });
+  }
+
+  // Similares: os dois sentidos do cadastro (A lista B, B lista A), só entre peças que estão no site.
+  // Ordem: com estoque, com preço, nome. A lista guarda o id curto; nome, foto e preço vêm do índice no navegador.
+  const produtoPorId = new Map(base.map(({ p }) => [p.id, p]));
+  const pecaPorCurto = new Map(pecas.map((l) => [l[0], l]));
+  const vizinhos = new Map();
+  const ligar = (x, y) => { if (!vizinhos.has(x)) vizinhos.set(x, new Set()); vizinhos.get(x).add(y); };
+  const similaresForaDoGrupo = [];
+  for (const s of exportacao.sim || []) {
+    const a = produtoPorId.get(s.pid), b = produtoPorId.get(s.sid);
+    if (!a || !b || a.id === b.id) continue;
+    if (!similarCompativel(a, b)) { similaresForaDoGrupo.push({ a, b }); continue; }
+    ligar(idCurto(a.id), idCurto(b.id));
+    ligar(idCurto(b.id), idCurto(a.id));
+  }
+  for (const [id, lista] of vizinhos) {
+    const d = detalhes.get(id);
+    if (!d) continue;
+    const ordenados = [...lista].map((x) => pecaPorCurto.get(x)).filter(Boolean)
+      .sort((x, y) => y[5] - x[5] || Number(y[4] > 0) - Number(x[4] > 0) || PT_BR.compare(x[1], y[1]) || x[0].localeCompare(y[0]));
+    d.s = ordenados.slice(0, SIMILARES_MAX).map((x) => x[0]);
   }
 
   // Peça sem foto (ou só com desenho) ganha a foto real de outra peça do mesmo grupo, marcada como ilustrativa
@@ -275,7 +335,7 @@ export function construir(exportacao) {
     modelos: modelos.lista.map((m, i) => [m[0], m[1], pecasPorModelo[i]]),
     unidades: unidades.lista,
   };
-  return { meta, indice: { pecas }, detalhes, revisarPrecos };
+  return { meta, indice: { pecas }, detalhes, revisarPrecos, similaresForaDoGrupo };
 }
 
 // Trava: nenhum texto publicado pode conter referência de código ("COD ...", "Orig ...", "Usar GP30120", "Leoes 11302",
