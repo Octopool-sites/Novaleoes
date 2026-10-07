@@ -1,5 +1,18 @@
 # Octopool Commerce — Nova Leões
 
+## Ajustes de 07/10/2026 (pedido do Luca)
+
+- **Código do fabricante** na janela da peça, com botão de copiar, e **busca pelo código** ("N1464", "n-1464",
+  "syl 2095"). Amostra de 20 códigos conferida no catálogo das marcas: todos batem; a diferença é só de formato.
+- **Similares** na janela da peça: lista compacta e clicável, mesma função e outra marca, com estoque primeiro.
+- **Anúncios menores:** 6 por linha no notebook (eram 4), 2 por linha no celular, cerca de 30% mais baixos.
+- **"AUTOPEÇAS" maior** na marca do topo; **WhatsApp flutuante** no formato do site da Octopool (círculo verde,
+  mesmo número da loja).
+- A exportação do ERP (`scripts/catalogo/exportar-erp.cjs`) passou a levar `codigoOriginal` e os similares;
+  continua somente leitura e passa pela trava do `atualizar.mjs`.
+- Revisão do cadastro (peças sem aplicação, similares de outro grupo, códigos a corrigir, preços) entregue à parte
+  em planilha, fora do Git.
+
 ## Pente fino de 06/10/2026
 
 - **Estoque ao vivo.** O "tem / não tem" vem do ERP pela rota `GET /api/public/disponibilidade`

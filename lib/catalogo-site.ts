@@ -54,17 +54,19 @@ export type Meta = {
   modelos: [montadoraIdx: number, nome: string, n: number][];
   unidades: string[];
 };
-// [id, nome, marcaIdx, grupoIdx, precoCents, disponivel, foto, aplicacoes[modeloIdx, anoInicio, anoFim], externalId|0, unidadeIdx, qtdMinima]
-// Posição 5 é 0/1 (tem/não tem); posição 11 = 1 quando a foto é ilustrativa (de outra peça do mesmo grupo).
-export type LinhaIndice = [string, string, number, number, number, number, string, [number, number, number][], string | 0, number, number, number?];
-// t: desenho técnico do fabricante, mostrado só no detalhe.
-export type Detalhe = { d: string[]; h: string[]; a: [modeloIdx: number, versao: string, motor: string, anoInicio: number, anoFim: number, obs: string][]; t?: string };
+// [id, nome, marcaIdx, grupoIdx, precoCents, disponivel, foto, aplicacoes[modeloIdx, anoInicio, anoFim], externalId|0, unidadeIdx, qtdMinima,
+//  fotoIlustrativa, codigoFabricante]
+// Posição 5 é 0/1 (tem/não tem); posição 11 = 1 quando a foto é ilustrativa (de outra peça do mesmo grupo);
+// posição 12 = código do fabricante ("" quando o cadastro não tem um código de verdade).
+export type LinhaIndice = [string, string, number, number, number, number, string, [number, number, number][], string | 0, number, number, number?, string?];
+// t: desenho técnico do fabricante, mostrado só no detalhe. s: ids curtos dos similares (mesma função, outra marca).
+export type Detalhe = { d: string[]; h: string[]; a: [modeloIdx: number, versao: string, motor: string, anoInicio: number, anoFim: number, obs: string][]; t?: string; s?: string[] };
 
 export type Peca = {
   depOrdem: number; grupoN: number;
   id: string; nome: string; marca: string; grupo: string; grupoIdx: number; departamento: Departamento;
   precoCents: number; disponivel: number; foto: string; aplicacoes: [number, number, number][];
-  externalId: string | null; unidade: string; quantidadeMinima: number; busca: string; fotoIlustrativa: boolean;
+  externalId: string | null; unidade: string; quantidadeMinima: number; busca: string; fotoIlustrativa: boolean; codigo: string;
   estoqueIncerto: boolean;
 };
 
@@ -82,6 +84,15 @@ export function urlFoto(meta: Meta, foto: string) {
   return foto.startsWith("http") ? foto : meta.fotoBase + foto;
 }
 
+// Código do fabricante na busca: como está ("bc855 0,25") e colado, sem ponto, hífen, barra ou espaço
+// ("N-1464", "n 1464" e "N1464" acham a mesma peça; "6PK 1580" acha "6PK1580").
+const colado = (s: string) => normalizeSearch(s).replace(/[^a-z0-9]/g, "");
+export function buscaDoCodigo(codigo: string) {
+  const texto = textoBusca(codigo);
+  const junto = colado(codigo);
+  return junto && junto !== texto ? `${texto} ${junto}` : texto;
+}
+
 export function montarCatalogo(meta: Meta, linhas: LinhaIndice[]): Catalogo {
   const departamentoDoGrupo = meta.grupos.map((g) => meta.departamentos[g[1]]);
   // Texto de busca de marca, grupo e modelo calculado uma vez por item da lista, não uma vez por peça.
@@ -97,7 +108,8 @@ export function montarCatalogo(meta: Meta, linhas: LinhaIndice[]): Catalogo {
       id: l[0], nome: l[1], marca, grupo, grupoIdx: l[3], departamento, precoCents: l[4], disponivel: l[5], foto: l[6], aplicacoes: l[7],
       externalId: l[8] || null, unidade: meta.unidades[l[9]] || "", quantidadeMinima: l[10] || 1, fotoIlustrativa: l[11] === 1,
       estoqueIncerto: !!meta.estoqueIncerto,
-      busca: `${textoBusca(l[1])} ${l[2] >= 0 ? marcaBusca[l[2]] : ""} ${grupoBusca[l[3]]} ${modelos}`,
+      codigo: l[12] || "",
+      busca: `${textoBusca(l[1])} ${l[2] >= 0 ? marcaBusca[l[2]] : ""} ${grupoBusca[l[3]]} ${modelos}${l[12] ? ` ${buscaDoCodigo(l[12])}` : ""}`,
       depOrdem: meta.departamentos.indexOf(departamento), grupoN: meta.grupos[l[3]][2],
     };
   });
@@ -221,8 +233,14 @@ function ordenar(pecas: Peca[], filtro: Filtro, termos: string[][]) {
   // Relevância: com foto e em estoque primeiro; busca pelo nome pesa mais que pela aplicação.
   // Palavra inteira pesa mais que pedaço de palavra: "pastilha gol" põe o Gol antes do Golf (que também contém "gol"),
   // sem tirar o Golf da lista. Vale mais que estoque e foto: peça de outro carro não serve, mesmo com estoque.
+  // Digitou o código do fabricante (com ou sem a marca: "N1464", "syl 2095"): essa peça vem antes de tudo.
+  const qColado = colado(filtro.q);
   const pontos = (p: Peca) => {
     let s = 0;
+    if (qColado && p.codigo) {
+      const c = colado(p.codigo);
+      if (qColado === c || qColado === colado(`${p.marca} ${p.codigo}`) || qColado === colado(`${p.codigo} ${p.marca}`)) s += 40;
+    }
     if (p.disponivel > 0) s += 4;
     if (p.foto) s += 2;
     if (p.externalId) s += 3;

@@ -28,6 +28,8 @@ import "./storefront-polish.css";
 import "./storefront-loja.css";
 import "./storefront-entrega.css";
 import "./storefront-vendas.css";
+import "./storefront-compacto.css";
+import IconeWhatsApp from "./icone-whatsapp";
 import { caminho, BASE_URL } from "@/lib/base";
 const StorefrontEditorialVariant = lazy(() => import("./storefront-editorial-variant"));
 
@@ -606,14 +608,14 @@ export default function Storefront() {
       <RodapeLoja storefrontHref={storefrontHref} departamentos={catalogo?.meta.departamentos.filter((d) => d.n > 0) || []} onDepartamento={explorarDepartamento} onPagina={mudarPagina} />
 
       <a className={`nl-whats-flutuante${cartOpen || detalhe ? " oculto" : ""}`} href={contatoWhats} target="_blank" rel="noopener noreferrer" aria-label="Falar com a loja no WhatsApp">
-        <MessageCircle size={24} /><span>Fale com a loja</span>
+        <IconeWhatsApp size={28} />
       </a>
 
       {catalogo && <SeletorVeiculo catalogo={catalogo} aberto={seletorAberto} inicial={veiculo} montadoraInicial={seletorMontadora} onFechar={() => setSeletorAberto(false)} onSalvar={salvarCarro} />}
 
       <Dialog open={!!detalhe || !!detalheLive} onOpenChange={(open) => { if (!open) { setDetalhe(null); setDetalheLive(null); } }}>
         <DialogContent className="product-dialog nl-product-dialog sm:max-w-[960px]">
-          {detalhe && catalogo && <PecaDetalhe peca={detalhe} catalogo={catalogo} live={live} veiculo={veiculo} onAdicionar={adicionarPeca} onEscolherVeiculo={() => escolherVeiculo()}
+          {detalhe && catalogo && <PecaDetalhe peca={detalhe} catalogo={catalogo} live={live} veiculo={veiculo} onAdicionar={adicionarPeca} onEscolherVeiculo={() => escolherVeiculo()} onAbrir={setDetalhe}
             onWhatsApp={(p) => whatsappUrl(`Olá! Tenho interesse nesta peça:\n${tituloDaPeca(p)}${p.marca ? ` (${p.marca})` : ""}\n${linkDaPeca(p)}${veiculo ? `\nMeu carro: ${veiculo.rotulo}` : ""}\nTem disponível?`)} />}
           {!detalhe && detalheLive && (
             <>

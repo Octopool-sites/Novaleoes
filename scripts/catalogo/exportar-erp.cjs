@@ -12,8 +12,10 @@
 //   node scripts/catalogo/construir.mjs
 //
 // Campos exportados: id, nome, marca, grupo, descrição, preço de venda, disponível (físico − reservado),
-// foto, unidade, quantidade mínima de venda, aplicações veiculares e o vínculo Commerce (externalId).
-// NÃO exporta: código interno, código do fabricante/OEM, custo, curva ABC, localização, similares.
+// foto, unidade, quantidade mínima de venda, código do fabricante (codigoOriginal), aplicações veiculares,
+// similares (só entre peças ativas, nos dois sentidos do cadastro) e o vínculo Commerce (externalId).
+// Código do fabricante e similares entraram em 07/10/2026 a pedido do Luca: o mecânico procura pelo número da peça.
+// NÃO exporta: código interno, custo, curva ABC, localização.
 const { PrismaClient } = require("@prisma/client");
 const zlib = require("zlib");
 const db = new PrismaClient();
@@ -26,14 +28,19 @@ const TENANT = "cmr9m6jgi001lx34fzpaeyrzn"; // Nova Leões Autopeças (empresa r
     if (!empresa || empresa.tipoVertical !== "AUTOPECAS" || empresa.status !== "ATIVA" || empresa.filialDeId) throw new Error("SCOPE_MISMATCH");
     const prods = await tx.$queryRawUnsafe(`SELECT p.id, p.nome, p.marca, p.grupo, p.descricao, p."precoVenda"::float preco,
         GREATEST(0, (p."estoqueAtual" - p."estoqueReservado"))::float disp, p."fotoUrl" foto, p.unidade,
-        p."quantidadeMinimaVenda"::float qmin, p."updatedAt" upd
+        p."quantidadeMinimaVenda"::float qmin, p."codigoOriginal" ref,
+        (trim(p."codigoOriginal") ~ '^([0-9]{4}[.][0-9]{3}|0[0-9]{6})$' AND EXISTS (SELECT 1 FROM "Produto" q
+          WHERE q."empresaId" = '${TENANT}' AND q.codigo = trim(p."codigoOriginal"))) "refInterno", p."updatedAt" upd
       FROM "Produto" p WHERE p."empresaId" = '${TENANT}' AND p.ativo ORDER BY p.nome`);
     const apl = await tx.$queryRawUnsafe(`SELECT a."produtoId" pid, a.montadora m, a.modelo mo, a.versao v, a.motor mt,
         a."anoInicio" ai, a."anoFim" af, a.observacao o
       FROM "AplicacaoVeiculo" a JOIN "Produto" p ON p.id = a."produtoId" WHERE p."empresaId" = '${TENANT}' AND p.ativo`);
+    const sim = await tx.$queryRawUnsafe(`SELECT s."produtoId" pid, s."similarId" sid FROM "ProdutoSimilar" s
+      JOIN "Produto" p ON p.id = s."produtoId" JOIN "Produto" sp ON sp.id = s."similarId"
+      WHERE s."empresaId" = '${TENANT}' AND p."empresaId" = '${TENANT}' AND sp."empresaId" = '${TENANT}' AND p.ativo AND sp.ativo AND s."similarId" <> s."produtoId"`);
     const bind = await tx.$queryRawUnsafe(`SELECT cp."externalId" ext, cp."productId" pid FROM "CommerceProduct" cp
       JOIN "CommerceConnection" c ON c.id = cp."connectionId" WHERE c."tenantRootId" = '${TENANT}'`);
-    return { exportadoEm: new Date().toISOString(), empresa: empresa.nome, prods, apl, bind };
+    return { exportadoEm: new Date().toISOString(), empresa: empresa.nome, prods, apl, sim, bind };
   }, { timeout: 120000 });
   const gz = zlib.gzipSync(Buffer.from(JSON.stringify(resultado)), { level: 9 }).toString("base64");
   console.log("NL_SIZE", resultado.prods.length, resultado.apl.length, gz.length);

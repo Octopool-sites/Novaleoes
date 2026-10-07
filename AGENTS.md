@@ -13,7 +13,7 @@ Escopo deste repositório: Nova Leões. Inclui vitrine, gestão, API Vercel/Fire
 
 - Direção visual aprovada em 23/09/2026: versão A, padrão em `/`. Próximas melhorias e apresentações usam A como base. Preservar B como alternativa histórica, sem mesclar seus elementos à A sem orientação do usuário.
 
-- Catálogo público (`public/catalogo/`) é uma fotografia somente leitura do ERP, gerada por `scripts/catalogo/`. Nunca expor código interno, código do fabricante, custo ou localização. Reexportar só com o script somente leitura; não editar os JSON à mão.
+- Catálogo público (`public/catalogo/`) é uma fotografia somente leitura do ERP, gerada por `scripts/catalogo/`. Nunca expor código interno, custo ou localização. Desde 07/10/2026 (pedido do Luca) o código do fabricante e os similares saem, cada um no seu campo (`construir.mjs`: `codigoFabricante`, `similarCompativel`); nome, descrição e aplicação continuam sem código. Reexportar só com o script somente leitura; não editar os JSON à mão.
 
 - Envio público cria pedido aguardando aprovação, sem reserva, baixa ou chamada de movimentação ao ERP.
 - Aprovação autenticada revalida preço e disponibilidade; reserva e comandos devem ser idempotentes.

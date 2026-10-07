@@ -1,0 +1,51 @@
+/* 07/10/2026 — pedido do Luca:
+   - "AUTOPEÇAS" maior na marca do topo (antes 10px, sumia ao lado de NOVA LEÕES);
+   - anúncios menores, mais peças por tela: 6 por linha no notebook 1366 (eram 4, uma linha por tela);
+   - WhatsApp flutuante no formato do site da Octopool: círculo verde com o ícone, mesmo número da loja.
+   Só a versão A (padrão). A versão B editorial fica como está (AGENTS.md). */
+
+/* Marca: AUTOPEÇAS ocupa quase a largura de NOVA LEÕES. */
+.nl-store .store-header .store-brand small:not(.nl-desde) { font-size: 13px; font-weight: 700; letter-spacing: .2em; margin-top: 3px; }
+@media (max-width: 700px) {
+  .nl-store .store-header .store-brand small:not(.nl-desde) { font-size: 11px; letter-spacing: .17em; }
+}
+
+/* Anúncios compactos */
+.nl-store:not(.nl-store-editorial) .product-grid { grid-template-columns: repeat(auto-fill, minmax(188px, 1fr)); gap: 14px; }
+.nl-store:not(.nl-store-editorial) .nl-product-card .product-photo { height: 158px; padding: 30px 14px 12px; }
+.nl-store:not(.nl-store-editorial) .nl-product-card .product-photo img { height: 116px; }
+.nl-store:not(.nl-store-editorial) .nl-product-card .product-photo > span { top: 9px; left: 10px; padding: 3px 7px; font-size: 8px; max-width: calc(100% - 20px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nl-store:not(.nl-store-editorial) .nl-photo-open { width: 24px; height: 24px; right: 9px; bottom: 9px; }
+.nl-store:not(.nl-store-editorial) .nl-photo-open svg { width: 14px; }
+.nl-store:not(.nl-store-editorial) .nl-product-card .product-info { padding: 12px 12px 11px; }
+.nl-store:not(.nl-store-editorial) .nl-product-card .product-brand { font-size: 9px; letter-spacing: .5px; }
+.nl-store:not(.nl-store-editorial) .nl-product-card h3 { font-size: 14.5px; line-height: 1.3; margin: 5px 0 4px; min-height: 0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+/* Continua flex (ícone do carro ao lado do texto); duas linhas no máximo. */
+.nl-store:not(.nl-store-editorial) .nl-product-card .application { font-size: 11px; line-height: 1.45; min-height: 0; max-height: 2.9em; overflow: hidden; }
+.nl-store:not(.nl-store-editorial) .nl-product-card .application svg { margin-top: 2px; width: 12px; }
+.nl-store:not(.nl-store-editorial) .nl-product-card .product-bottom { padding-top: 10px; }
+.nl-store:not(.nl-store-editorial) .nl-product-card .product-bottom strong { font-size: 19px; }
+.nl-store:not(.nl-store-editorial) .nl-product-card .product-bottom small { font-size: 9.5px; }
+.nl-store:not(.nl-store-editorial) .nl-product-card .add-button { min-height: 36px; margin-top: 9px; gap: 6px; font-size: 12.5px; }
+.nl-store:not(.nl-store-editorial) .nl-product-card .add-button svg { width: 15px; }
+.nl-store:not(.nl-store-editorial) .nl-product-card .nl-serve { font-size: 10px; }
+
+@media (max-width: 700px) {
+  .nl-store:not(.nl-store-editorial) .product-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .nl-store:not(.nl-store-editorial) .nl-product-card .product-photo { height: 132px; padding: 26px 10px 10px; }
+  .nl-store:not(.nl-store-editorial) .nl-product-card .product-photo img { height: 94px; }
+  .nl-store:not(.nl-store-editorial) .nl-product-card .product-info { padding: 10px 10px 10px; }
+  .nl-store:not(.nl-store-editorial) .nl-product-card h3 { font-size: 13.5px; }
+  .nl-store:not(.nl-store-editorial) .nl-product-card .product-bottom strong { font-size: 17px; }
+  /* Toque no celular: o botão continua com 40px de altura. */
+  .nl-store:not(.nl-store-editorial) .nl-product-card .add-button { min-height: 40px; font-size: 12px; }
+}
+
+/* WhatsApp flutuante: igual ao do site da Octopool (#25D366, 56px, 20px da borda). */
+.nl-store .nl-whats-flutuante { right: 20px; bottom: 20px; z-index: 90; width: 56px; height: 56px; padding: 0; gap: 0; justify-content: center; border: 0; border-radius: 50%; background: #25d366; color: #fff; box-shadow: 0 8px 24px rgba(37, 211, 102, .4), 0 2px 8px rgba(15, 15, 30, .15); }
+.nl-store .nl-whats-flutuante:hover { background: #1ebe5b; transform: translateY(-2px); }
+.nl-store .nl-whats-flutuante svg { color: #fff; }
+.nl-store .nl-whats-flutuante:focus-visible { outline: 3px solid var(--nl-chumbo); outline-offset: 3px; }
+@media (max-width: 700px) {
+  .nl-store .nl-whats-flutuante { right: 14px; bottom: 14px; width: 54px; height: 54px; }
+}

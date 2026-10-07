@@ -8,7 +8,8 @@ arquivos estáticos; a integração de estoque (`octopool.stock.v1`), a gestão 
 - **39.369 peças ativas** do tenant Nova Leões no Nexus ERP, das quais 9.435 com estoque e 23.376 com foto.
 - Por peça: nome limpo, marca, grupo, departamento, preço de venda, disponibilidade, foto, descrição e
   aplicações veiculares (montadora, modelo, versão, motor, anos).
-- **Nunca sai do ERP:** código interno, código do fabricante/OEM, custo, curva ABC, localização, similares.
+- **Nunca sai do ERP:** código interno, custo, curva ABC, localização.
+- **Sai desde 07/10/2026:** código do fabricante (`codigoOriginal`, limpo por `codigoFabricante`: sem a sigla da marca que o legado colava no fim, sem texto que não é código, sem código interno) na posição 12 do índice, e similares (`ProdutoSimilar`, os dois sentidos, só do mesmo grupo) em `detalhes[].s`. A busca acha pelo código com ou sem hífen/espaço.
   O nome também perde a referência colada no fim (`BOMBA DAGUA / 766` → "Bomba d'Água") e códigos entre
   parênteses (`PAST FREIO DT ( 4213 )`).
 
