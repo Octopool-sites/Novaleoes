@@ -10,6 +10,9 @@
   mesmo número da loja).
 - A exportação do ERP (`scripts/catalogo/exportar-erp.cjs`) passou a levar `codigoOriginal` e os similares;
   continua somente leitura e passa pela trava do `atualizar.mjs`.
+- **Preço ao vivo:** o ERP manda o preço das peças com saldo junto da disponibilidade (`prices`, opcional) e o site
+  põe por cima do catálogo em até 5 min (`precoAoVivo`: "consultar" continua consultar; preço de mentira ou 10x longe
+  do catálogo é ignorado). Depende do deploy do ERP com o campo novo; sem ele, nada muda.
 - Revisão do cadastro (peças sem aplicação, similares de outro grupo, códigos a corrigir, preços) entregue à parte
   em planilha, fora do Git.
 

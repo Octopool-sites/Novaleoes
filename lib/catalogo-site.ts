@@ -46,7 +46,7 @@ export type Meta = {
   versao: number; exportadoEm: string | null; geradoEm: string; empresa: string; total: number; comEstoque: number; comFoto: number;
   // Preenchidos no navegador por aplicarDisponibilidade (não vêm do arquivo): de quando é o "tem / não tem" em uso,
   // se veio ao vivo do ERP e se é velho demais para afirmar "em estoque" (sem o ERP e com o catálogo de mais de 30 h).
-  estoqueEm?: string | null; estoqueAoVivo?: boolean; estoqueIncerto?: boolean;
+  estoqueEm?: string | null; estoqueAoVivo?: boolean; estoqueIncerto?: boolean; precosAoVivo?: number;
   fotoBase: string; buckets: number; departamentos: Departamento[];
   grupos: [nome: string, departamentoIdx: number, n: number][];
   marcas: [nome: string, n: number][];
@@ -121,7 +121,18 @@ export function montarCatalogo(meta: Meta, linhas: LinhaIndice[]): Catalogo {
 // Estoque ao vivo (GET /api/public/disponibilidade, server/disponibilidade.ts): ids das peças com saldo agora no ERP.
 // O catálogo estático (tarefa do PC às 7h e 13h) segue valendo se a consulta falhar ou demorar mais de 2 s
 // (a espera corre junto com o download do índice, que costuma levar mais que isso no celular).
-export type Disponibilidade = { geradoEm: string; ids: string[] };
+// precos (07/10/2026): preço de venda ao vivo em centavos, só das peças com saldo; ausente = vale o do catálogo.
+export type Disponibilidade = { geradoEm: string; ids: string[]; precos?: Record<string, number> };
+
+// Preço ao vivo por cima do catálogo. "Consultar preço" do catálogo (0: preço de mentira do legado) continua 0;
+// preço ao vivo de mentira (R$ 0,50, abaixo de R$ 1) ou 10x longe do catálogo (erro de digitação, unidade trocada)
+// é ignorado e fica o do catálogo, que a tarefa das 7h/13h refaz com a régua completa (mediana do grupo).
+export function precoAoVivo(catalogoCents: number, vivoCents: number | undefined) {
+  if (!catalogoCents || vivoCents === undefined || !Number.isInteger(vivoCents)) return catalogoCents;
+  if (vivoCents < 100 || vivoCents === 50) return catalogoCents;
+  if (vivoCents > catalogoCents * 10 || vivoCents * 10 < catalogoCents) return catalogoCents;
+  return vivoCents;
+}
 export const ESTOQUE_VELHO_MS = 30 * 3600_000;
 const ESPERA_DISPONIBILIDADE = 2000;
 
@@ -148,8 +159,15 @@ export function aplicarDisponibilidade(meta: Meta, linhas: LinhaIndice[], disp: 
     const comSaldo = new Set(disp.ids);
     const n = linhas.reduce((t, l) => t + (comSaldo.has(l[0]) ? 1 : 0), 0);
     if (n >= meta.comEstoque * QUEDA_SUSPEITA) {
-      for (const l of linhas) l[5] = comSaldo.has(l[0]) ? 1 : 0;
-      Object.assign(meta, { comEstoque: n, estoqueEm: disp.geradoEm, estoqueAoVivo: true, estoqueIncerto: false });
+      let precos = 0;
+      for (const l of linhas) {
+        l[5] = comSaldo.has(l[0]) ? 1 : 0;
+        if (disp.precos && l[5]) {
+          const novo = precoAoVivo(l[4], disp.precos[l[0]]);
+          if (novo !== l[4]) { l[4] = novo; precos++; }
+        }
+      }
+      Object.assign(meta, { comEstoque: n, estoqueEm: disp.geradoEm, estoqueAoVivo: true, estoqueIncerto: false, precosAoVivo: precos });
       return meta;
     }
   }

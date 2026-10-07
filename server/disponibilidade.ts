@@ -3,7 +3,9 @@
 // O catálogo estático (public/catalogo, reconstruído pela tarefa do PC do Luca às 7h e 13h) traz nome, preço,
 // foto e aplicações. O "tem / não tem" vem daqui, direto do ERP, servidor para servidor, com a mesma credencial
 // do estoque (COMMERCE_ERP_TOKEN / COMMERCE_ERP_ORIGIN):
-//   GET {origin}/api/commerce-stock/disponibilidade -> { contract, generatedAt, available: [id do produto no ERP] }
+//   GET {origin}/api/commerce-stock/disponibilidade -> { contract, generatedAt, available: [id do produto no ERP],
+//                                                       prices?: { id do produto no ERP: centavos } }
+// O preço ao vivo (07/10/2026) vem só das peças com saldo e é opcional: ERP sem o campo = site usa o preço do catálogo.
 // O id do ERP não sai para o navegador: vira o id curto do catálogo (o mesmo de scripts/catalogo/construir.mjs).
 //
 // Fica fora do route() de server/handler.ts de propósito: lá toda resposta sai "no-store", e esta precisa da CDN
@@ -24,8 +26,9 @@ const respostaErpSchema = z.object({
   contract: z.literal("octopool.availability.v1"),
   generatedAt: z.string().datetime(),
   available: z.array(z.string().min(1).max(100)).max(200_000),
+  prices: z.record(z.string().min(1).max(100), z.number().int().min(0).max(100_000_000)).optional(),
 });
-export type Disponibilidade = { geradoEm: string; ids: string[] };
+export type Disponibilidade = { geradoEm: string; ids: string[]; precos?: Record<string, number> };
 
 // Mesmo id curto de scripts/catalogo/construir.mjs (idCurto); tests/pente-fino-0610.test.mjs confere os dois.
 export function idCurto(id: string) {
@@ -48,7 +51,13 @@ async function consultarErp(transport: typeof fetch): Promise<Disponibilidade> {
   });
   if (!r.ok) throw new Error(`ERP_${r.status}`);
   const dados = respostaErpSchema.parse(await r.json());
-  return { geradoEm: dados.generatedAt, ids: [...new Set(dados.available.map(idCurto))].sort() };
+  const resposta: Disponibilidade = { geradoEm: dados.generatedAt, ids: [...new Set(dados.available.map(idCurto))].sort() };
+  if (dados.prices) {
+    const precos: Record<string, number> = {};
+    for (const id of dados.available) if (dados.prices[id] !== undefined) precos[idCurto(id)] = dados.prices[id];
+    resposta.precos = Object.fromEntries(Object.entries(precos).sort(([a], [b]) => a.localeCompare(b)));
+  }
+  return resposta;
 }
 
 export async function disponibilidade(request: Request, deps: { transport?: typeof fetch; agora?: () => number } = {}): Promise<Response> {
