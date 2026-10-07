@@ -87,8 +87,9 @@ export function montarEnvio(linhas: ItemPedido[], dados: Partial<DadosPedido>, f
 
 // Disponibilidade da linha do carrinho. O site só sabe se tem ou não tem (a quantidade em estoque não é pública):
 // acima da venda mínima, avisa que a loja confirma a quantidade em vez de prometer.
-export function observacaoDoItem(l: { stock: number; quantity: number; minimo: number }) {
-  const partes = [l.stock > 0 ? "Em estoque na loja" : "Sem estoque agora · a loja confirma disponibilidade e prazo"];
+// Sem o estoque ao vivo e com o catálogo velho (peca.estoqueIncerto), não afirma que tem.
+export function observacaoDoItem(l: { stock: number; quantity: number; minimo: number; peca?: { estoqueIncerto?: boolean } }) {
+  const partes = [l.stock > 0 ? (l.peca?.estoqueIncerto ? "Estoque a confirmar com a loja" : "Em estoque na loja") : "Sem estoque agora · a loja confirma disponibilidade e prazo"];
   if (l.minimo > 1) partes.push(`venda mínima de ${l.minimo}`);
   // Na venda mínima (jogo, kit, 4 velas) a loja já vende assim; acima dela, confirma se tem tudo.
   if (l.stock > 0 && l.quantity > Math.max(1, l.minimo)) partes.push(`a loja confirma as ${l.quantity} un.`);

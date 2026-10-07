@@ -5,6 +5,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import type { Plugin } from "vite";
 import { HttpError } from "../lib/commerce-server.js";
 import { consultarPlaca, statusPlaca } from "./placa.js";
+import { disponibilidade } from "./disponibilidade.js";
 
 function limitadorEmMemoria(maximo: number) {
   const contagem = new Map<string, { janela: number; n: number }>();
@@ -29,7 +30,17 @@ export function placaLocal(): Plugin {
   const limiter = limitadorEmMemoria(5);
   async function atender(req: IncomingMessage, res: ServerResponse, next: () => void) {
     const caminho = (req.url || "").split("?")[0];
-    if (caminho !== "/api/public/placa" || process.env.VERCEL_ENV === "production") return next();
+    if (process.env.VERCEL_ENV === "production") return next();
+    // Estoque ao vivo: sem credencial na máquina local, responde { indisponivel: true } e o site usa o catálogo.
+    if (caminho === "/api/public/disponibilidade") {
+      const r = await disponibilidade(new Request(new URL(req.url || "/", `http://${req.headers.host || "127.0.0.1"}`), { method: req.method || "GET" }));
+      res.statusCode = r.status;
+      res.setHeader("Content-Type", "application/json; charset=utf-8");
+      res.setHeader("Cache-Control", "no-store");
+      res.end(Buffer.from(await r.arrayBuffer()));
+      return;
+    }
+    if (caminho !== "/api/public/placa") return next();
     let resposta: Response;
     try {
       if (req.method === "GET") resposta = await statusPlaca();

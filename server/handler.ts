@@ -10,6 +10,7 @@ import { createStoreContext, createRateLimiter } from "./firestore.js";
 import * as store from "./store.js";
 import * as inventory from "./inventory.js";
 import * as placa from "./placa.js";
+import { pedidoPublico, produtoPublico } from "./produto-publico.js";
 import type { StoreContext } from "./types.js";
 
 export function runtimeEnv(): RuntimeEnv {
@@ -95,8 +96,8 @@ export async function handleApi(originalRequest: Request): Promise<Response> {
         if (process.env.COMMERCE_READ_ONLY !== "1") await inventory.refreshCatalog(ctx);
         return Response.json({
           // Público vê só se tem ou não tem; a quantidade real fica no servidor e é conferida no pedido.
-          // O código interno do ERP (sku) não sai para o site (AGENTS.md).
-          products: (await store.listProducts(ctx)).filter(p => p.published).map(p => ({ ...p, sku: "", stock: p.stock > 0 ? 1 : 0 })), requiresApproval: true,
+          // Sem código interno (sku) e com nome e marca limpos como no catálogo (server/produto-publico.ts).
+          products: (await store.listProducts(ctx)).filter(p => p.published).map(produtoPublico), requiresApproval: true,
           ordersEnabled: await intakeEnabled(ctx),
         });
       }
@@ -114,7 +115,7 @@ export async function handleApi(originalRequest: Request): Promise<Response> {
         if (!(await env.ORDER_RATE_LIMITER!.limit({ key: request.headers.get("cf-connecting-ip") || "unknown" })).success)
           throw new HttpError(429, "Muitas tentativas. Aguarde um minuto antes de reenviar.");
         const result = await store.submitOrder(ctx, orderInput.parse(await readJson(request)));
-        return Response.json({ ...result, message: "Pedido recebido. A loja vai conferir e aprovar sua solicitação antes de reservar as peças." }, { status: result.replayed ? 200 : 201 });
+        return Response.json({ ...result, order: pedidoPublico(result.order), message: "Pedido recebido. A loja vai conferir e aprovar sua solicitação antes de reservar as peças." }, { status: result.replayed ? 200 : 201 });
       }
       // Busca por placa: pública, antes do login. Placa só no corpo do POST (nunca na URL nem em log).
       if (pathname === "/api/public/placa" && method === "GET") return placa.statusPlaca();

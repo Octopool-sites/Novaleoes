@@ -78,7 +78,7 @@ async function teste(nome, fn, opcoes) {
 
 const abrir = async (page, q = "") => {
   await page.goto(BASE + q, { waitUntil: "domcontentloaded", timeout: 60000 });
-  await page.waitForFunction(() => /\d+ peças? · estoque de|\d+ peças?$/.test(document.querySelector(".nl-catalog-tools .subtle")?.textContent || "") || !!document.querySelector(".nl-pagina"), { timeout: 60000 });
+  await page.waitForFunction(() => /\d+ peças? · estoque (de|atualizado)|\d+ peças?$/.test(document.querySelector(".nl-catalog-tools .subtle")?.textContent || "") || !!document.querySelector(".nl-pagina"), { timeout: 60000 });
 };
 const contagem = (page) => page.$eval(".nl-catalog-tools .subtle", (el) => Number((el.textContent.match(/^([\d.]+)/) || [0, "0"])[1].replace(/\./g, "")));
 const cartoes = (page) => page.$$eval(".product-grid .nl-product-card", (els) => els.length);

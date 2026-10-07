@@ -14,7 +14,7 @@
 import { createHash } from "node:crypto";
 import { mkdirSync, readFileSync, writeFileSync, rmSync, existsSync, statSync, readdirSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
-import { limparNome, limparGrupo, limparDescricao, removerCodigos, cortarCodigos, removerCodigosDePeca, temCodigoDePeca, NOTA_CUSTO_ESTOQUE, VAZAMENTO_CODIGO } from "./nomes.mjs";
+import { limparNome, limparGrupo, limparDescricao, limparMarca, removerCodigos, cortarCodigos, removerCodigosDePeca, temCodigoDePeca, NOTA_CUSTO_ESTOQUE, VAZAMENTO_CODIGO } from "./nomes.mjs";
 import { classificar, DEPARTAMENTOS, GRUPOS_BALDE } from "./taxonomia.mjs";
 import { nomePublico, NOME_PUBLICO } from "./fotos-publicas.mjs";
 
@@ -37,34 +37,8 @@ export const BUCKETS = 200;
 // Um collator só: localeCompare(x, "pt-BR") recria o collator a cada comparação (o sort das 39 mil peças levava 35 s).
 const PT_BR = new Intl.Collator("pt-BR");
 
-// Marca do ERP = fabricante + linha do produto ("VIEMAR TERM", "TECFIL F AR", "NAKATA PIVO").
-// O site mostra só o fabricante: primeira palavra, exceto marcas de duas palavras conhecidas.
-// Duas palavras que são o fabricante (conferidas pelo 2º token, antes do mapa de uma palavra): "AUTO STAR PIVO" é
-// Auto Star, "PRO TORK" não é Pro Automotive, "FLEX OIL LUB" e "FLEX AUTOMOT" são fabricantes diferentes.
-const MARCAS_DUAS_PALAVRAS = [
-  ["AUTO", /^STAR$/, "Auto Star"], ["AUTO", /^SHINE$/, "Auto Shine"], ["PRO", /^TORK$/, "Pro Tork"],
-  ["FLEX", /^AUTOMOT/, "Flex Automotive"], ["FLEX", /^OIL$/, "Flex Oil"], ["CONTROL", /^FLEX$/, "Control Flex"],
-];
-const MARCAS_COMPOSTAS = { NOVO: "Novo Kit", PRO: "Pro Automotive", FILTROS: "Filtros Brasil", TC: "TC Chicotes", AZEVEDO: "Azevedo", GM: "GM" };
-// Rótulos internos do legado que não são fabricante: não exibir marca. AMORT, MANG, ROL, KIT e OLEO são linha de
-// produto ("AMORT RECOND", "ROL DIV", "OLEO DIV"); 416, YBR e H-7 são modelo ou código.
-const MARCAS_OCULTAS = new Set(["DIVERSOS", "FERRAMENTAS", "UNIVERSAL", "IMPORTADO", "DV", "OUTROS", "GERAL", "LOJA", "NN",
-  "AMORT", "MANG", "ROL", "KIT", "OLEO", "416", "YBR", "H-7"]);
-// SAMBEL (12) ao lado de SAMPEL (448) parece erro de digitação, mas não foi confirmado com a loja: fica como está.
-const MARCAS_GRAFIA = { "FRAS-LE": "Fras-le", "3-RHO": "3-RHO", NAKATA: "Nakata", MOBENSANI: "Mobensani", CONTITECH: "ContiTech", KITCIA: "Kitcia" };
-
-export function limparMarca(marca) {
-  const tokens = String(marca || "").trim().toUpperCase().replace(/[.,]+$/, "").split(/\s+/).filter(Boolean);
-  if (!tokens.length) return "";
-  const primeiro = tokens[0];
-  if (MARCAS_OCULTAS.has(primeiro)) return "";
-  const dupla = MARCAS_DUAS_PALAVRAS.find(([t1, t2]) => t1 === primeiro && t2.test(tokens[1] || ""));
-  if (dupla) return dupla[2];
-  if (MARCAS_COMPOSTAS[primeiro] && (primeiro !== "NOVO" || tokens[1] === "KIT")) return MARCAS_COMPOSTAS[primeiro];
-  if (MARCAS_GRAFIA[primeiro]) return MARCAS_GRAFIA[primeiro];
-  if (/\d/.test(primeiro) || primeiro.length <= 3) return primeiro;
-  return primeiro.charAt(0) + primeiro.slice(1).toLowerCase();
-}
+// limparMarca mora em nomes.mjs (o servidor do site também usa); o export continua aqui para os scripts e testes.
+export { limparMarca };
 
 // Modelos: o legado grava o mesmo carro com grafias diferentes (S-10/S10, HR-V/HRV, Del Rey/Delrey).
 // A chave junta as grafias; a grafia exibida vem do mapa ou da primeira forma normalizada.

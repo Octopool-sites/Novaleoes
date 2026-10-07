@@ -397,3 +397,32 @@ export function unidadeLegivel(unidade, quantidadeMinima) {
   const nomes = { JG: "Jogo", KT: "Kit", KI: "Kit", CJ: "Conjunto", LT: "Litro", ML: "Mililitro", KG: "Quilo", MT: "Metro", M: "Metro", CX: "Caixa", GL: "Galão", PA: "Par", PR: "Par" };
   return [nomes[u] || "", q > 1 ? `venda mínima de ${q}` : ""].filter(Boolean).join(" · ");
 }
+
+// Marca do ERP = fabricante + linha do produto ("VIEMAR TERM", "TECFIL F AR", "NAKATA PIVO").
+// O site mostra só o fabricante: primeira palavra, exceto marcas de duas palavras conhecidas.
+// Duas palavras que são o fabricante (conferidas pelo 2º token, antes do mapa de uma palavra): "AUTO STAR PIVO" é
+// Auto Star, "PRO TORK" não é Pro Automotive, "FLEX OIL LUB" e "FLEX AUTOMOT" são fabricantes diferentes.
+const MARCAS_DUAS_PALAVRAS = [
+  ["AUTO", /^STAR$/, "Auto Star"], ["AUTO", /^SHINE$/, "Auto Shine"], ["PRO", /^TORK$/, "Pro Tork"],
+  ["FLEX", /^AUTOMOT/, "Flex Automotive"], ["FLEX", /^OIL$/, "Flex Oil"], ["CONTROL", /^FLEX$/, "Control Flex"],
+];
+const MARCAS_COMPOSTAS = { NOVO: "Novo Kit", PRO: "Pro Automotive", FILTROS: "Filtros Brasil", TC: "TC Chicotes", AZEVEDO: "Azevedo", GM: "GM" };
+// Rótulos internos do legado que não são fabricante: não exibir marca. AMORT, MANG, ROL, KIT e OLEO são linha de
+// produto ("AMORT RECOND", "ROL DIV", "OLEO DIV"); 416, YBR e H-7 são modelo ou código.
+const MARCAS_OCULTAS = new Set(["DIVERSOS", "FERRAMENTAS", "UNIVERSAL", "IMPORTADO", "DV", "OUTROS", "GERAL", "LOJA", "NN",
+  "AMORT", "MANG", "ROL", "KIT", "OLEO", "416", "YBR", "H-7"]);
+// SAMBEL (12) ao lado de SAMPEL (448) parece erro de digitação, mas não foi confirmado com a loja: fica como está.
+const MARCAS_GRAFIA = { "FRAS-LE": "Fras-le", "3-RHO": "3-RHO", NAKATA: "Nakata", MOBENSANI: "Mobensani", CONTITECH: "ContiTech", KITCIA: "Kitcia" };
+
+export function limparMarca(marca) {
+  const tokens = String(marca || "").trim().toUpperCase().replace(/[.,]+$/, "").split(/\s+/).filter(Boolean);
+  if (!tokens.length) return "";
+  const primeiro = tokens[0];
+  if (MARCAS_OCULTAS.has(primeiro)) return "";
+  const dupla = MARCAS_DUAS_PALAVRAS.find(([t1, t2]) => t1 === primeiro && t2.test(tokens[1] || ""));
+  if (dupla) return dupla[2];
+  if (MARCAS_COMPOSTAS[primeiro] && (primeiro !== "NOVO" || tokens[1] === "KIT")) return MARCAS_COMPOSTAS[primeiro];
+  if (MARCAS_GRAFIA[primeiro]) return MARCAS_GRAFIA[primeiro];
+  if (/\d/.test(primeiro) || primeiro.length <= 3) return primeiro;
+  return primeiro.charAt(0) + primeiro.slice(1).toLowerCase();
+}
